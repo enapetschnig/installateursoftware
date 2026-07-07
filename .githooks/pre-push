@@ -1,0 +1,58 @@
+#!/bin/sh
+# ============================================================
+# B4Y SuperAPP – pre-push Hook
+# Führt vor JEDEM Push das echte CI-Merge-Gate aus: `npm run verify` = `npm run build`
+# Wenn der Push Supabase-Migrationen enthält, werden diese vorher automatisch
+# per `npm run db:migrate` auf die verlinkte Remote-DB angewendet.
+# (enthält `tsc --noEmit` + `vite build`). Genau das blockt auch in der GitHub-CI
+# (quality.yml). Lint/Format sind in der CI `continue-on-error` (nicht blockierend)
+# und daher hier bewusst NICHT enthalten – bei Bedarf separat: `npm run lint` / `npm run format:check`.
+# Aktivierung (einmalig pro Klon):  git config core.hooksPath .githooks
+# Notfall-Bypass (bewusst):         git push --no-verify
+# ============================================================
+MIGRATIONS_CHANGED=0
+ZERO_SHA=0000000000000000000000000000000000000000
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  if [ "$local_sha" = "$ZERO_SHA" ]; then
+    continue
+  fi
+
+  if [ "$remote_sha" = "$ZERO_SHA" ]; then
+    changed_files=$(git diff-tree --no-commit-id --name-only -r "$local_sha" -- supabase/migrations)
+  elif ! git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    echo "→ pre-push: Remote-Commit lokal noch unbekannt – Migrationserkennung für diese Ref übersprungen."
+    echo "  Falls Git den Push ablehnt: git fetch origin && git pull --rebase origin main"
+    changed_files=""
+  else
+    changed_files=$(git diff --name-only "$remote_sha..$local_sha" -- supabase/migrations)
+  fi
+
+  if echo "$changed_files" | grep -q '\.sql$'; then
+    MIGRATIONS_CHANGED=1
+  fi
+done
+
+if [ "$MIGRATIONS_CHANGED" = "1" ]; then
+  echo "→ pre-push: Supabase-Migrationen erkannt – npm run db:migrate …"
+  npm run db:migrate
+  if [ $? -ne 0 ]; then
+    echo ""
+    echo "✗ Push abgebrochen: Supabase-Migrationen konnten nicht angewendet werden."
+    echo "  Bitte .env.supabase.local mit SUPABASE_DB_PASSWORD ergänzen oder den DB-Fehler beheben."
+    exit 1
+  fi
+  echo "✓ Supabase-Migrationen angewendet."
+fi
+
+echo "→ pre-push: npm run verify (= Produktions-Build inkl. Typecheck, = CI-Gate) …"
+npm run verify
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "✗ Push abgebrochen: 'npm run verify' ist fehlgeschlagen. Bitte zuerst die Fehler beheben."
+  echo "  (Nur im Notfall bewusst umgehen mit: git push --no-verify)"
+  exit 1
+fi
+echo "✓ verify grün – Push wird fortgesetzt."
+exit 0

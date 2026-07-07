@@ -1,0 +1,159 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { TrendingUp, ListChecks, Package, FileText } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { PageHeader, Spinner, Badge, Empty } from "../components/ui";
+import { ErrorBanner } from "../components/calc-ui";
+import { Service, ServiceComponent, Article } from "../lib/calc-types";
+import { Offer, OfferStatus, OFFER_STATUS_LABEL, OFFER_STATUS_TONE } from "../lib/offer-types";
+import { calcService, marginTone, CalcComponent } from "../lib/calc";
+import { eur } from "../lib/format";
+
+type SvcRow = Service & { sale: number; cost: number; profit: number; margin: number };
+
+export default function Reports() {
+  const [svc, setSvc] = useState<SvcRow[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [tradeCount, setTradeCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const [s, c, a, o, t] = await Promise.all([
+        supabase.from("services").select("*"),
+        supabase.from("service_components").select("*"),
+        supabase.from("articles").select("*"),
+        // Soft-deleted Angebote dürfen nicht in Auswertungen zählen (deleted_at IS NULL).
+        supabase.from("offers").select("*").is("deleted_at", null),
+        supabase.from("trades").select("id", { count: "exact", head: true }),
+      ]);
+      if (s.error) setErr(s.error.message);
+      const comps = (c.data as ServiceComponent[]) ?? [];
+      const rows: SvcRow[] = ((s.data as Service[]) ?? []).map((x) => {
+        const own = comps.filter((k) => k.service_id === x.id) as CalcComponent[];
+        const r = calcService(own, x.overhead_percent);
+        return { ...x, sale: r.sale, cost: r.cost, profit: r.profit, margin: r.marginPct };
+      });
+      setSvc(rows);
+      setArticles((a.data as Article[]) ?? []);
+      setOffers((o.data as Offer[]) ?? []);
+      setTradeCount(t.count ?? 0);
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) return <div className="pt-4"><Spinner /></div>;
+
+  const withCalc = svc.filter((s) => s.sale > 0);
+  const avgMargin = withCalc.length ? Math.round((withCalc.reduce((a, s) => a + s.margin, 0) / withCalc.length) * 10) / 10 : 0;
+  const topByMargin = [...withCalc].sort((a, b) => b.margin - a.margin).slice(0, 5);
+  const topBySale = [...withCalc].sort((a, b) => b.sale - a.sale).slice(0, 5);
+  const stockValue = articles.filter((a) => a.is_stock).reduce((a, x) => a + Number(x.purchase_price || 0), 0);
+  const offerNet = offers.reduce((a, o) => a + Number(o.net || 0), 0);
+
+  const byStatus = (Object.keys(OFFER_STATUS_LABEL) as OfferStatus[]).map((st) => {
+    const items = offers.filter((o) => o.status === st);
+    return { status: st, count: items.length, net: items.reduce((a, o) => a + Number(o.net || 0), 0) };
+  });
+  const maxStatusNet = Math.max(1, ...byStatus.map((b) => b.net));
+
+  return (
+    <div className="pt-4">
+      <PageHeader title="Auswertungen" subtitle="Kalkulation, Margen, Artikel und Angebotsvolumen auf einen Blick." />
+      <ErrorBanner message={err} />
+
+      <div className="anim-in grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard icon={ListChecks} label="Leistungen" value={String(svc.length)} hint={`${tradeCount} Gewerke`} />
+        <StatCard icon={TrendingUp} label="Ø Marge" value={`${avgMargin}%`} hint={`${withCalc.length} kalkuliert`} />
+        <StatCard icon={Package} label="Artikel" value={String(articles.length)} hint={`Lagerwert ${eur(stockValue)}`} />
+        <StatCard icon={FileText} label="Angebotsvolumen" value={eur(offerNet)} hint={`${offers.length} Angebote`} />
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <Panel title="Top-Leistungen nach Verkaufspreis">
+          {topBySale.length === 0 ? <Empty title="Keine kalkulierten Leistungen" /> : (
+            <ul className="space-y-2">
+              {topBySale.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-3">
+                  <Link to={`/kalkulation/leistungen/${s.id}`} className="truncate text-sm hover:text-brand-600">{s.name}</Link>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">{eur(s.sale)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title="Beste Margen">
+          {topByMargin.length === 0 ? <Empty title="Keine kalkulierten Leistungen" /> : (
+            <ul className="space-y-2">
+              {topByMargin.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-3">
+                  <Link to={`/kalkulation/leistungen/${s.id}`} className="truncate text-sm hover:text-brand-600">{s.name}</Link>
+                  <Badge tone={marginTone(s.margin)}>{s.margin}%</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title="Angebote nach Status">
+          <div className="space-y-3">
+            {byStatus.map((b) => (
+              <div key={b.status}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <Badge tone={OFFER_STATUS_TONE[b.status]}>{OFFER_STATUS_LABEL[b.status]} · {b.count}</Badge>
+                  <span className="tabular-nums">{eur(b.net)}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full" style={{ background: "var(--hover)" }}>
+                  <div className="h-full rounded-full" style={{ width: `${(b.net / maxStatusNet) * 100}%`, background: "linear-gradient(90deg,var(--accent),var(--accent-h))" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Kalkulations-Kennzahlen">
+          <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+            <KV label="Summe Verkauf (alle Leistungen)" value={eur(withCalc.reduce((a, s) => a + s.sale, 0))} />
+            <KV label="Summe Selbstkosten" value={eur(withCalc.reduce((a, s) => a + s.cost, 0))} />
+            <KV label="Summe Gewinn" value={eur(withCalc.reduce((a, s) => a + s.profit, 0))} />
+            <KV label="Aktive Artikel" value={String(articles.filter((a) => a.active).length)} />
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, hint }: { icon: typeof TrendingUp; label: string; value: string; hint?: string }) {
+  return (
+    <div className="glass p-4">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <Icon size={14} /> {label}
+      </div>
+      <div className="mt-2 text-2xl font-extrabold tabular-nums">{value}</div>
+      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
+    </div>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="glass p-4">
+      <div className="mb-4 text-sm font-bold">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function KV({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs text-slate-400">{label}</div>
+      <div className="mt-0.5 font-bold tabular-nums">{value}</div>
+    </div>
+  );
+}

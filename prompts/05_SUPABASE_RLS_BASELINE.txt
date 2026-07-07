@@ -1,0 +1,15 @@
+Erstelle als getrenntes Arbeitspaket eine reproduzierbare Supabase-/RLS-Testbasis für die B4Y SuperAPP.
+
+Ziele:
+- keine produktive Datenbank verwenden
+- lokale oder dedizierte Testumgebung
+- Migrationen reproduzierbar anwenden
+- RLS für SELECT, INSERT, UPDATE und DELETE testen
+- zwei Mandanten und mehrere Rollen abdecken
+- fremden Zugriff ausdrücklich negativ testen
+- kritische Dokumentversionierungs- und Auditregeln testen
+- Tests in GitHub Actions integrieren
+
+Vorher vorhandene Supabase-Struktur, Tests, Migrationen und CI prüfen.
+Keine produktiven Secrets verwenden.
+Eigener Branch und Pull Request.

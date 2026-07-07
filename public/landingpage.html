@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!--
+    App-Routing-Schutz:
+    Die Hauptdomain "/" zeigt diese statische Landingpage. Alte App-Hash-Routen
+    (z. B. #/login, #/projekte) und Supabase-Auth-Callbacks werden auf die neue
+    lesbare App-URL unter /app/... umgeleitet. In-Page-Anker der Landingpage
+    (#funktionen, #faq …) bleiben unberührt.
+  -->
+  <script>
+    (function () {
+      try {
+        var h = window.location.hash || "";
+        var q = window.location.search || "";
+        var isAppRoute = h.indexOf("#/") === 0;
+        var isAuth = /access_token|refresh_token|provider_token|type=(recovery|signup|magiclink|invite|email_change)|error_code|error=/.test(h)
+          || /[?&]code=/.test(q);
+        if (isAppRoute) {
+          window.location.replace("/app" + h.slice(1));
+        } else if (isAuth) {
+          window.location.replace("/app/login" + q + h);
+        }
+      } catch (e) { /* still die Landingpage anzeigen */ }
+    })();
+  </script>
+
+  <title>B4Y SuperAPP – Bau- & Handwerks-Software mit KI | Made in Austria</title>
+  <meta name="description" content="B4Y SuperAPP: Projekte, Kontakte, Angebote, Aufträge, Rechnungen, Kalkulation, Dokumente mit Versionierung & PDF, Planung und KI-Assistent – ein durchgängiges System für Bau- und Handwerksbetriebe. Aus echter Baupraxis, EU-Server (DSGVO), Made in Austria." />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="color-scheme" content="light" />
+  <link rel="canonical" href="https://b4y-superapp.app/" />
+
+  <!-- OpenGraph / Social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="B4Y SuperAPP" />
+  <meta property="og:locale" content="de_AT" />
+  <meta property="og:title" content="B4Y SuperAPP – Bau- & Handwerks-Software mit KI" />
+  <meta property="og:description" content="Projekte, Angebote, Aufträge, Rechnungen, Kalkulation, Dokumente mit Versionierung & PDF, Planung und KI – ein System für Bau & Handwerk. Aus echter Baupraxis." />
+  <meta property="og:url" content="https://b4y-superapp.app/" />
+  <meta property="og:image" content="https://b4y-superapp.app/landing/hero-baustelle-tablet.jpg" />
+  <meta property="og:image:width" content="1600" />
+  <meta property="og:image:height" content="1067" />
+  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:alt" content="Fachkraft mit Tablet auf der Baustelle – B4Y SuperAPP" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="B4Y SuperAPP – Bau- & Handwerks-Software mit KI" />
+  <meta name="twitter:description" content="Projekte, Angebote, Rechnungen, Kalkulation, Dokumente und KI – ein System für Bau & Handwerk." />
+  <meta name="twitter:image" content="https://b4y-superapp.app/landing/hero-baustelle-tablet.jpg" />
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+  <style>
+    /* ====================================================================
+       B4Y SuperAPP – Landingpage (self-contained, keine externen CDNs/Fonts)
+       CSP-konform: nur inline-style + inline-script. Heller Premium-Look mit
+       gezielten dunklen Akzentbändern. Bilder lokal unter /landing/.
+       ==================================================================== */
+    :root {
+      /* Helle Basis */
+      --bg: #ffffff;
+      --bg-soft: #f5f7fa;
+      --bg-soft-2: #eef2f7;
+      --ink: #0f172a;
+      --ink-2: #334155;
+      --muted: #5b6b82;
+      --muted-2: #8190a6;
+      --line: rgba(15, 23, 42, .10);
+      --line-2: rgba(15, 23, 42, .06);
+      --card: #ffffff;
+
+      /* Marke (BAU4YOU-Rot) */
+      --brand: #e11d2a;
+      --brand-700: #c2161f;
+      --brand-300: #f08a8f;
+      --brand-soft: rgba(225, 29, 42, .08);
+      --brand-line: rgba(225, 29, 42, .28);
+
+      /* Dunkle Bänder */
+      --dark-bg: #0b1220;
+      --dark-bg-2: #0f1830;
+      --dark-ink: #eef2fb;
+      --dark-muted: #9fb0c9;
+      --dark-card: rgba(255, 255, 255, .055);
+      --dark-line: rgba(255, 255, 255, .12);
+
+      --ok: #16a34a;
+      --amber: #d97706;
+      --radius: 16px;
+      --radius-lg: 22px;
+      --maxw: 1180px;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .05);
+      --shadow: 0 10px 30px -12px rgba(15, 23, 42, .18);
+      --shadow-lg: 0 30px 60px -28px rgba(15, 23, 42, .35);
+      --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--bg); -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink-2);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden; /* Schutz gegen horizontale Überbreite */
+      overflow-wrap: break-word; /* lange Wörter/URLs brechen statt zu überlaufen */
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { transition: none !important; animation: none !important; }
+    }
+
+    a { color: inherit; }
+    img { max-width: 100%; height: auto; display: block; }
+    h1, h2, h3, h4 { line-height: 1.14; letter-spacing: -.02em; margin: 0; color: var(--ink); }
+    p { margin: 0; }
+    ul { margin: 0; padding: 0; list-style: none; }
+
+    .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+    .section { padding: 72px 0; }
+    .section--soft { background: var(--bg-soft); }
+    .center { text-align: center; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .maxw-2 { max-width: 720px; }
+    .maxw-3 { max-width: 880px; }
+
+    .eyebrow { text-transform: uppercase; letter-spacing: .16em; font-size: 12px; font-weight: 800; color: var(--brand); margin: 0; }
+    .h2 { font-size: clamp(26px, 3.6vw, 40px); font-weight: 850; color: var(--ink); margin-top: 12px; }
+    .lead { color: var(--muted); margin-top: 14px; font-size: clamp(16px, 1.4vw, 18px); }
+
+    /* ---- Icons (SVG-Sprite via <use>) ---- */
+    .ic { width: 24px; height: 24px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .ic-sm { width: 18px; height: 18px; }
+    .icon-badge { display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: var(--brand-soft); color: var(--brand); border: 1px solid var(--brand-line); }
+
+    /* ---- Buttons ---- */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border: 1px solid transparent; cursor: pointer; text-decoration: none;
+      border-radius: 12px; padding: 13px 20px; font-weight: 700; font-size: 15px;
+      transition: background .2s ease, transform .15s ease, border-color .2s ease, box-shadow .2s ease;
+      font-family: inherit; line-height: 1.1;
+    }
+    .btn--primary { background: var(--brand); color: #fff; box-shadow: 0 14px 26px -12px rgba(225, 29, 42, .6); }
+    .btn--primary:hover { background: var(--brand-700); transform: translateY(-1px); }
+    .btn--outline { background: #fff; color: var(--ink); border-color: var(--line); }
+    .btn--outline:hover { border-color: var(--brand); color: var(--brand); }
+    .btn--lg { padding: 15px 26px; font-size: 16px; }
+    /* Buttons auf dunklem Grund */
+    .on-dark .btn--outline { background: transparent; color: #fff; border-color: var(--dark-line); }
+    .on-dark .btn--outline:hover { border-color: #fff; background: rgba(255, 255, 255, .06); }
+
+    /* ---- Chips / Badges ---- */
+    .pill { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; background: var(--bg-soft); border: 1px solid var(--line); padding: 7px 13px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+    .pill .ic { color: var(--brand); }
+    .badge { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; border: 1px solid var(--brand-line); background: var(--brand-soft); padding: 7px 14px; font-size: 12.5px; font-weight: 700; color: var(--brand-700); }
+    .badge .ic { color: var(--brand); }
+    .tag { display: inline-block; border-radius: 6px; background: var(--brand); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .04em; padding: 3px 7px; vertical-align: middle; }
+    .tag--soft { background: var(--bg-soft-2); color: var(--muted); border: 1px solid var(--line); }
+    .grad-text { color: var(--brand); }
+
+    /* ---- Cards ---- */
+    .grid { display: grid; gap: 18px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); }
+    .card--hover { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+    .card--hover:hover { transform: translateY(-3px); border-color: var(--brand-line); box-shadow: var(--shadow); }
+    .card h3 { font-size: 17px; color: var(--ink); }
+    .card p { color: var(--muted); font-size: 14.5px; margin-top: 6px; }
+
+    .check { display: grid; gap: 8px; margin-top: 14px; font-size: 14px; color: var(--ink-2); }
+    .check li { display: flex; gap: 9px; align-items: flex-start; }
+    .check li .ic { color: var(--ok); margin-top: 1px; }
+    .cross li .ic { color: var(--brand); }
+
+    /* ---- Header ---- */
+    .header { position: sticky; top: 0; z-index: 50; background: rgba(255, 255, 255, .86); backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--line-2); }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; }
+    .brand-logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
+    .logo-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg, #ff5a5f, var(--brand-700)); color: #fff; font-weight: 900; font-size: 14px; box-shadow: 0 8px 18px -8px rgba(225, 29, 42, .7); }
+    .logo-text { font-weight: 800; font-size: 18px; color: var(--ink); letter-spacing: -.02em; white-space: nowrap; }
+    .logo-text span { color: var(--brand); }
+    .nav-links { display: none; gap: 26px; font-size: 14.5px; font-weight: 600; color: var(--muted); }
+    .nav-links a { text-decoration: none; }
+    .nav-links a:hover { color: var(--ink); }
+    .nav-cta { display: flex; align-items: center; gap: 8px; }
+    .nav-login { display: none; text-decoration: none; color: var(--ink-2); font-weight: 600; font-size: 14.5px; padding: 9px 12px; border-radius: 10px; }
+    .nav-login:hover { color: var(--brand); }
+
+    /* ---- Hero ---- */
+    .hero { position: relative; overflow: hidden; background:
+        radial-gradient(1100px 520px at 88% -8%, rgba(225, 29, 42, .07), transparent 60%),
+        radial-gradient(900px 500px at 0% 0%, rgba(37, 99, 235, .05), transparent 55%); }
+    .hero-grid { display: grid; gap: 40px; align-items: center; padding: 52px 0 64px; }
+    .hero h1 { font-size: clamp(32px, 5.4vw, 52px); font-weight: 880; color: var(--ink); margin-top: 18px; }
+    .hero .lead { max-width: 580px; }
+    .hero-claim { margin-top: 14px; font-weight: 800; color: var(--ink); font-size: clamp(16px, 1.6vw, 18px); }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+    .hero-trust { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 28px; font-size: 13px; color: var(--muted); font-weight: 600; }
+    .hero-trust span { display: inline-flex; align-items: center; gap: 7px; }
+    .hero-trust .ic { color: var(--brand); }
+
+    .hero-media { position: relative; }
+    .hero-photo { border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
+    .hero-photo img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+    .hero-float { position: absolute; left: 16px; bottom: 16px; right: 16px; max-width: 340px; background: rgba(255, 255, 255, .92); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 14px; padding: 13px 15px; box-shadow: var(--shadow); }
+    .hero-float .row { display: flex; align-items: center; gap: 9px; }
+    .hero-float .dot { width: 30px; height: 30px; border-radius: 9px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; border: 1px solid var(--brand-line); }
+    .hero-float b { color: var(--ink); font-size: 13.5px; }
+    .hero-float p { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+
+    /* ---- Stat row ---- */
+    .stat { text-align: center; }
+    .stat .n { font-size: clamp(26px, 3vw, 34px); font-weight: 900; color: var(--brand); }
+    .stat .l { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+
+    /* ---- Photo cards (Zielgruppen) ---- */
+    .photo-card { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow-sm); transition: transform .2s ease, box-shadow .2s ease; }
+    .photo-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+    .photo-card .ph { aspect-ratio: 16 / 11; overflow: hidden; }
+    .photo-card .ph img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-card .bd { padding: 18px 20px; }
+    .photo-card h3 { display: flex; align-items: center; gap: 9px; font-size: 16.5px; }
+    .photo-card h3 .ic { color: var(--brand); }
+    .photo-card p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+    /* ---- Module cards ---- */
+    .mod-grid { display: grid; gap: 18px; grid-template-columns: 1fr; }
+    .mod { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+    .mod:hover { transform: translateY(-3px); border-color: var(--brand-line); box-shadow: var(--shadow); }
+    .mod-head { display: flex; align-items: center; gap: 12px; }
+    .mod-head h3 { font-size: 17px; }
+    .mod-desc { color: var(--muted); font-size: 14px; margin-top: 10px; }
+    .mod-list { display: grid; gap: 7px; margin-top: 13px; font-size: 13.5px; color: var(--ink-2); }
+    .mod-list li { display: flex; gap: 8px; align-items: flex-start; }
+    .mod-list li .ic { color: var(--ok); margin-top: 1px; }
+
+    /* ---- Spotlight (Bild + Text) ---- */
+    .split { display: grid; gap: 36px; align-items: center; }
+    .split-photo { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); }
+    .split-photo img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+
+    /* ---- "Im Ausbau"-Band ---- */
+    .soon-grid { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 22px; }
+    .soon { display: flex; align-items: center; gap: 12px; border: 1px dashed var(--line); border-radius: 13px; padding: 14px 16px; background: var(--bg); }
+    .soon .ic { color: var(--muted-2); }
+    .soon b { color: var(--ink); font-size: 14.5px; }
+    .soon p { color: var(--muted); font-size: 13px; margin-top: 1px; }
+    .soon .tag { margin-left: auto; }
+
+    /* ---- Dunkles Band ---- */
+    .band-dark { background: linear-gradient(180deg, var(--dark-bg), var(--dark-bg-2)); color: var(--dark-ink); border-top: 1px solid var(--dark-line); border-bottom: 1px solid var(--dark-line); }
+    .band-dark .h2, .band-dark h3, .band-dark h4 { color: #fff; }
+    .band-dark .lead, .band-dark p { color: var(--dark-muted); }
+    .band-dark .eyebrow { color: var(--brand-300); }
+    .band-dark .card { background: var(--dark-card); border-color: var(--dark-line); box-shadow: none; }
+    .band-dark .card p { color: var(--dark-muted); }
+    .band-dark .pill { background: rgba(255, 255, 255, .06); border-color: var(--dark-line); color: #dbe3f2; }
+    .band-dark .pill .ic { color: var(--brand-300); }
+    .band-dark .check li { color: #d6deec; }
+
+    /* ---- Kosten (dunkel) ---- */
+    .cost .n { font-size: 26px; font-weight: 900; color: #fff; }
+    .cost .n span { font-size: 13px; color: var(--dark-muted); font-weight: 500; }
+    .cost-total { display: inline-block; border-radius: 14px; background: rgba(225, 29, 42, .16); border: 1px solid var(--brand-line); padding: 12px 22px; font-size: 18px; font-weight: 900; color: #ffd0d3; }
+
+    /* ---- KI chat mock ---- */
+    .chat { display: grid; gap: 10px; margin-top: 16px; font-size: 14px; }
+    .bubble-me { margin-left: auto; max-width: 88%; background: var(--brand); color: #fff; border-radius: 14px 14px 4px 14px; padding: 11px 13px; }
+    .bubble-ai { max-width: 95%; background: rgba(255, 255, 255, .06); border: 1px solid var(--dark-line); border-radius: 14px 14px 14px 4px; padding: 12px 13px; color: #d8e0ee; }
+    .bubble-ai .ok { color: #5fd39b; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+    .bubble-ai ul { margin-top: 8px; display: grid; gap: 4px; color: #c6d0e2; }
+    .bubble-ai .hint { margin-top: 10px; border-radius: 10px; background: rgba(225, 29, 42, .14); border: 1px solid var(--brand-line); padding: 9px 11px; color: #ffd0d3; font-size: 13px; }
+
+    /* ---- ROI ---- */
+    .roi-grid { display: grid; gap: 24px; margin-top: 34px; }
+    .roi-controls { display: grid; gap: 20px; }
+    .roi-row .row-head { display: flex; justify-content: space-between; font-size: 14px; }
+    .roi-row label { color: var(--ink-2); font-weight: 600; }
+    .roi-row .val { font-weight: 800; color: var(--ink); }
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px; background: var(--bg-soft-2); outline: none; margin-top: 11px; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--brand); cursor: pointer; box-shadow: 0 0 0 4px rgba(225, 29, 42, .18); }
+    input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--brand); cursor: pointer; }
+    .roi-out { display: grid; gap: 14px; align-content: start; }
+    .roi-out .big { font-size: 30px; font-weight: 900; color: var(--ink); }
+    .roi-out .big-brand { font-size: 30px; font-weight: 900; color: var(--brand); }
+    .roi-year { border: 1px solid var(--brand-line); background: var(--brand-soft); border-radius: var(--radius); padding: 20px; }
+    .roi-year .y { font-size: 36px; font-weight: 900; color: var(--ink); }
+
+    /* ---- pricing ---- */
+    .price-card { display: flex; flex-direction: column; }
+    .price-card .name { font-size: 18px; font-weight: 800; color: var(--ink); }
+    .price-card .amount { font-size: 24px; font-weight: 900; color: var(--ink); margin-top: 4px; }
+    .price-card .who { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    .price-card .check { flex: 1; }
+    .price-card.featured { border: 2px solid var(--brand); box-shadow: var(--shadow); position: relative; }
+
+    /* ---- steps ---- */
+    .step .n { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--brand-soft); color: var(--brand); border: 1px solid var(--brand-line); font-weight: 900; font-size: 15px; }
+    .step h3 { font-size: 16px; margin-top: 12px; }
+
+    /* ---- use-cases ---- */
+    .uc { display: grid; gap: 0; overflow: hidden; }
+    .uc .ph { aspect-ratio: 16 / 10; overflow: hidden; }
+    .uc .ph img { width: 100%; height: 100%; object-fit: cover; }
+    .uc .bd { padding: 20px; }
+    .stars { color: var(--amber); letter-spacing: 2px; font-size: 15px; }
+    .uc blockquote { margin: 8px 0 0; font-size: 14.5px; color: var(--ink-2); }
+    .uc figcaption { margin-top: 12px; font-size: 13.5px; font-weight: 700; color: var(--ink); }
+    .uc figcaption span { font-weight: 500; color: var(--muted); }
+
+    /* ---- FAQ ---- */
+    .faq-item { overflow: hidden; padding: 0; }
+    .faq-q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: none; border: 0; padding: 17px 18px; text-align: left; cursor: pointer; color: var(--ink); font-weight: 700; font-size: 15.5px; font-family: inherit; }
+    .faq-q .sign { color: var(--brand); font-size: 22px; line-height: 1; flex: none; }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height .25s ease; }
+    .faq-a > div { padding: 0 18px 17px; color: var(--muted); font-size: 14.5px; }
+    .faq-item.open .faq-a { max-height: 360px; }
+
+    /* ---- final cta (dunkel) ---- */
+    .final { border-radius: var(--radius-lg); padding: 52px 28px; text-align: center; background:
+        radial-gradient(700px 320px at 50% -20%, rgba(225, 29, 42, .25), transparent 60%), var(--dark-bg-2);
+      border: 1px solid var(--dark-line); }
+    .final .h2, .final p { color: #fff; }
+    .final .sub { color: var(--dark-muted); }
+
+    /* ---- footer ---- */
+    .footer { border-top: 1px solid var(--line); background: var(--bg-soft); }
+    .footer-grid { display: grid; gap: 28px; padding: 48px 0; }
+    .footer h4 { font-size: 14px; font-weight: 800; color: var(--ink); margin: 0 0 12px; }
+    .footer a { color: var(--muted); text-decoration: none; font-size: 14px; }
+    .footer a:hover { color: var(--brand); }
+    .footer-links { display: grid; gap: 9px; }
+    .footer-copy { border-top: 1px solid var(--line); padding: 18px 0; text-align: center; font-size: 12.5px; color: var(--muted-2); }
+
+    .mt-6 { margin-top: 24px; } .mt-8 { margin-top: 32px; } .mt-10 { margin-top: 40px; }
+    .skip { position: absolute; left: -9999px; top: 0; background: var(--brand); color: #fff; padding: 10px 16px; border-radius: 0 0 10px 0; z-index: 100; }
+    .skip:focus { left: 0; }
+    :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+
+    /* ---- responsive ---- */
+    .cols-2 { grid-template-columns: 1fr; }
+    .cols-3 { grid-template-columns: 1fr; }
+    .cols-4 { grid-template-columns: 1fr; }
+    @media (min-width: 560px) {
+      .cols-2 { grid-template-columns: repeat(2, 1fr); }
+      .cols-3 { grid-template-columns: repeat(2, 1fr); }
+      .cols-4 { grid-template-columns: repeat(2, 1fr); }
+      .soon-grid { grid-template-columns: repeat(2, 1fr); }
+      .mod-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (min-width: 768px) {
+      .nav-links { display: flex; }
+      .nav-login { display: inline-flex; }
+      .roi-grid { grid-template-columns: 1fr 1fr; }
+      .footer-grid { grid-template-columns: 2fr 1fr 1fr; }
+    }
+    @media (min-width: 900px) {
+      .hero-grid { grid-template-columns: 1.04fr .96fr; }
+      .split { grid-template-columns: 1fr 1fr; }
+    }
+    @media (min-width: 980px) {
+      .cols-3 { grid-template-columns: repeat(3, 1fr); }
+      .cols-4 { grid-template-columns: repeat(4, 1fr); }
+      .soon-grid { grid-template-columns: repeat(4, 1fr); }
+      .mod-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 559px) {
+      .section { padding: 52px 0; }
+      .hero-grid { gap: 26px; padding: 40px 0 48px; }
+      .hero-float { position: static; left: auto; right: auto; max-width: none; margin-top: 14px; box-shadow: none; }
+      .roi-out .big, .roi-out .big-brand { font-size: 26px; }
+      .hero-actions { flex-direction: column; align-items: stretch; }
+      .hero-actions .btn { width: 100%; }
+      .pill { padding: 6px 11px; font-size: 12px; }
+      .cost-total { font-size: 16px; padding: 10px 16px; }
+      .bubble-me { max-width: 92%; }
+      .bubble-ai { max-width: 96%; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#funktionen">Zum Inhalt springen</a>
+
+  <!-- ===== SVG-Icon-Sprite (inline, CSP-konform) ===== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></symbol>
+      <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></symbol>
+      <symbol id="i-package" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+      <symbol id="i-banknote" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/></symbol>
+      <symbol id="i-calculator" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></symbol>
+      <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></symbol>
+      <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></symbol>
+      <symbol id="i-cap" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1 2.5 3 6 3s6-2 6-3v-5"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="3"/></symbol>
+      <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z"/></symbol>
+      <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+      <symbol id="i-euro" viewBox="0 0 24 24"><path d="M4 10h12"/><path d="M4 14h9"/><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12a7.9 7.9 0 0 0 7.8 8 7.7 7.7 0 0 0 5.2-2"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></symbol>
+      <symbol id="i-building" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></symbol>
+      <symbol id="i-hardhat" viewBox="0 0 24 24"><path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1Z"/><path d="M10 10V6a2 2 0 0 1 4 0v4"/><path d="M4 16v-3a8 8 0 0 1 16 0v3"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+      <symbol id="i-server" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+      <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></symbol>
+      <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+      <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- ===== Navigation ===== -->
+  <header class="header">
+    <div class="wrap">
+      <nav class="nav" aria-label="Hauptnavigation">
+        <a href="#top" class="brand-logo" aria-label="B4Y SuperAPP Startseite">
+          <span class="logo-mark" aria-hidden="true">B4</span>
+          <span class="logo-text">B4Y <span>SuperAPP</span></span>
+        </a>
+        <div class="nav-links">
+          <a href="#funktionen">Module</a>
+          <a href="#ki">KI</a>
+          <a href="#roi">ROI-Rechner</a>
+          <a href="#preise">Preise</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <div class="nav-cta">
+          <a href="/app/login" class="nav-login">Login</a>
+          <a href="mailto:office@bau4you.at?subject=Demo%20anfragen%20%E2%80%93%20B4Y%20SuperAPP" class="btn btn--primary">Demo anfragen</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- ===== Hero ===== -->
+    <section class="hero">
+      <div class="wrap">
+        <div class="hero-grid">
+          <div>
+            <span class="badge"><svg class="ic ic-sm"><use href="#i-bot"/></svg> KI-Assistent integriert – Kalkulation per Sprache</span>
+            <h1>Die Software für Bau&nbsp;&amp; Handwerk, die endlich <span class="grad-text">Ordnung, Tempo und Kontrolle</span> bringt.</h1>
+            <p class="lead">Projekte, Kontakte, Angebote, Aufträge, Rechnungen, Kalkulation, Dokumente mit revisionssicheren PDFs, Planung und ein KI-Assistent – in <strong>einem durchgängigen System</strong>. Entwickelt aus echter Baupraxis.</p>
+            <p class="hero-claim">Weniger suchen. Weniger vergessen. Sauber abrechnen.</p>
+            <div class="hero-actions">
+              <a href="mailto:office@bau4you.at?subject=Demo%20anfragen%20%E2%80%93%20B4Y%20SuperAPP" class="btn btn--primary btn--lg">Kostenlose Demo anfragen</a>
+              <a href="#funktionen" class="btn btn--outline btn--lg">Module ansehen <svg class="ic ic-sm"><use href="#i-arrow"/></svg></a>
+            </div>
+            <div class="hero-trust">
+              <span><svg class="ic ic-sm"><use href="#i-hardhat"/></svg> Für Bau &amp; Handwerk</span>
+              <span><svg class="ic ic-sm"><use href="#i-shield"/></svg> DSGVO &amp; EU-Server</span>
+              <span><svg class="ic ic-sm"><use href="#i-pin"/></svg> Made in Austria</span>
+            </div>
+          </div>
+          <div class="hero-media">
+            <figure class="hero-photo">
+              <img src="/landing/hero-baustelle-tablet.jpg" width="1600" height="1067" fetchpriority="high" decoding="async"
+                   alt="Fachkraft mit Schutzhelm und Warnweste bedient ein Tablet auf der Baustelle" />
+            </figure>
+            <div class="hero-float" role="img" aria-label="Beispielhafter KI-Hinweis aus der App">
+              <div class="row">
+                <span class="dot" aria-hidden="true"><svg class="ic ic-sm"><use href="#i-bot"/></svg></span>
+                <b>KI-Hinweis</b>
+              </div>
+              <p>„Projekt Rosenauer: 2 erledigte Nachträge sind noch nicht in einer Rechnung erfasst.“</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Zielgruppen ===== -->
+    <section class="section section--soft">
+      <div class="wrap">
+        <p class="eyebrow center">Von Praktikern für Praktiker</p>
+        <h2 class="h2 center mx-auto maxw-3">Gebaut für Betriebe, die mit Bau &amp; Handwerk Geld verdienen.</h2>
+        <div class="grid cols-3 mt-8">
+          <article class="photo-card">
+            <div class="ph"><img src="/landing/praxis-rohbau.jpg" loading="lazy" decoding="async" alt="Handwerker arbeitet am Rohbau in der Sonne" /></div>
+            <div class="bd">
+              <h3><svg class="ic ic-sm"><use href="#i-building"/></svg> Bauunternehmen</h3>
+              <p>Baumeister &amp; Generalunternehmer mit mehreren Projekten, Gewerken und Subunternehmern.</p>
+            </div>
+          </article>
+          <article class="photo-card">
+            <div class="ph"><img src="/landing/handwerk-detail.jpg" loading="lazy" decoding="async" alt="Handwerker bei der Arbeit mit dem Winkelschleifer" /></div>
+            <div class="bd">
+              <h3><svg class="ic ic-sm"><use href="#i-hardhat"/></svg> Handwerksbetriebe</h3>
+              <p>Maler, Fliesenleger, Trockenbauer, Installateure &amp; weitere Gewerke mit eigener Kalkulation.</p>
+            </div>
+          </article>
+          <article class="photo-card">
+            <div class="ph"><img src="/landing/team-besprechung.jpg" loading="lazy" decoding="async" alt="Bauleiterin und Polier besprechen Pläne auf der Baustelle" /></div>
+            <div class="bd">
+              <h3><svg class="ic ic-sm"><use href="#i-users"/></svg> Subunternehmer &amp; Teams</h3>
+              <p>Spezialisten und Gewerke-Teams, die Aufträge sauber dokumentieren und abrechnen wollen.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Problem ===== -->
+    <section class="section">
+      <div class="wrap">
+        <p class="eyebrow center">Kennst du das?</p>
+        <h2 class="h2 center mx-auto maxw-3">Wenn der Betrieb wächst, wächst zuerst das Chaos.</h2>
+        <p class="lead center mx-auto maxw-2">Irgendwann reichen Excel, WhatsApp und Zettel nicht mehr. Dann verliert man nicht nur den Überblick – sondern auch Geld.</p>
+        <div class="grid cols-4 mt-10">
+          <div class="card card--hover"><span class="icon-badge"><svg class="ic"><use href="#i-message"/></svg></span><h3 style="margin-top:12px;font-size:16px">WhatsApp-Chaos</h3><p>Wichtige Infos verschwinden in Gruppen. Niemand weiß mehr, was abgemacht war.</p></div>
+          <div class="card card--hover"><span class="icon-badge"><svg class="ic"><use href="#i-table"/></svg></span><h3 style="margin-top:12px;font-size:16px">Excel-Listen</h3><p>Zehn Dateien, drei davon veraltet. Welche ist die aktuelle?</p></div>
+          <div class="card card--hover"><span class="icon-badge"><svg class="ic"><use href="#i-camera"/></svg></span><h3 style="margin-top:12px;font-size:16px">Verstreute Fotos</h3><p>Baustellenfotos auf fünf Handys. Im Streitfall nicht auffindbar.</p></div>
+          <div class="card card--hover"><span class="icon-badge"><svg class="ic"><use href="#i-euro"/></svg></span><h3 style="margin-top:12px;font-size:16px">Vergessene Nachträge</h3><p>Mehrarbeit erledigt, aber nie verrechnet. Marge verschenkt.</p></div>
+          <div class="card card--hover"><span class="icon-badge"><svg class="ic"><use href="#i-help"/></svg></span><h3 style="margin-top:12px;font-size:16px">Unklare Aufgaben</h3><p>Wer macht was bis wann? Am Ende landet alles beim Chef.</p></div>
+          <div class="card card--hover"><span class="icon-badge"><svg class="ic"><use href="#i-clock"/></svg></span><h3 style="margin-top:12px;font-size:16px">Offene Rechnungen</h3><p>Kein Überblick über Fälligkeiten – die Liquidität leidet.</p></div>
+          <div class="card card--hover"><span class="icon-badge"><svg class="ic"><use href="#i-calendar"/></svg></span><h3 style="margin-top:12px;font-size:16px">Holprige Planung</h3><p>Termine kollidieren, Teams und Geräte sind doppelt verplant.</p></div>
+          <div class="card card--hover"><span class="icon-badge"><svg class="ic"><use href="#i-repeat"/></svg></span><h3 style="margin-top:12px;font-size:16px">Doppelte Eingaben</h3><p>Dieselben Daten in mehreren Systemen pflegen. Zeit verschwendet.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Kostenfaktor (dunkel) ===== -->
+    <section class="section band-dark on-dark">
+      <div class="wrap">
+        <p class="eyebrow center">Der versteckte Kostenfaktor</p>
+        <h2 class="h2 center mx-auto maxw-3">Wo ein Betrieb jeden Monat Geld liegen lässt.</h2>
+        <blockquote class="lead center mx-auto maxw-2" style="font-style:italic">„Die billigste Stunde ist die, die man nicht doppelt arbeitet. Die teuerste Leistung ist die, die man vergisst zu verrechnen.“</blockquote>
+        <div class="grid cols-4 mt-10 cost">
+          <div class="card"><div class="n">€ 350<span> / Woche</span></div><h3 style="margin-top:8px;font-size:16px">Suchzeit</h3><p>Suche nach Plänen, Dokumenten, Infos. Nicht produktiv.</p></div>
+          <div class="card"><div class="n">€ 800<span> / Monat</span></div><h3 style="margin-top:8px;font-size:16px">Vergessene Nachträge</h3><p>Mehrarbeiten bleiben im Kopf – Marge verloren.</p></div>
+          <div class="card"><div class="n">€ 500<span> / Monat</span></div><h3 style="margin-top:8px;font-size:16px">Verzögerte Rechnungen</h3><p>Spät gestellt heißt spät bezahlt. Liquidität leidet.</p></div>
+          <div class="card"><div class="n">€ 400<span> / Monat</span></div><h3 style="margin-top:8px;font-size:16px">Koordinationsmangel</h3><p>Teams warten, Baustellen stehen still.</p></div>
+        </div>
+        <div class="center mt-8">
+          <span class="cost-total">grob über € 2.000 monatliches Verlustpotenzial</span>
+          <p class="lead center" style="margin-top:8px">Beispielhafter Richtwert – allein durch fehlende Organisation, abhängig vom Betrieb.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Lösung ===== -->
+    <section class="section">
+      <div class="wrap">
+        <p class="eyebrow center">Die Lösung</p>
+        <h2 class="h2 center mx-auto maxw-3">B4Y SuperAPP bündelt alles in einem System.</h2>
+        <p class="lead center mx-auto maxw-2">Kein Jonglieren zwischen Apps, keine Doppelerfassung – ein durchgängiger Ablauf vom ersten Kontakt bis zur bezahlten Rechnung.</p>
+        <div class="grid cols-3 mt-10">
+          <div class="card">
+            <span class="icon-badge"><svg class="ic"><use href="#i-folder"/></svg></span>
+            <h3 style="margin-top:14px">Struktur</h3>
+            <p>Projekte, Kontakte, Dokumente, Fotos und Aufgaben an einem zentralen Ort.</p>
+            <ul class="check">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Projektakte mit Logbuch &amp; Medien</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Rollenbasierte Zugriffsrechte</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Zentrale Dokumentenübersicht</li>
+            </ul>
+          </div>
+          <div class="card">
+            <span class="icon-badge"><svg class="ic"><use href="#i-dashboard"/></svg></span>
+            <h3 style="margin-top:14px">Kontrolle</h3>
+            <p>Überblick über Projekte, offene Rechnungen, Aufgaben und Team-Einteilung.</p>
+            <ul class="check">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Dashboard &amp; Admin-Cockpit</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Rechnungs- &amp; Zahlungsstatus</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Revisionssichere Dokumentversionen</li>
+            </ul>
+          </div>
+          <div class="card">
+            <span class="icon-badge"><svg class="ic"><use href="#i-zap"/></svg></span>
+            <h3 style="margin-top:14px">Tempo</h3>
+            <p>Mit zentraler Kalkulation und KI schneller kalkulieren und abrechnen.</p>
+            <ul class="check">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Kalkulation per Sprache &amp; KI</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Angebot → Auftrag → Rechnung in Sekunden</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Wiederkehrendes automatisieren</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Module ===== -->
+    <section id="funktionen" class="section section--soft">
+      <div class="wrap">
+        <p class="eyebrow center">Module</p>
+        <h2 class="h2 center mx-auto maxw-3">Alles drin. Alles verbunden.</h2>
+        <p class="lead center mx-auto maxw-2">Kein Modul steht allein – Projekte, Finanzen, Stammdaten, Team und KI greifen in einem durchgängigen Ablauf ineinander. Hier die Bereiche, die heute produktiv nutzbar sind.</p>
+
+        <div class="mod-grid mt-10">
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-dashboard"/></svg></span><h3>Übersicht &amp; Cockpit</h3></div>
+            <p class="mod-desc">Der tägliche Startbildschirm – und ein eigener Admin-Leitstand.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Live-Kennzahlen: Projekte, offene Rechnungen, Umsatzverlauf</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Aufgaben &amp; Termine für heute</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Bauwetter für die Region (Außenarbeiten planen)</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Cockpit: Pipeline, Team-Einteilung, Automationen</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-folder"/></svg></span><h3>Projekte &amp; Projektakte</h3></div>
+            <p class="mod-desc">Jedes Projekt als zentrale Akte – nichts geht mehr verloren.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Liste &amp; Kanban-Board, Suche und Filter</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Logbuch, Fotos/Dokumente, Termine, Aufgaben</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Checklisten, Baubesprechungen, Beteiligte</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Auftragsvolumen je Projekt auf einen Blick</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-users"/></svg></span><h3>Kontakte</h3></div>
+            <p class="mod-desc">Kunden, Lieferanten und Subunternehmer sauber gepflegt.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Kontaktarten mit mehreren Ansprechpersonen</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Eigene Konditionen je Kontakt (Zahlungsziel, Skonto, Nachlass)</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Intelligente Suche &amp; Adress-Autovervollständigung (AT)</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Saubere Adressblöcke für PDFs</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-layers"/></svg></span><h3>Dokumente &amp; PDF</h3></div>
+            <p class="mod-desc">Eine zentrale Dokument-Engine für den ganzen Beleglauf.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Dokumentketten: Angebot → Auftrag → Rechnung mit Positionsauswahl</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Versionierung mit unveränderlichem PDF-Snapshot &amp; Audit-Log</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Eigene Nummernkreise je Dokumentart</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Druckfertige PDFs mit Firmenkopf, Vor-/Nachtexten &amp; Summen</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-clipboard"/></svg></span><h3>Angebote</h3></div>
+            <p class="mod-desc">Vom leeren Blatt zum fertigen Angebot – auch per Sprache.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Positions-Editor (Drag &amp; Drop), Varianten Standard/Pauschal/Regie</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Vor-/Nachtexte, Konditionen, Nachträge</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> KI-/Sprach-Angebot: diktieren → kalkulierter Entwurf</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-package"/></svg></span><h3>Aufträge &amp; SUB-Aufträge</h3></div>
+            <p class="mod-desc">Beauftragen, an Subunternehmer vergeben, Überblick behalten.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Aus einem oder mehreren Angeboten erstellen (mit Mengenauswahl)</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Verrechnungsstatus, Storno, Archiv</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> SUB-Vergabe mit interner Marge &amp; Übervergabe-Schutz</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Eigenes SUB-PDF ohne interne Kundenpreise</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-banknote"/></svg></span><h3>Rechnungen</h3></div>
+            <p class="mod-desc">Rechnungen nach österreichischem Recht – sauber abgesichert.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> § 11 UStG-konform: Teil-, Schluss- &amp; Gutschrift</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> § 19 Bauleistung (Reverse Charge) mit Hinweis</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Skonto, Zahlungsziel, Fälligkeit &amp; Zahlungsstatus</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Schutz vor doppelter Verrechnung von Positionen</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-calculator"/></svg></span><h3>Kalkulation</h3></div>
+            <p class="mod-desc">Die Preis-Basis für alle Angebote – zentral und nachvollziehbar.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Gewerke, Einheiten, Stundensätze (mit Marge)</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Artikel mit Bildern &amp; CSV-Im-/Export</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Zusammengesetzte Leistungen: Arbeit + Material + Pauschalen</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Titel/Gliederung &amp; Textbausteine mit Platzhaltern</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-calendar"/></svg></span><h3>Planung</h3></div>
+            <p class="mod-desc">Termine, Teams und Ressourcen ohne Doppelbelegung.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Wochen-Plantafel (Drag &amp; Drop) &amp; Monatsansicht</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Konfliktprüfung bei Doppelbelegung &amp; Abwesenheiten</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Ressourcen (Fahrzeuge, Geräte, Teams), iCal-Export</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> KI-Wochenanalyse für Engpässe &amp; Lücken</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-shield"/></svg></span><h3>Mitarbeiter &amp; Rechte</h3></div>
+            <p class="mod-desc">Personalstammdaten und fein steuerbare Zugriffsrechte.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Stammdaten, Arbeitszeitmodelle, Lohngruppe, Foto</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Einladung per sicherem Link (kein Klartext-Passwort)</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Rollen &amp; Rechte je Modul, Datenbereich-Scopes</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> In der Datenbank (RLS) abgesichert, nicht nur in der Oberfläche</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-zap"/></svg></span><h3>Automationen</h3></div>
+            <p class="mod-desc">Wiederkehrende Abläufe beim Projektstatuswechsel auslösen.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Aufgaben, Checklisten, Termine &amp; E-Mail-Entwürfe automatisch erzeugen</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Bedingungen + Schutz vor Mehrfacherzeugung</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Test-/Simulationsmodus &amp; Ausführungsprotokoll</li>
+            </ul>
+          </article>
+
+          <article class="mod">
+            <div class="mod-head"><span class="icon-badge"><svg class="ic"><use href="#i-sliders"/></svg></span><h3>Einstellungen</h3></div>
+            <p class="mod-desc">Den Betrieb ohne Programmierung selbst einrichten.</p>
+            <ul class="mod-list">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Firmendaten, Logo, Bank, Design (hell/dunkel, Farben)</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Dokumentarten, Nummernkreise, Projekttypen, Mailvorlagen</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Arbeitszeitmodelle &amp; Jahreskalender (BUAK-Wochenarten)</li>
+            </ul>
+          </article>
+        </div>
+
+        <p class="lead center mx-auto maxw-2 mt-8" style="font-size:14px">Dazu kommen <strong>Auswertungen</strong> (Margen, Lagerwert, Angebots-Pipeline, Umsatztrend) – heute mit Fokus auf Kalkulation &amp; Angebote, Schritt für Schritt im Ausbau.</p>
+      </div>
+    </section>
+
+    <!-- ===== Spotlight: Dokumente/Versionierung ===== -->
+    <section class="section">
+      <div class="wrap">
+        <div class="split">
+          <figure class="split-photo">
+            <img src="/landing/plaene-dokumente.jpg" loading="lazy" decoding="async" alt="Baupläne, Skizzen und Dokumente auf einem Schreibtisch" />
+          </figure>
+          <div>
+            <p class="eyebrow">Dokumente, die einer Prüfung standhalten</p>
+            <h2 class="h2">Ein Beleglauf, der sauber zusammenhängt.</h2>
+            <p class="lead">Angebot, Auftrag und Rechnung hängen über eine zentrale Dokument-Engine zusammen. Positionen werden kontrolliert übernommen, finalisierte Belege als unveränderlicher PDF-Snapshot eingefroren – mit Versionsnummer, Datum, Benutzer und Protokoll.</p>
+            <ul class="check mt-6">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Weiterführen mit Positions- &amp; Mengenauswahl (einzeln oder zusammenführen)</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Finalisieren erzeugt eine neue, nicht überschreibbare Version</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Eigene Nummernkreise &amp; Vor-/Nachtexte je Dokumentart</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Identische PDF-Ausgabe für Vorschau, Druck &amp; Download</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== KI (dunkel) ===== -->
+    <section id="ki" class="section band-dark on-dark">
+      <div class="wrap">
+        <div class="split">
+          <div>
+            <p class="eyebrow">Integrierte KI – „Isabella“</p>
+            <h2 class="h2">Nicht nur Software. Ein Assistent, der mitdenkt.</h2>
+            <p class="lead">Der KI-Assistent versteht Text und Sprache (de-AT), findet und öffnet Projekte, Dokumente und Kontakte, navigiert dich an die richtige Stelle und bereitet Folge­dokumente vor. Datenänderungen passieren <strong>nur nach deiner Bestätigung</strong> – serverseitig, DSGVO-konform und protokolliert.</p>
+            <div style="margin-top:18px;display:flex;flex-wrap:wrap;gap:8px">
+              <span class="pill"><svg class="ic ic-sm"><use href="#i-mic"/></svg> Sprache de-AT</span>
+              <span class="pill"><svg class="ic ic-sm"><use href="#i-calculator"/></svg> Kalkuliert cent-genau</span>
+              <span class="pill"><svg class="ic ic-sm"><use href="#i-folder"/></svg> Findet &amp; öffnet</span>
+              <span class="pill"><svg class="ic ic-sm"><use href="#i-shield"/></svg> Vorschau + Bestätigung</span>
+              <span class="pill"><svg class="ic ic-sm"><use href="#i-cap"/></svg> Geführte Schulungstouren</span>
+            </div>
+            <figure class="split-photo" style="margin-top:24px;border-color:var(--dark-line)">
+              <img src="/landing/ki-tablet-industrie.jpg" loading="lazy" decoding="async" alt="Fachkraft mit Tablet in der Werkhalle" />
+            </figure>
+          </div>
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <b style="color:#fff;display:inline-flex;align-items:center;gap:8px"><svg class="ic ic-sm" style="color:var(--brand-300)"><use href="#i-bot"/></svg> KI-Assistent</b>
+              <span style="font-size:12.5px;color:#5fd39b;font-weight:700">● bereit</span>
+            </div>
+            <div class="chat">
+              <div class="bubble-me">Erstelle ein Angebot für Malerarbeiten Wohnzimmer 40 m², inkl. Decke</div>
+              <div class="bubble-ai">
+                <div class="ok"><svg class="ic ic-sm"><use href="#i-check"/></svg> Angebotsentwurf vorbereitet</div>
+                <ul>
+                  <li>Grundieren &amp; Glätten · 40 m² × € 8,50 = <b style="color:#fff">€ 340</b></li>
+                  <li>Wände 2× streichen · 40 m² × € 12,00 = <b style="color:#fff">€ 480</b></li>
+                  <li>Decke 1× streichen · 40 m² × € 10,50 = <b style="color:#fff">€ 420</b></li>
+                </ul>
+                <div style="margin-top:8px;color:var(--dark-muted)">Netto € 1.240 · zzgl. 20 % USt</div>
+                <div class="hint">Abdeck- &amp; Reinigungsarbeiten fehlen evtl. noch. Als Entwurf öffnen und prüfen?</div>
+              </div>
+            </div>
+            <p style="margin-top:14px;font-size:12.5px;color:var(--dark-muted)">Beispielhafter Ablauf. Die KI legt Entwürfe vor – finalisiert wird erst nach deiner Prüfung.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Im Ausbau ===== -->
+    <section class="section section--soft">
+      <div class="wrap">
+        <p class="eyebrow center">Ehrlich gesagt</p>
+        <h2 class="h2 center mx-auto maxw-3">Diese Bereiche sind in Vorbereitung.</h2>
+        <p class="lead center mx-auto maxw-2">Wir verkaufen nichts, was es noch nicht gibt. Folgende Module sind angelegt bzw. in Arbeit und kommen Schritt für Schritt dazu:</p>
+        <div class="soon-grid">
+          <div class="soon"><svg class="ic"><use href="#i-mail"/></svg><div><b>E-Mail (Outlook/M365)</b><p>Oberfläche als Vorschau – echte Anbindung folgt.</p></div><span class="tag tag--soft">geplant</span></div>
+          <div class="soon"><svg class="ic"><use href="#i-clock"/></svg><div><b>Zeiterfassung</b><p>Arbeitszeiten je Mitarbeiter &amp; Projekt.</p></div><span class="tag tag--soft">geplant</span></div>
+          <div class="soon"><svg class="ic"><use href="#i-euro"/></svg><div><b>Buchhaltung</b><p>Offene Posten &amp; Mahnwesen.</p></div><span class="tag tag--soft">geplant</span></div>
+          <div class="soon"><svg class="ic"><use href="#i-camera"/></svg><div><b>Baustellendoku</b><p>Eigenes Modul für Fotos, Aufmaß, Unterschrift.</p></div><span class="tag tag--soft">geplant</span></div>
+          <div class="soon"><svg class="ic"><use href="#i-wrench"/></svg><div><b>Wartungsverträge</b><p>Objekte mit wiederkehrenden Wartungen.</p></div><span class="tag tag--soft">geplant</span></div>
+          <div class="soon"><svg class="ic"><use href="#i-briefcase"/></svg><div><b>Büro-Organisation</b><p>Wiederkehrende Büroaufgaben.</p></div><span class="tag tag--soft">geplant</span></div>
+          <div class="soon"><svg class="ic"><use href="#i-bell"/></svg><div><b>News</b><p>Interne Mitteilungen &amp; Neuigkeiten.</p></div><span class="tag tag--soft">geplant</span></div>
+          <div class="soon"><svg class="ic"><use href="#i-share"/></svg><div><b>Delegieren</b><p>Aufgaben &amp; Übergaben gezielt verteilen.</p></div><span class="tag tag--soft">geplant</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Story + Stats ===== -->
+    <section class="section">
+      <div class="wrap">
+        <div class="split">
+          <figure class="split-photo">
+            <img src="/landing/portrait-meister.jpg" loading="lazy" decoding="async" alt="Porträt eines Handwerksmeisters mit Schutzhelm" />
+          </figure>
+          <div>
+            <p class="eyebrow">Die Geschichte dahinter</p>
+            <h2 class="h2">Nicht am grünen Tisch erfunden – aus echter Baupraxis.</h2>
+            <p class="lead">B4Y SuperAPP entstand aus der täglichen Frustration eines Bau- und Malermeisters, der jahrzehntelang mit denselben Problemen kämpfte. Jede Funktion ist aus dem realen Baualltag abgeleitet – und genau deshalb so nah an der Praxis.</p>
+            <div class="grid cols-3 mt-8">
+              <div class="stat"><div class="n">25+</div><div class="l">Jahre Baupraxis</div></div>
+              <div class="stat"><div class="n">1</div><div class="l">System statt Zettel-Chaos</div></div>
+              <div class="stat"><div class="n">AT</div><div class="l">Entwickelt in Österreich</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Vorher / Nachher ===== -->
+    <section class="section section--soft">
+      <div class="wrap">
+        <h2 class="h2 center">Der Unterschied ist deutlich.</h2>
+        <p class="lead center mx-auto maxw-2">So kann der Arbeitsalltag vorher und nachher aussehen.</p>
+        <div class="grid cols-2 mt-10">
+          <div class="card">
+            <h3 style="color:var(--muted);font-size:16px">Vorher – ohne durchgängiges System</h3>
+            <ul class="check cross mt-6">
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Angebote kosten Stunden</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Nachträge werden vergessen</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Fotos auf vielen Handys verstreut</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Rechnungen zu spät gestellt</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Projektstand unklar – Stress pur</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Infos in WhatsApp verschollen</li>
+            </ul>
+          </div>
+          <div class="card" style="border-color:var(--brand-line);background:var(--brand-soft)">
+            <h3 style="font-size:16px">Nachher – mit B4Y SuperAPP</h3>
+            <ul class="check mt-6">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Angebote schneller – mit KI-Unterstützung</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Hinweise auf offene Punkte im Ablauf</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Fotos direkt dem Projekt zugeordnet</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Rechnung direkt aus dem Auftrag</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Dashboard zeigt alles auf einen Blick</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Alle Infos im Projekt – kein Suchen</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ROI-Rechner ===== -->
+    <section id="roi" class="section">
+      <div class="wrap" style="max-width:980px">
+        <p class="eyebrow center">Interaktiver Rechner</p>
+        <h2 class="h2 center">Rechne aus, was Chaos kosten kann.</h2>
+        <p class="lead center mx-auto maxw-2">Schiebe die Regler – und sieh in Echtzeit ein Beispiel, was fehlende Organisation kosten kann. Ein Richtwert, keine Garantie.</p>
+        <div class="roi-grid">
+          <div class="card roi-controls">
+            <div class="roi-row">
+              <div class="row-head"><label for="roi-ma">Mitarbeiter im Team</label><span class="val" id="v-ma">8</span></div>
+              <input id="roi-ma" type="range" min="1" max="50" value="8" />
+            </div>
+            <div class="roi-row">
+              <div class="row-head"><label for="roi-min">Verlorene Minuten / Tag / MA</label><span class="val" id="v-min">45 min</span></div>
+              <input id="roi-min" type="range" min="10" max="120" value="45" />
+            </div>
+            <div class="roi-row">
+              <div class="row-head"><label for="roi-satz">Stundensatz (€/h netto)</label><span class="val" id="v-satz">€ 45</span></div>
+              <input id="roi-satz" type="range" min="30" max="150" value="45" />
+            </div>
+            <div class="roi-row">
+              <div class="row-head"><label for="roi-tage">Arbeitstage pro Jahr</label><span class="val" id="v-tage">220</span></div>
+              <input id="roi-tage" type="range" min="100" max="260" value="220" />
+            </div>
+          </div>
+          <div class="roi-out">
+            <div class="card"><div class="lead" style="margin:0;font-size:14px">Verschwendete Stunden / Monat</div><div class="big" id="o-hours">—</div></div>
+            <div class="card"><div class="lead" style="margin:0;font-size:14px">Kosten durch Chaos / Monat</div><div class="big-brand" id="o-month">—</div></div>
+            <div class="roi-year"><div style="font-size:14px;color:var(--brand-700);font-weight:700">Beispielhafter Jahresverlust</div><div class="y" id="o-year">—</div><div style="margin-top:4px;font-size:12px;color:var(--muted)">Richtwert – abhängig vom Betrieb, keine Garantie.</div></div>
+            <a href="mailto:office@bau4you.at?subject=Demo%20anfragen%20%E2%80%93%20B4Y%20SuperAPP" class="btn btn--primary center">Demo anfragen – Verlust stoppen <svg class="ic ic-sm"><use href="#i-arrow"/></svg></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Vergleich ===== -->
+    <section class="section section--soft">
+      <div class="wrap">
+        <h2 class="h2 center">Warum B4Y SuperAPP?</h2>
+        <p class="lead center mx-auto maxw-2">Der Unterschied auf einen Blick.</p>
+        <div class="grid cols-2 mt-10">
+          <div class="card">
+            <h3 style="color:var(--muted);font-size:16px">Klassische Bausoftware</h3>
+            <ul class="check cross mt-6">
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Komplizierte Einrichtung, lange bis zur Nutzung</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Kein integrierter KI-Assistent</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Oft ohne echte Baupraxis entwickelt</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Starre Module, kaum anpassbar</li>
+              <li><svg class="ic ic-sm"><use href="#i-arrow"/></svg> Keine Spracheingabe</li>
+            </ul>
+          </div>
+          <div class="card" style="border-color:var(--brand-line);background:var(--brand-soft)">
+            <h3 style="font-size:16px">B4Y SuperAPP</h3>
+            <ul class="check mt-6">
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Durchgängiger Ablauf, ein System</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> KI-Assistent direkt im Arbeitsablauf</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Aus über 25 Jahren Bauerfahrung</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Flexibel je Betrieb konfigurierbar</li>
+              <li><svg class="ic ic-sm"><use href="#i-check"/></svg> Spracheingabe in de-AT</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Schritte ===== -->
+    <section class="section">
+      <div class="wrap">
+        <h2 class="h2 center">So startest du mit B4Y SuperAPP.</h2>
+        <p class="lead center mx-auto maxw-2">Von der ersten Demo bis zum laufenden Betrieb.</p>
+        <div class="grid cols-3 mt-10">
+          <div class="card step"><span class="n">1</span><h3>Demo-Gespräch</h3><p>Kostenlos. Wir zeigen die App live an deinen Beispielen.</p></div>
+          <div class="card step"><span class="n">2</span><h3>Betrieb einrichten</h3><p>Firmendaten, Preislisten, Stundensätze, Dokumentarten.</p></div>
+          <div class="card step"><span class="n">3</span><h3>Team einladen</h3><p>Rollen vergeben, kurze Einführung, Zugänge per Link.</p></div>
+          <div class="card step"><span class="n">4</span><h3>Erstes KI-Angebot</h3><p>Dein erstes Angebot mit Sprach-/KI-Unterstützung.</p></div>
+          <div class="card step"><span class="n">5</span><h3>Vollbetrieb</h3><p>Module aktiv, Team arbeitet strukturiert zusammen.</p></div>
+          <div class="card step"><span class="n">6</span><h3>Wachsen &amp; optimieren</h3><p>Auswertungen zeigen, wo Zeit &amp; Geld stecken.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Preise ===== -->
+    <section id="preise" class="section section--soft">
+      <div class="wrap">
+        <p class="eyebrow center">Transparente Preise</p>
+        <h2 class="h2 center">Das passende Paket für deinen Betrieb.</h2>
+        <p class="lead center mx-auto maxw-2">Keine versteckten Kosten. Preis auf Anfrage – weil jeder Betrieb anders ist.</p>
+        <div class="grid cols-3 mt-10">
+          <div class="card price-card"><div class="name">Starter</div><div class="amount">Auf Anfrage</div><p class="who">Für Einzelunternehmer &amp; kleine Teams</p><ul class="check"><li><svg class="ic ic-sm"><use href="#i-check"/></svg> Kleines Team</li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> Projekte, Angebote, Rechnungen</li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> Kalkulation &amp; PDF</li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> KI-Assistent</li></ul><a href="mailto:office@bau4you.at?subject=Starter%20%E2%80%93%20Demo%20anfragen" class="btn btn--outline center" style="margin-top:18px">Demo anfragen</a></div>
+          <div class="card price-card featured"><div style="display:flex;align-items:center;justify-content:space-between"><div class="name">Professional</div><span class="tag">BELIEBT</span></div><div class="amount">Auf Anfrage</div><p class="who">Für wachsende Betriebe</p><ul class="check"><li><svg class="ic ic-sm"><use href="#i-check"/></svg> <b>Mehr Benutzer</b></li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> Alle Module freigeschaltet</li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> <b>KI im vollen Umfang</b></li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> Erweiterte Auswertungen</li></ul><a href="mailto:office@bau4you.at?subject=Professional%20%E2%80%93%20Demo%20anfragen" class="btn btn--primary center" style="margin-top:18px">Demo anfragen</a></div>
+          <div class="card price-card"><div class="name">Enterprise</div><div class="amount">Auf Anfrage</div><p class="who">Für große Betriebe &amp; GU</p><ul class="check"><li><svg class="ic ic-sm"><use href="#i-check"/></svg> Viele Benutzer</li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> Module + individuelle Erweiterungen</li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> KI im vollen Umfang</li><li><svg class="ic ic-sm"><use href="#i-check"/></svg> Persönliche Betreuung</li></ul><a href="mailto:office@bau4you.at?subject=Enterprise%20%E2%80%93%20Kontakt" class="btn btn--outline center" style="margin-top:18px">Kontakt aufnehmen</a></div>
+        </div>
+        <p class="lead center mx-auto maxw-2" style="font-size:13px;margin-top:18px">Konkrete Pakete, Limits und Konditionen klären wir im Demo-Gespräch – passend zu deinem Betrieb.</p>
+      </div>
+    </section>
+
+    <!-- ===== Anwendungsfälle ===== -->
+    <section class="section">
+      <div class="wrap">
+        <h2 class="h2 center">Wofür B4Y SuperAPP gemacht ist.</h2>
+        <p class="lead center mx-auto maxw-2">Drei typische Situationen aus dem Bau- und Handwerksalltag.</p>
+        <div class="grid cols-3 mt-10">
+          <figure class="card uc" style="padding:0">
+            <div class="ph"><img src="/landing/chef-buero.jpg" loading="lazy" decoding="async" alt="Geschäftsführer am Schreibtisch im Büro" /></div>
+            <div class="bd">
+              <blockquote>„Morgens auf einen Blick sehen, was auf den Baustellen läuft – genau dafür ist das Dashboard gedacht.“</blockquote>
+              <figcaption>Szenario <span>· Geschäftsführung</span></figcaption>
+            </div>
+          </figure>
+          <figure class="card uc" style="padding:0">
+            <div class="ph"><img src="/landing/qualitaet-fenster.jpg" loading="lazy" decoding="async" alt="Handwerker prüft ein eingebautes Fenster mit Klemmbrett" /></div>
+            <div class="bd">
+              <blockquote>„Angebote mit KI-Unterstützung statt stundenlang von Hand – das Angebotswesen wird spürbar schneller.“</blockquote>
+              <figcaption>Szenario <span>· Malermeister</span></figcaption>
+            </div>
+          </figure>
+          <figure class="card uc" style="padding:0">
+            <div class="ph"><img src="/landing/team-besprechung.jpg" loading="lazy" decoding="async" alt="Zwei Baufachkräfte besprechen sich auf der Baustelle" /></div>
+            <div class="bd">
+              <blockquote>„Hinweise auf offene Nachträge direkt im Ablauf – damit weniger Mehrarbeit unverrechnet bleibt.“</blockquote>
+              <figcaption>Szenario <span>· Trockenbau</span></figcaption>
+            </div>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section id="faq" class="section section--soft">
+      <div class="wrap" style="max-width:780px">
+        <h2 class="h2 center">Häufige Fragen.</h2>
+        <p class="lead center mx-auto maxw-2">Alles, was du vor dem Start wissen möchtest.</p>
+        <div id="faq-list" class="grid mt-8" style="gap:12px"></div>
+      </div>
+    </section>
+
+    <!-- ===== Final CTA (dunkel) ===== -->
+    <section id="demo" class="section on-dark" style="background:var(--bg)">
+      <div class="wrap">
+        <div class="final">
+          <p class="eyebrow" style="color:var(--brand-300)">Jetzt starten – Demo kostenlos</p>
+          <h2 class="h2 mx-auto maxw-2" style="margin-top:10px">Bereit für Ordnung, Tempo und saubere Abrechnung?</h2>
+          <p class="mx-auto maxw-2 sub" style="margin-top:14px">Mach Schluss mit dem Chaos. Starte mit B4Y SuperAPP – dem System, das mitdenkt.</p>
+          <p class="sub" style="font-size:14px;margin-top:6px">Kurze Demo. Keine Verpflichtung.</p>
+          <div class="hero-actions" style="justify-content:center;margin-top:26px">
+            <a href="mailto:office@bau4you.at?subject=Demo%20kostenlos%20anfragen%20%E2%80%93%20B4Y%20SuperAPP" class="btn btn--primary btn--lg">Demo kostenlos anfragen</a>
+            <a href="/app/login" class="btn btn--outline btn--lg">Zur App <svg class="ic ic-sm"><use href="#i-arrow"/></svg></a>
+          </div>
+          <div class="hero-trust" style="justify-content:center;margin-top:24px;color:var(--dark-muted)">
+            <span><svg class="ic ic-sm" style="color:var(--brand-300)"><use href="#i-lock"/></svg> DSGVO-konform</span>
+            <span><svg class="ic ic-sm" style="color:var(--brand-300)"><use href="#i-server"/></svg> EU-Server</span>
+            <span><svg class="ic ic-sm" style="color:var(--brand-300)"><use href="#i-bot"/></svg> KI integriert</span>
+            <span><svg class="ic ic-sm" style="color:var(--brand-300)"><use href="#i-pin"/></svg> Made in Austria</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <div class="brand-logo"><span class="logo-mark" aria-hidden="true">B4</span><span class="logo-text">B4Y SuperAPP</span></div>
+          <p style="margin-top:12px;max-width:420px;color:var(--muted);font-size:14px">Die KI-gestützte Bau- &amp; Handwerks-Software aus echter Baupraxis. Entwickelt von Baumeister Lukasz Baranowski, BAU4YOU GmbH.</p>
+          <p style="margin-top:12px;color:var(--muted-2);font-size:13.5px">BAU4YOU Baranowski Bau GmbH · Getreidegasse 7, 2402 Maria Ellend · Österreich · <a href="https://www.bau4you.at">www.bau4you.at</a></p>
+        </div>
+        <div>
+          <h4>Produkt</h4>
+          <ul class="footer-links"><li><a href="#funktionen">Module</a></li><li><a href="#ki">KI-Assistent</a></li><li><a href="#roi">ROI-Rechner</a></li><li><a href="#preise">Preise</a></li><li><a href="#faq">FAQ</a></li><li><a href="/app/login">Zur App / Login</a></li></ul>
+        </div>
+        <div>
+          <h4>Kontakt</h4>
+          <ul class="footer-links"><li><a href="mailto:office@bau4you.at?subject=Demo%20anfragen">Demo anfragen</a></li><li><a href="mailto:office@bau4you.at">office@bau4you.at</a></li><li><a href="https://www.bau4you.at">www.bau4you.at</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-copy">© 2026 BAU4YOU Baranowski Bau GmbH · Alle Rechte vorbehalten</div>
+    </div>
+  </footer>
+
+  <!-- ===== JSON-LD (SEO) ===== -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "B4Y SuperAPP",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "url": "https://b4y-superapp.app/",
+    "image": "https://b4y-superapp.app/landing/hero-baustelle-tablet.jpg",
+    "description": "Bau- und Handwerks-Management-Software mit KI: Projekte, Kontakte, Angebote, Aufträge, Rechnungen, Kalkulation, Dokumente mit Versionierung und PDF, Planung sowie ein KI-Assistent in einem System.",
+    "featureList": [
+      "Projekte & Projektakte (Logbuch, Fotos, Termine, Aufgaben, Checklisten)",
+      "Kontakte mit Ansprechpartnern und Konditionen",
+      "Angebote (Standard/Pauschal/Regie) inkl. Sprach-/KI-Angebot",
+      "Aufträge & Subunternehmer-Aufträge",
+      "Rechnungen nach österreichischem Recht (§11/§19 UStG)",
+      "Zentrale Dokumente & PDF mit Versionierung und Nummernkreisen",
+      "Kalkulation: Gewerke, Leistungen, Artikel, Stundensätze, Textbausteine",
+      "Planung mit Konfliktprüfung, Ressourcen und Abwesenheiten",
+      "Automationen für Projektabläufe",
+      "Mitarbeiter, Rollen & Rechte (RLS-abgesichert)",
+      "KI-Assistent (Sprache & Text) mit Vorschau und Bestätigung"
+    ],
+    "offers": { "@type": "Offer", "priceCurrency": "EUR", "description": "Preis auf Anfrage" },
+    "publisher": { "@type": "Organization", "name": "BAU4YOU Baranowski Bau GmbH", "url": "https://www.bau4you.at" }
+  }
+  </script>
+
+  <!-- ===== Vanilla JS: ROI-Rechner + FAQ (CSP-konform) ===== -->
+  <script>
+    (function () {
+      "use strict";
+      var eur = new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
+      // ---- ROI-Rechner ----
+      var ma = document.getElementById("roi-ma");
+      var mn = document.getElementById("roi-min");
+      var satz = document.getElementById("roi-satz");
+      var tage = document.getElementById("roi-tage");
+      if (ma && mn && satz && tage) {
+        function calc() {
+          var nMa = +ma.value, nMin = +mn.value, nSatz = +satz.value, nTage = +tage.value;
+          var hoursMonth = Math.round(nMa * nMin * (nTage / 12) / 60);
+          var costMonth = Math.round(hoursMonth * nSatz);
+          var costYear = Math.round(nMa * nMin * nTage / 60 * nSatz);
+          document.getElementById("v-ma").textContent = nMa;
+          document.getElementById("v-min").textContent = nMin + " min";
+          document.getElementById("v-satz").textContent = "€ " + nSatz;
+          document.getElementById("v-tage").textContent = nTage;
+          document.getElementById("o-hours").textContent = hoursMonth.toLocaleString("de-AT") + " h";
+          document.getElementById("o-month").textContent = eur.format(costMonth);
+          document.getElementById("o-year").textContent = eur.format(costYear);
+        }
+        [ma, mn, satz, tage].forEach(function (el) { el.addEventListener("input", calc); });
+        calc();
+      }
+
+      // ---- FAQ-Akkordeon ----
+      var faqs = [
+        { q: "Wie lange dauert die Einrichtung?", a: "Das hängt vom Betrieb ab. Im Onboarding richten wir gemeinsam Firmendaten, Preisliste, Stundensätze, Dokumentarten und Accounts ein – Schritt für Schritt." },
+        { q: "Funktioniert die App auch am Smartphone?", a: "Die App läuft im Browser auf PC, Tablet und Smartphone. Der Schwerpunkt liegt heute auf PC und iPad; eine schlanke Handy-Version mit den wichtigsten Baustellen-Funktionen ist geplant." },
+        { q: "Muss ich technisch versiert sein?", a: "Nein. B4Y SuperAPP ist für Bau- und Handwerksbetriebe gebaut, nicht für IT-Experten. Der integrierte KI-Assistent hilft direkt in der App weiter und kann dich per geführter Tour einschulen." },
+        { q: "Wie sicher sind meine Daten?", a: "Die Daten liegen auf EU-Servern (Supabase) und werden verschlüsselt übertragen. Zugriffe sind über Rollen und Rechte serverseitig (Row-Level-Security) geregelt – nicht nur in der Oberfläche." },
+        { q: "Kann ich meine bestehenden Preislisten übernehmen?", a: "Artikel und Leistungen lassen sich im System pflegen, Artikel auch per CSV importieren/exportieren. Beim Start unterstützen wir dich bei der Übernahme deiner Daten." },
+        { q: "Ist die Software auf meinen Betrieb anpassbar?", a: "Ja. Dokumentarten, Nummernkreise, Texte, Vor-/Nachtexte, Projekttypen sowie Rollen und Rechte sind in den Einstellungen konfigurierbar – ohne Programmierung." },
+        { q: "Kann die App E-Mails versenden?", a: "Der E-Mail-Bereich ist aktuell als Vorschau angelegt; die echte Anbindung (z. B. Outlook/Microsoft 365) und der Versand befinden sich noch in Vorbereitung. Wir sagen ehrlich, was schon geht und was nicht." },
+        { q: "Wie funktioniert der KI-Assistent?", a: "Du fragst per Text oder Sprache (de-AT). Die KI findet und öffnet Projekte, Dokumente und Kontakte, bereitet Folgedokumente vor und unterstützt bei der Kalkulation. Datenänderungen erfolgen erst nach deiner Bestätigung." }
+      ];
+      var list = document.getElementById("faq-list");
+      if (list) {
+        faqs.forEach(function (f, i) {
+          var item = document.createElement("div");
+          item.className = "card faq-item";
+          var qid = "faq-q-" + i, aid = "faq-a-" + i;
+          var btn = document.createElement("button");
+          btn.className = "faq-q";
+          btn.type = "button";
+          btn.id = qid;
+          btn.setAttribute("aria-expanded", "false");
+          btn.setAttribute("aria-controls", aid);
+          var qspan = document.createElement("span");
+          qspan.textContent = f.q;
+          var sign = document.createElement("span");
+          sign.className = "sign";
+          sign.setAttribute("aria-hidden", "true");
+          sign.textContent = "+";
+          btn.appendChild(qspan);
+          btn.appendChild(sign);
+          var ans = document.createElement("div");
+          ans.className = "faq-a";
+          ans.id = aid;
+          ans.setAttribute("role", "region");
+          ans.setAttribute("aria-labelledby", qid);
+          var inner = document.createElement("div");
+          inner.textContent = f.a;
+          ans.appendChild(inner);
+          btn.addEventListener("click", function () {
+            var open = item.classList.toggle("open");
+            btn.setAttribute("aria-expanded", open ? "true" : "false");
+            sign.textContent = open ? "−" : "+";
+          });
+          item.appendChild(btn);
+          item.appendChild(ans);
+          list.appendChild(item);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

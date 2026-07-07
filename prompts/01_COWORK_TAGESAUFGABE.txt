@@ -1,0 +1,28 @@
+AUFGABE:
+[Was soll funktionieren?]
+
+ERWARTETES ERGEBNIS:
+[Was kann der Benutzer danach konkret?]
+
+AKZEPTANZKRITERIEN:
+- [Kriterium 1]
+- [Kriterium 2]
+
+NICHT VERÄNDERN:
+[Optional]
+
+BESONDERHEITEN:
+[Screenshot, Fehlermeldung, Dokument- oder Sicherheitsregel]
+
+Arbeite nach den Cowork-Projektanweisungen und `docs/COWORK_CODEX_WORKFLOW.md`.
+
+Verbindlich:
+- aktuellen Git-Zustand prüfen (kein lokaler Autowatcher mehr; Commits/Pushes nur manuell)
+- eigenen Aufgaben-Branch verwenden
+- kleinste saubere Lösung umsetzen
+- relevante Tests ergänzen und tatsächlich ausführen
+- vollständigen Diff gegen main prüfen
+- Pull Request erstellen
+- GitHub Actions, Codex-Review und Vercel-Preview berücksichtigen
+- bestätigte Findings selbst beheben und erneut testen
+- nicht nach main mergen und nicht produktiv deployen

@@ -1,0 +1,7 @@
+-- B4Y SuperAPP – Initiales Schema (DSGVO/RLS, EU)
+-- Diese Migration bildet den aktuellen Stand der Datenbank ab.
+-- Künftige Änderungen: NEUE Datei 0002_..., 0003_... anlegen (niemals diese ändern).
+-- Tabellen: profiles, contacts, projects, project_log, catalog_items, offers,
+--           invoices, invoice_offers, time_entries, tasks, automations, project_media
+-- Vollständiges DDL siehe Projekt-Historie / Supabase-Dashboard.
+-- Wichtig: RLS ist auf allen Tabellen aktiv (Einmandant: authentifizierte Nutzer der Firma).

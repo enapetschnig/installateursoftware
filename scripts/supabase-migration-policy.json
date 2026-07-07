@@ -1,0 +1,18 @@
+{
+  "mode": "b4y-direct-query-runner",
+  "baselineNumericPrefixThrough": "0112",
+  "note": "Die Remote-DB hat eine alte Supabase-Historie mit Zeitstempel-Versionen. Lokale Migrationen bis 0112 gelten als Baseline. Ab 0113 wendet scripts/Supabase-Db-Push.ps1 neue Dateien direkt per supabase db query --linked an und tracked sie in b4y_internal.migration_files.",
+  "skip": {
+    "0114_microsoft_oauth_tokens.sql": "Uebersprungen: durch 0122_microsoft_oauth_tokens.sql ersetzt; Live-Schema nutzt access_token_enc/refresh_token_enc.",
+    "0115_microsoft_mail_audit_log.sql": "Uebersprungen: Tabelle microsoft_mail_audit_log ist in der Live-DB bereits vorhanden.",
+    "0116_api_rate_limit.sql": "Uebersprungen: Tabelle api_rate_limit ist in der Live-DB bereits vorhanden; aktueller Code nutzt weiterhin In-Memory-Rate-Limit.",
+    "0117_anfragen.sql": "Uebersprungen: Tabelle anfragen ist in der Live-DB bereits vorhanden.",
+    "0118_anfrage_events.sql": "Uebersprungen: Tabelle anfrage_events ist in der Live-DB bereits vorhanden.",
+    "0119_anfragen_permission_module.sql": "Uebersprungen: permission_modules.key=requests ist in der Live-DB bereits vorhanden.",
+    "0120_anfragen_unique_constraint.sql": "Uebersprungen: Constraint anfragen_org_source_source_ref_key ist in der Live-DB bereits vorhanden.",
+    "0121_anfragen_realtime.sql": "Uebersprungen: anfragen ist bereits in supabase_realtime publiziert.",
+    "0122_microsoft_oauth_tokens.sql": "Uebersprungen: Tabelle microsoft_oauth_tokens ist in der Live-DB bereits mit den von der App erwarteten Spalten vorhanden.",
+    "0123_microsoft_mail_audit_log.sql": "Uebersprungen: Tabelle microsoft_mail_audit_log ist in der Live-DB bereits vorhanden.",
+    "0124_api_rate_limit.sql": "Uebersprungen: Tabelle api_rate_limit ist in der Live-DB bereits vorhanden."
+  }
+}

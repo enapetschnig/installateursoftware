@@ -1,0 +1,348 @@
+// ============================================================
+// Installateursoftware – Mitarbeiter-App: Zeiterfassung (/m/zeit)
+//
+// Mobil-optimierte Ist-Zeiterfassung: heutige Einträge, großer „Zeit erfassen"-
+// Button (öffnet ein schlankes Formular als Vollbild-Sheet), Wochensumme unten.
+// Nutzt den zentralen Datenlayer (saveTimeEntry, loadTimeEntries, summarize,
+// loadEmployeeSollContext) – Stunden aus Von/Bis−Pause via hoursFromRange.
+// Optionales Vorbelegen des Projekts über ?projekt=<id>. Bewusst OHNE
+// TimeEntryDialog (paralleler Build) – eigenes, leichtes Formular. RLS greift
+// serverseitig; Einträge sind immer die des eingeloggten Mitarbeiters.
+// ============================================================
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Plus, Clock, MapPin } from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import { Empty, Spinner, Modal } from "../../components/ui";
+import { ErrorBanner } from "../../components/calc-ui";
+import { useMyEmployee } from "../../lib/my-employee";
+import { toast, toastError } from "../../lib/toast";
+import type { SollContext } from "../../lib/work-calendar";
+import {
+  loadTimeEntries, saveTimeEntry, summarize, loadEmployeeSollContext, loadCompanyHolidays,
+  hoursFromRange, fmtHours, fmtSaldo, LOCATION_TYPES, TimeEntry, LocationType,
+} from "../../lib/time-entries";
+
+type ProjectOpt = { id: string; title: string | null; project_number: string | null };
+
+function startOfWeek(d: Date): Date {
+  const x = new Date(d);
+  const dow = (x.getDay() + 6) % 7; // Mo=0 … So=6
+  x.setDate(x.getDate() - dow);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+const isoDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const locationLabel = (v: string): string => LOCATION_TYPES.find((l) => l.value === v)?.label ?? v;
+const locationIcon = (v: string): string => LOCATION_TYPES.find((l) => l.value === v)?.icon ?? "📍";
+
+export default function MZeit() {
+  const { employee, loading } = useMyEmployee();
+  const [sp] = useSearchParams();
+  const projektParam = sp.get("projekt");
+
+  const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [projects, setProjects] = useState<ProjectOpt[]>([]);
+  const [ctx, setCtx] = useState<SollContext | null>(null);
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
+  const [dataLoading, setDataLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+
+  const todayIso = isoDate(new Date());
+  const weekFrom = isoDate(startOfWeek(new Date()));
+  const year = new Date().getFullYear();
+
+  // Stammdaten (Soll-Kontext, Feiertage, Projekte) einmalig laden.
+  useEffect(() => {
+    if (!employee) return;
+    let cancelled = false;
+    Promise.all([
+      loadEmployeeSollContext(year, employee.id),
+      loadCompanyHolidays(year, year),
+      supabase.from("projects").select("id,title,project_number").eq("archived", false).order("created_at", { ascending: false }),
+    ]).then(([c, h, p]) => {
+      if (cancelled) return;
+      setCtx(c);
+      setHolidays(new Set(h.map((x) => x.datum)));
+      setProjects((p.data as ProjectOpt[]) ?? []);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee]);
+
+  async function reloadEntries() {
+    if (!employee) return;
+    setDataLoading(true);
+    try {
+      const list = await loadTimeEntries({ employeeId: employee.id, from: weekFrom, to: todayIso });
+      setEntries(list);
+    } catch (e: any) {
+      setErr(e?.message ?? "Laden fehlgeschlagen.");
+    } finally {
+      setDataLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (employee) void reloadEntries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee]);
+
+  const projLabel = (id: string | null): string => {
+    if (!id) return "";
+    const p = projects.find((x) => x.id === id);
+    return p ? [p.project_number, p.title].filter(Boolean).join(" · ") : "";
+  };
+
+  const todayEntries = useMemo(
+    () => entries.filter((e) => e.work_date === todayIso),
+    [entries, todayIso],
+  );
+
+  const week = useMemo(() => {
+    if (!ctx) return null;
+    return summarize(entries, weekFrom, todayIso, ctx, holidays);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, ctx, holidays, weekFrom, todayIso]);
+
+  if (loading) return <Spinner />;
+  if (!employee) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-extrabold tracking-tight">Zeiterfassung</h1>
+        <Empty
+          title="Kein Mitarbeiterprofil verknüpft"
+          hint="Dein Login ist noch keinem Mitarbeiter zugeordnet. Bitte wende dich an die Verwaltung."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-extrabold tracking-tight">Zeiterfassung</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Heutige Einträge & Wochensumme.</p>
+      </div>
+
+      <ErrorBanner message={err} />
+
+      <button className="btn-primary min-h-[52px] w-full justify-center text-base" onClick={() => setFormOpen(true)}>
+        <Plus size={18} /> Zeit erfassen
+      </button>
+
+      {/* Heutige Einträge */}
+      <div className="glass p-4">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Heute</h2>
+        {dataLoading ? (
+          <div className="py-4"><Spinner /></div>
+        ) : todayEntries.length === 0 ? (
+          <p className="py-4 text-center text-sm text-slate-400">Noch keine Zeit für heute erfasst.</p>
+        ) : (
+          <div className="space-y-2">
+            {todayEntries.map((e) => (
+              <div
+                key={e.id}
+                className="flex items-center gap-3 rounded-xl p-3"
+                style={{ background: "var(--hover)" }}
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-lg" title={locationLabel(e.location_type)}>
+                  {locationIcon(e.location_type)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    {e.start_time && e.end_time ? (
+                      <span className="tabular-nums">{e.start_time.slice(0, 5)}–{e.end_time.slice(0, 5)}</span>
+                    ) : (
+                      <span>{locationLabel(e.location_type)}</span>
+                    )}
+                    <span className="text-slate-400">·</span>
+                    <span className="tabular-nums">{fmtHours(e.hours)} h</span>
+                  </div>
+                  {(projLabel(e.project_id) || e.description) && (
+                    <div className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                      {projLabel(e.project_id) && (
+                        <>
+                          <MapPin size={12} className="shrink-0" />
+                          <span className="truncate">{projLabel(e.project_id)}</span>
+                        </>
+                      )}
+                      {projLabel(e.project_id) && e.description && <span>·</span>}
+                      {e.description && <span className="truncate">{e.description}</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Wochensumme */}
+      <div className="glass p-4">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Diese Woche</h2>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl p-3 text-center" style={{ background: "var(--hover)" }}>
+            <div className="text-2xl font-extrabold tabular-nums">{fmtHours(week?.istTotal ?? 0)}</div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Ist-Std.</div>
+          </div>
+          <div className="rounded-xl p-3 text-center" style={{ background: "var(--hover)" }}>
+            <div className="text-2xl font-extrabold tabular-nums">{fmtHours(week?.sollTotal ?? 0)}</div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Soll-Std.</div>
+          </div>
+          <div className="rounded-xl p-3 text-center" style={{ background: "var(--hover)" }}>
+            <div
+              className="text-2xl font-extrabold tabular-nums"
+              style={{ color: (week?.autoSaldo ?? 0) < 0 ? "var(--c-red)" : "var(--c-green)" }}
+            >
+              {fmtSaldo(week?.autoSaldo ?? 0)}
+            </div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Saldo</div>
+          </div>
+        </div>
+      </div>
+
+      {formOpen && (
+        <ZeitForm
+          employeeId={employee.id}
+          projects={projects}
+          defaultProjectId={projektParam ?? ""}
+          onClose={() => setFormOpen(false)}
+          onSaved={() => { setFormOpen(false); void reloadEntries(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
+// Erfassungs-Formular (Vollbild-Sheet auf Mobil via Modal)
+// ------------------------------------------------------------
+function ZeitForm({
+  employeeId, projects, defaultProjectId, onClose, onSaved,
+}: {
+  employeeId: string;
+  projects: ProjectOpt[];
+  defaultProjectId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [datum, setDatum] = useState<string>(isoDate(new Date()));
+  const [locationType, setLocationType] = useState<LocationType>("baustelle");
+  const [projectId, setProjectId] = useState<string>(defaultProjectId);
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [pause, setPause] = useState<number>(0);
+  const [description, setDescription] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const hours = useMemo(() => hoursFromRange(start || null, end || null, pause), [start, end, pause]);
+
+  async function save() {
+    if (!start || !end) { setErr("Bitte Von- und Bis-Uhrzeit angeben."); return; }
+    if (hours <= 0) { setErr("Die Dauer muss größer als 0 sein."); return; }
+    setBusy(true); setErr(null);
+    const { error } = await saveTimeEntry({
+      employee_id: employeeId,
+      project_id: projectId || null,
+      work_date: datum,
+      start_time: start,
+      end_time: end,
+      pause_minutes: pause || 0,
+      description: description.trim() || null,
+      location_type: locationType,
+      entry_kind: "arbeit",
+    });
+    setBusy(false);
+    if (error) { setErr(error); toastError(error); return; }
+    toast("Zeit erfasst.");
+    onSaved();
+  }
+
+  return (
+    <Modal open onClose={() => { if (!busy) onClose(); }} title="Zeit erfassen">
+      <ErrorBanner message={err} />
+      <div className="space-y-4">
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Datum</span>
+          <input type="date" className="input" value={datum} onChange={(e) => setDatum(e.target.value)} />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Arbeitsort</span>
+          <select className="input" value={locationType} onChange={(e) => setLocationType(e.target.value as LocationType)}>
+            {LOCATION_TYPES.map((l) => (
+              <option key={l.value} value={l.value}>{l.icon} {l.label}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Projekt (optional)</span>
+          <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+            <option value="">Ohne Projekt</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {[p.project_number, p.title].filter(Boolean).join(" · ") || "(ohne Titel)"}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold">Von</span>
+            <input type="time" className="input" value={start} onChange={(e) => setStart(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold">Bis</span>
+            <input type="time" className="input" value={end} onChange={(e) => setEnd(e.target.value)} />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 items-end gap-3">
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold">Pause (Min.)</span>
+            <input
+              type="number"
+              min={0}
+              className="input"
+              value={pause === 0 ? "" : pause}
+              placeholder="0"
+              onChange={(e) => setPause(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+            />
+          </label>
+          <div className="rounded-xl p-3 text-center" style={{ background: "var(--hover)" }}>
+            <div className="flex items-center justify-center gap-1 text-2xl font-extrabold tabular-nums">
+              <Clock size={18} className="text-slate-400" /> {fmtHours(hours)}
+            </div>
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Stunden</div>
+          </div>
+        </div>
+
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Beschreibung (optional)</span>
+          <textarea
+            className="input min-h-[90px]"
+            placeholder="Was wurde gemacht?"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+      </div>
+
+      <div className="mt-5 flex gap-3">
+        <button className="btn-outline min-h-[48px] flex-1 justify-center" onClick={onClose} disabled={busy}>
+          Abbrechen
+        </button>
+        <button className="btn-primary min-h-[48px] flex-1 justify-center" onClick={save} disabled={busy}>
+          {busy ? "Speichert …" : "Speichern"}
+        </button>
+      </div>
+    </Modal>
+  );
+}

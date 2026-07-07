@@ -1,0 +1,20 @@
+node_modules
+dist
+.env
+.env.local
+.env*.local
+*.tsbuildinfo
+.DS_Store
+supabase/.temp/
+tmp/
+# Lokale Claude-Code-/Session-Einstellungen – maschinenspezifisch, nicht committen
+.claude/*.local.json
+# Lokale Codex-Restdateien (alter Workflow, abgeschafft) – nicht committen
+.codex/
+
+# Lokale Vercel-Projektverknuepfung – maschinenspezifisch, nicht committen
+.vercel
+
+# Playwright-Browser-Smoke: Laufzeit-Artefakte (Screenshots/Traces/Reports)
+/test-results/
+/playwright-report/

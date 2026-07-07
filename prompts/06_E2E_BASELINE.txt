@@ -1,0 +1,19 @@
+Erstelle als getrenntes Arbeitspaket eine schlanke E2E-/Browser-Smoke-Testbasis für die B4Y SuperAPP.
+
+Prüfe zuerst, ob bereits Playwright, Cypress oder eine andere Lösung vorhanden ist. Bestehende Lösung erweitern statt ein zweites Framework einzuführen.
+
+Erste kritische Abläufe:
+- Login/Logout
+- Projekt öffnen
+- Dokumententwurf anlegen
+- Position einfügen und vollständig bearbeiten
+- Summen prüfen
+- Dokument finalisieren
+- neue Version erzeugen
+- ältere Version öffnen
+- PDF öffnen
+- unerlaubten Mandantenzugriff blockieren
+
+Nur Test-/Preview-Daten und Testkonten verwenden.
+In GitHub Actions integrieren.
+Eigener Branch und Pull Request.

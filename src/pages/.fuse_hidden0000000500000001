@@ -1,0 +1,148 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { Spinner, Badge } from "../components/ui";
+import { ErrorBanner } from "../components/calc-ui";
+import {
+  Offer, OfferStatus, OFFER_STATUS_LABEL, VatMode, VAT_RATE,
+} from "../lib/offer-types";
+import { Contact, Project } from "../lib/types";
+import { dateAt } from "../lib/format";
+import { useDocumentBuilder } from "../hooks/useDocumentBuilder";
+import { normalizePositions } from "../lib/document-types";
+import DocumentWorkspace from "../components/document/DocumentWorkspace";
+
+export default function OfferEditor() {
+  const { id } = useParams();
+  const nav = useNavigate();
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [head, setHead] = useState({
+    title: "", number: "", contact_id: "", project_id: "", status: "entwurf" as OfferStatus,
+    notes: "", vatMode: "standard" as VatMode,
+  });
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const vatOverride = head.vatMode === "par19" ? 0 : null;
+  const vatLabel = head.vatMode === "par19" ? "MwSt §19 (0 %)" : "MwSt 20 %";
+  const builder = useDocumentBuilder([], vatOverride);
+
+  async function load() {
+    if (!id) return;
+    setLoading(true); setErr(null);
+    const [o, c, p] = await Promise.all([
+      supabase.from("offers").select("*").eq("id", id).maybeSingle(),
+      supabase.from("contacts").select("*"),
+      supabase.from("projects").select("*").order("created_at", { ascending: false }),
+    ]);
+    if (o.error) setErr(o.error.message);
+    const off = o.data as Offer | null;
+    setOffer(off);
+    if (off) {
+      const inferredVat: VatMode = Number(off.vat) === 0 && Number(off.net) > 0 ? "par19" : "standard";
+      setHead({
+        title: off.title ?? "", number: off.number ?? "", contact_id: off.contact_id ?? "",
+        project_id: off.project_id ?? "", status: (off.status as OfferStatus) ?? "entwurf",
+        notes: off.notes ?? "", vatMode: inferredVat,
+      });
+      builder.reset(normalizePositions(off.items));
+    }
+    setContacts((c.data as Contact[]) ?? []);
+    setProjects((p.data as Project[]) ?? []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); /* eslint-disable-line */ }, [id]);
+
+  const setHeadF = (k: keyof typeof head, v: any) => { setHead((p) => ({ ...p, [k]: v })); builder.setDirty(true); };
+
+  async function save(nextStatus?: OfferStatus) {
+    if (!offer) return;
+    setSaving(true); setErr(null);
+    const s = builder.summary;
+    const status = nextStatus ?? head.status;
+    const { error } = await supabase.from("offers").update({
+      title: head.title || null, number: head.number || null,
+      contact_id: head.contact_id || null, project_id: head.project_id || null,
+      status, notes: head.notes || null,
+      items: builder.positions, net: s.net, vat: s.vat, gross: s.gross,
+    }).eq("id", offer.id);
+    setSaving(false);
+    if (error) { setErr(error.message); return; }
+    if (nextStatus) setHead((p) => ({ ...p, status: nextStatus }));
+    builder.markSaved();
+  }
+
+  if (loading) return <div className="pt-4"><Spinner /></div>;
+  if (!offer) return (
+    <div className="pt-4">
+      <button className="btn-ghost mb-4" onClick={() => nav("/angebote")}><ArrowLeft size={16} /> Zurück</button>
+      <ErrorBanner message="Angebot nicht gefunden." />
+    </div>
+  );
+
+  const customer = contacts.find((c) => c.id === head.contact_id);
+  const customerName = customer
+    ? (customer.customer_type === "firma" ? (customer.company || "") : [customer.first_name, customer.last_name].filter(Boolean).join(" "))
+    : "";
+
+  return (
+    <div className="pt-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <button className="btn-ghost" onClick={() => nav("/angebote")}><ArrowLeft size={16} /> Angebote</button>
+        <Badge tone="slate">{OFFER_STATUS_LABEL[head.status]}</Badge>
+      </div>
+      <ErrorBanner message={err} />
+
+      {/* Kopfdaten */}
+      <div className="glass mb-4 p-5">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2"><label className="label">Titel</label>
+            <input className="input" value={head.title} onChange={(e) => setHeadF("title", e.target.value)} /></div>
+          <div><label className="label">Angebotsnummer</label>
+            <input className="input" value={head.number} onChange={(e) => setHeadF("number", e.target.value)} /></div>
+          <div><label className="label">Status</label>
+            <select className="input" value={head.status} onChange={(e) => setHeadF("status", e.target.value)}>
+              {(Object.keys(OFFER_STATUS_LABEL) as OfferStatus[]).map((s) => <option key={s} value={s}>{OFFER_STATUS_LABEL[s]}</option>)}
+            </select></div>
+          <div><label className="label">Kunde</label>
+            <select className="input" value={head.contact_id} onChange={(e) => setHeadF("contact_id", e.target.value)}>
+              <option value="">– kein Kunde –</option>
+              {contacts.map((c) => <option key={c.id} value={c.id}>{[c.salutation, c.first_name, c.last_name].filter(Boolean).join(" ") || c.company}</option>)}
+            </select></div>
+          <div><label className="label">Projekt</label>
+            <select className="input" value={head.project_id} onChange={(e) => setHeadF("project_id", e.target.value)}>
+              <option value="">– kein Projekt –</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select></div>
+          <div className="col-span-2"><label className="label">MwSt-Modus</label>
+            <select className="input" value={head.vatMode} onChange={(e) => setHeadF("vatMode", e.target.value)}>
+              <option value="standard">Regulär 20 %</option>
+              <option value="par19">§19 Bauleistung (Reverse Charge, 0 %)</option>
+            </select></div>
+          <div className="col-span-2"><label className="label">Anmerkungen</label>
+            <textarea className="input min-h-[60px]" value={head.notes} onChange={(e) => setHeadF("notes", e.target.value)} /></div>
+        </div>
+      </div>
+
+      <DocumentWorkspace
+        builder={builder}
+        docType="angebot"
+        docLabel="Angebot"
+        projectId={head.project_id || null}
+        vatOverride={vatOverride}
+        vatLabel={vatLabel}
+        printMeta={{
+          number: head.number, title: head.title, customer: customerName,
+          date: dateAt(offer.created_at), notes: head.notes,
+        }}
+        onSave={() => save()}
+        saving={saving}
+        onFinalize={() => save("versendet")}
+      />
+    </div>
+  );
+}

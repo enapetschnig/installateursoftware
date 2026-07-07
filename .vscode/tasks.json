@@ -1,0 +1,70 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "B4Y: Dev Server",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "group": "build",
+      "detail": "Startet Vite fuer die lokale App-Vorschau."
+    },
+    {
+      "label": "B4Y: Typecheck",
+      "type": "npm",
+      "script": "typecheck",
+      "problemMatcher": "$tsc",
+      "group": "test",
+      "detail": "Prueft TypeScript ohne Build-Ausgabe."
+    },
+    {
+      "label": "B4Y: Tests",
+      "type": "npm",
+      "script": "test",
+      "problemMatcher": [],
+      "group": "test",
+      "detail": "Fuehrt die Vitest-Tests aus."
+    },
+    {
+      "label": "B4Y: Build",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": "$tsc",
+      "group": "build",
+      "detail": "Fuehrt TypeScript und Vite-Produktionsbuild aus."
+    },
+    {
+      "label": "B4Y: Verify vor Push",
+      "type": "npm",
+      "script": "verify",
+      "problemMatcher": "$tsc",
+      "group": "test",
+      "detail": "Harter Check vor Push: Build plus Tests."
+    },
+    {
+      "label": "B4Y: Supabase Migrationen anwenden",
+      "type": "npm",
+      "script": "db:migrate",
+      "problemMatcher": [],
+      "group": "build",
+      "detail": "Verlinkt das B4Y-Supabase-Projekt bei Bedarf und wendet offene Migrationen auf die Remote-DB an."
+    },
+    {
+      "label": "B4Y: Supabase Migrationen Dry-Run",
+      "type": "npm",
+      "script": "db:migrate:dry",
+      "problemMatcher": [],
+      "group": "test",
+      "detail": "Zeigt offene Supabase-Migrationen an, ohne sie anzuwenden."
+    },
+    {
+      "label": "B4Y: Preview",
+      "type": "npm",
+      "script": "preview",
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Startet die lokale Vorschau des gebauten Vite-Bundles."
+    }
+  ]
+}

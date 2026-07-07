@@ -1,0 +1,47 @@
+# Auto-detect text files und im Repo UND im Arbeitsbaum auf LF normalisieren
+# (eol=lf verhindert die Windows-CRLF-Rückwandlung beim Auschecken → kein Datei-Leerlauf mehr)
+* text=auto eol=lf
+
+# Source code – LF im Repo
+*.js     text
+*.jsx    text
+*.ts     text
+*.tsx    text
+*.mjs    text
+*.cjs    text
+*.json   text
+*.html   text
+*.css    text
+*.scss   text
+*.md     text
+*.yml    text
+*.yaml   text
+*.toml   text
+*.sql    text
+*.svg    text
+
+# Shell scripts – immer LF
+*.sh     text eol=lf
+
+# Windows-Skripte – immer CRLF
+*.bat    text eol=crlf
+*.ps1    text eol=crlf
+*.cmd    text eol=crlf
+
+# Binär
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.zip    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.eot    binary
+*.mp3    binary
+*.mp4    binary
+*.xlsx   binary
+*.docx   binary
+*.pptx   binary

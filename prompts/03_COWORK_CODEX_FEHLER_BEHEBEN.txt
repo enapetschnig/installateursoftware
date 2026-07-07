@@ -1,0 +1,14 @@
+Prüfe jetzt den offenen Pull Request des aktuellen Aufgaben-Branches.
+
+1. Lies alle GitHub-Actions-Ergebnisse und vollständigen Fehlerlogs.
+2. Lies das Codex-Review und alle Review-Kommentare.
+3. Prüfe jeden Hinweis gegen tatsächlichen Code, Akzeptanzkriterien und B4Y-Masterregeln.
+4. Trenne bestätigte Fehler von falschen oder rein optionalen Hinweisen.
+5. Behebe bestätigte Fehler mit der kleinstmöglichen sauberen Änderung im selben Branch.
+6. Führe alle betroffenen Tests sowie Typprüfung, Lint und Build erneut aus.
+7. Prüfe den Diff erneut gegen main.
+8. Committe und pushe nur die Korrekturen.
+9. Fordere einen erneuten Codex-Review an, falls er nicht automatisch startet.
+10. Nicht nach main mergen und nicht produktiv deployen.
+
+Berichte zu jedem Finding: bestätigt/abgelehnt, Ursache, Korrektur, Tests und neuer PR-Status.

@@ -1,0 +1,14 @@
+# Standard-Reviewer für alles (bitte GitHub-Handles eintragen)
+*                                   @MUSHLUKASZ
+
+# Eigentumsbereiche (Beispiel – weitere Team-Handles ergänzen)
+/src/pages/Dashboard.tsx            @MUSHLUKASZ
+/src/pages/Projects.tsx             @MUSHLUKASZ
+/src/pages/ProjectDetail.tsx        @MUSHLUKASZ
+/src/pages/Contacts.tsx             @MUSHLUKASZ
+/src/pages/ContactDetail.tsx        @MUSHLUKASZ
+# /src/pages/Offers...              @kollege-angebote
+# /src/pages/Invoices...            @kollege-rechnungen
+# /src/pages/Email...               @kollege-email
+/supabase/                          @MUSHLUKASZ
+/.github/                           @MUSHLUKASZ

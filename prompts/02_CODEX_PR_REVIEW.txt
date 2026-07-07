@@ -1,0 +1,1 @@
+@codex review for security regressions, tenant isolation, Supabase RLS, authorization, data loss, migration safety, document versioning, financial calculations, missing tests, unintended scope changes, and risky behavior changes. Follow AGENTS.md and the B4Y master rules. Do not modify or push code.

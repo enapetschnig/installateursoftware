@@ -1,0 +1,108 @@
+// ============================================================
+// B4Y SuperAPP – Zeiten einfügen
+// Erfasste Projektstunden (time_entries) als Positionen übernehmen.
+// ============================================================
+import { useEffect, useState } from "react";
+import { Clock, Plus } from "lucide-react";
+import { Modal, Spinner } from "../ui";
+import { ErrorBanner } from "../calc-ui";
+import { supabase } from "../../lib/supabase";
+import { eur, dateAt } from "../../lib/format";
+import { DocPosition, emptyPosition } from "../../lib/document-types";
+
+type TimeEntry = {
+  id: string; project_id: string; work_date: string; hours: number;
+  hourly_rate: number; description: string | null;
+};
+
+export default function TimesModal({
+  projectId, onInsert, onClose,
+}: {
+  projectId: string;
+  onInsert: (positions: DocPosition[]) => void;
+  onClose: () => void;
+}) {
+  const [rows, setRows] = useState<TimeEntry[]>([]);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.from("time_entries").select("*")
+        .eq("project_id", projectId).order("work_date", { ascending: true });
+      if (error) setErr(error.message);
+      const r = (data as TimeEntry[]) ?? [];
+      setRows(r);
+      setSel(new Set(r.map((x) => x.id)));
+      setLoading(false);
+    })();
+  }, [projectId]);
+
+  const toggle = (id: string) => setSel((p) => {
+    const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+
+  function insert() {
+    const positions = rows.filter((r) => sel.has(r.id)).map((r) =>
+      emptyPosition("free", {
+        name: r.description || "Regiestunden",
+        unit: "h",
+        qty: Number(r.hours) || 0,
+        unit_price: Number(r.hourly_rate) || 0,
+        unit_cost: 0,
+        labor_minutes: (Number(r.hours) || 0) * 60,
+        long_text: r.work_date ? `Leistungsdatum: ${dateAt(r.work_date)}` : null,
+      })
+    );
+    onInsert(positions);
+    onClose();
+  }
+
+  const total = rows.filter((r) => sel.has(r.id)).reduce((s, r) => s + (Number(r.hours) || 0) * (Number(r.hourly_rate) || 0), 0);
+
+  return (
+    <Modal open onClose={onClose} title="Zeiten einfügen">
+      <ErrorBanner message={err} />
+      {loading ? <Spinner /> : rows.length === 0 ? (
+        <div className="py-6 text-center text-sm text-slate-400">Keine erfassten Zeiten für dieses Projekt.</div>
+      ) : (
+        <>
+          <div className="max-h-80 overflow-auto rounded-xl border" style={{ borderColor: "var(--border)" }}>
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-[var(--hover)] text-left uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="w-8 px-2 py-2"></th>
+                  <th className="px-2 py-2">Datum</th>
+                  <th className="px-2 py-2">Beschreibung</th>
+                  <th className="px-2 py-2 text-right">Std.</th>
+                  <th className="px-2 py-2 text-right">Satz</th>
+                  <th className="px-2 py-2 text-right">Summe</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: "var(--border)" }}>
+                {rows.map((r) => (
+                  <tr key={r.id} className="cursor-pointer hover:bg-[var(--hover)]" onClick={() => toggle(r.id)}>
+                    <td className="px-2 py-2"><input type="checkbox" checked={sel.has(r.id)} onChange={() => toggle(r.id)} /></td>
+                    <td className="px-2 py-2">{dateAt(r.work_date)}</td>
+                    <td className="px-2 py-2">{r.description || "–"}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{Number(r.hours).toLocaleString("de-AT")}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{eur(r.hourly_rate)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums font-semibold">{eur((Number(r.hours) || 0) * (Number(r.hourly_rate) || 0))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-sm text-slate-400"><Clock size={14} className="mr-1 inline" />{sel.size} Einträge · Netto {eur(total)}</span>
+            <div className="flex gap-2">
+              <button className="btn-outline" onClick={onClose}>Abbrechen</button>
+              <button className="btn-primary" onClick={insert} disabled={sel.size === 0}><Plus size={15} /> Einfügen</button>
+            </div>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}

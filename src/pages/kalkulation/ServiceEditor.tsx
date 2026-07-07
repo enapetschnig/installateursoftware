@@ -1,0 +1,452 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  ArrowLeft, Plus, Trash2, Save, Clock, Package, Sparkles, Calculator, Info, Layers,
+  Upload, ImagePlus, X,
+} from "lucide-react";
+import { supabase } from "../../lib/supabase";
+import SignedImage from "../../components/SignedImage";
+import { Spinner, Badge } from "../../components/ui";
+import { ErrorBanner, Toggle, NumCell, ConfirmDialog } from "../../components/calc-ui";
+import {
+  Service, ServiceComponent, Trade, HourlyRate, Article,
+  ARTICLE_UNITS, VAT_RATES, MATERIAL_MODES, PAUSCHALE_TYPES, MaterialMode, PauschaleType,
+  gewerkNo, isValidPosition, suggestPosition,
+} from "../../lib/calc-types";
+import { calcServiceV2, marginTone, CalcComponent } from "../../lib/calc";
+import { eur } from "../../lib/format";
+import ArticleSearchSelect from "../../components/kalkulation/ArticleSearchSelect";
+
+type Kind = "arbeitszeit" | "material" | "individuell";
+type EditComp = {
+  uid: string; kind: Kind; label: string;
+  hourly_rate_id: string | null; article_id: string | null;
+  minutes: number; quantity: number; unit: string; cost_rate: number;
+};
+
+const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+
+function toEdit(c: ServiceComponent): EditComp {
+  const kind: Kind = c.kind === "arbeitszeit" ? "arbeitszeit" : c.kind === "material" ? "material" : "individuell";
+  return {
+    uid: c.id, kind, label: c.label ?? "", hourly_rate_id: c.hourly_rate_id, article_id: c.article_id,
+    minutes: Number(c.minutes) || 0, quantity: Number(c.quantity) || 0, unit: c.unit ?? "", cost_rate: Number(c.cost_rate) || 0,
+  };
+}
+
+export default function ServiceEditor() {
+  const { id } = useParams();
+  const nav = useNavigate();
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState<"info" | "calc">(params.get("tab") === "calc" ? "calc" : "info");
+  const [service, setService] = useState<Service | null>(null);
+  const [head, setHead] = useState({
+    service_number: "", pos: "010", name: "", internal_name: "", short_text: "", long_text: "",
+    trade_id: "", category: "", unit: "Stk", vat_rate: 20, internal_note: "", sort_order: 0,
+    aufschlag_percent: 0, vk_net_manual: "" as number | "" , material_mode: "artikel" as MaterialMode,
+    pauschale_type: "kein" as PauschaleType, pauschale_fix: 0, pauschale_percent: 0,
+    calculation_text: "", image_url: "", active: true,
+  });
+  const imgRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [comps, setComps] = useState<EditComp[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [rates, setRates] = useState<HourlyRate[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
+  const [allServices, setAllServices] = useState<{ id: string; trade_id: string | null; service_number: string | null; positions_nummer: string | null }[]>([]);
+  const [confirmTrade, setConfirmTrade] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  async function load() {
+    if (!id) return;
+    setLoading(true); setErr(null);
+    const [s, c, t, r, a, u, allS] = await Promise.all([
+      supabase.from("services").select("*").eq("id", id).maybeSingle(),
+      supabase.from("service_components").select("*").eq("service_id", id).order("sort_order"),
+      supabase.from("trades").select("*").order("sort_order"),
+      supabase.from("hourly_rates").select("*").eq("active", true).order("label"),
+      supabase.from("articles").select("*").eq("active", true).order("name"),
+      supabase.from("units").select("code").eq("active", true).order("sort_order"),
+      supabase.from("services").select("id, trade_id, service_number, positions_nummer"),
+    ]);
+    if (s.error) setErr(s.error.message);
+    const svc = s.data as Service | null;
+    setService(svc);
+    if (svc) setHead({
+      service_number: svc.service_number ?? "",
+      pos: svc.positions_nummer || (svc.service_number && svc.service_number.includes("-") ? svc.service_number.split("-")[1] : "010"),
+      name: svc.name, internal_name: svc.internal_name ?? "",
+      short_text: svc.short_text ?? "", long_text: svc.long_text ?? "", trade_id: svc.trade_id ?? "",
+      category: svc.category ?? "", unit: svc.unit ?? "Stk", vat_rate: Number(svc.vat_rate) || 20,
+      internal_note: svc.internal_note ?? "", sort_order: Number(svc.sort_order) || 0,
+      aufschlag_percent: Number(svc.aufschlag_percent) || 0,
+      vk_net_manual: svc.vk_net_manual === null || svc.vk_net_manual === undefined ? "" : Number(svc.vk_net_manual),
+      material_mode: (svc.material_mode as MaterialMode) || "artikel",
+      pauschale_type: (svc.pauschale_type as PauschaleType) || "kein",
+      pauschale_fix: Number(svc.pauschale_fix) || 0, pauschale_percent: Number(svc.pauschale_percent) || 0,
+      calculation_text: svc.calculation_text ?? "", image_url: svc.image_url ?? "",
+      active: svc.active,
+    });
+    setComps(((c.data as ServiceComponent[]) ?? []).map(toEdit));
+    setTrades((t.data as Trade[]) ?? []);
+    setRates((r.data as HourlyRate[]) ?? []);
+    setArticles((a.data as Article[]) ?? []);
+    setUnits(((u.data as { code: string }[]) ?? []).map((x) => x.code));
+    setAllServices((allS.data as any[]) ?? []);
+    setLoading(false); setDirty(false);
+  }
+  useEffect(() => { load(); /* eslint-disable-line */ }, [id]);
+
+  // Leistungsfoto in den privaten Bucket 'service-images' (analog ArticleForm):
+  // gespeicherter Wert wird über src/lib/storage.ts (storagePath + signedUrl) signiert angezeigt.
+  async function uploadImage(file: File) {
+    setUploading(true); setErr(null);
+    try {
+      // Mandantentrennung: Upload in den Org-Ordner (<organization_id>/<datei>) – die
+      // Storage-Policies (Migr. 0099) erlauben Zugriff nur auf den eigenen Org-Ordner.
+      const { data: orgId, error: orgErr } = await supabase.rpc("current_org_id");
+      if (orgErr || !orgId) { setErr("Organisation konnte nicht ermittelt werden – Bild-Upload abgebrochen."); return; }
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${orgId}/${crypto.randomUUID()}.${ext}`;
+      const upRes = await supabase.storage.from("service-images").upload(path, file, { cacheControl: "3600", upsert: false });
+      if (upRes.error) { setErr(`Bild-Upload fehlgeschlagen: ${upRes.error.message}`); return; }
+      const { data } = supabase.storage.from("service-images").getPublicUrl(path);
+      setHead((p) => ({ ...p, image_url: data.publicUrl })); setDirty(true);
+    } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Bild-Upload fehlgeschlagen."); }
+    finally { setUploading(false); }
+  }
+
+  const calc = useMemo(() => calcServiceV2({
+    components: comps as CalcComponent[],
+    aufschlag_percent: head.aufschlag_percent, vat_rate: head.vat_rate,
+    vk_net_manual: head.vk_net_manual === "" ? null : Number(head.vk_net_manual),
+    material_mode: head.material_mode, pauschale_type: head.pauschale_type,
+    pauschale_fix: head.pauschale_fix, pauschale_percent: head.pauschale_percent,
+  }), [comps, head]);
+
+  const infoGNo = gewerkNo(trades.find((t) => t.id === head.trade_id)?.sort_order);
+  function applyTrade(tradeId: string) {
+    const t = trades.find((x) => x.id === tradeId);
+    const positions = allServices.filter((x) => x.trade_id === tradeId && x.id !== service?.id)
+      .map((x) => x.positions_nummer || (x.service_number && x.service_number.includes("-") ? x.service_number.split("-")[1] : "")).filter(Boolean) as string[];
+    setHead((p) => ({ ...p, trade_id: tradeId, pos: gewerkNo(t?.sort_order) ? suggestPosition(positions) : p.pos }));
+    setDirty(true);
+  }
+  function changeTradeInfo(tradeId: string) {
+    if (service?.service_number && tradeId !== head.trade_id) setConfirmTrade(tradeId);
+    else applyTrade(tradeId);
+  }
+  const includesArtikel = head.material_mode === "artikel" || head.material_mode === "artikel_pauschale";
+  const includesPauschale = head.material_mode === "pauschale_fix" || head.material_mode === "pauschale_prozent" || head.material_mode === "artikel_pauschale";
+
+  const setHeadF = (k: keyof typeof head, v: any) => { setHead((p) => ({ ...p, [k]: v })); setDirty(true); };
+  const patch = (u: string, p: Partial<EditComp>) => { setComps((cs) => cs.map((c) => (c.uid === u ? { ...c, ...p } : c))); setDirty(true); };
+  const remove = (u: string) => { setComps((cs) => cs.filter((c) => c.uid !== u)); setDirty(true); };
+
+  function addLohn() {
+    const r = rates[0];
+    setComps((cs) => [...cs, { uid: uid(), kind: "arbeitszeit", label: r?.label ?? "", hourly_rate_id: r?.id ?? null, article_id: null, minutes: 60, quantity: 0, unit: "h", cost_rate: r ? Number(r.internal_rate) : 0 }]);
+    setDirty(true);
+  }
+  function addMaterial() {
+    setComps((cs) => [...cs, { uid: uid(), kind: "material", label: "", hourly_rate_id: null, article_id: null, minutes: 0, quantity: 1, unit: "Stk", cost_rate: 0 }]);
+    setDirty(true);
+  }
+  function addSonstige() {
+    setComps((cs) => [...cs, { uid: uid(), kind: "individuell", label: "", hourly_rate_id: null, article_id: null, minutes: 0, quantity: 1, unit: "", cost_rate: 0 }]);
+    setDirty(true);
+  }
+  function pickRate(u: string, rateId: string) {
+    const r = rates.find((x) => x.id === rateId);
+    if (!r) { patch(u, { hourly_rate_id: null }); return; }
+    patch(u, { hourly_rate_id: r.id, label: r.label, cost_rate: Number(r.internal_rate), unit: "h" });
+  }
+  function pickArticle(u: string, artId: string) {
+    const a = articles.find((x) => x.id === artId);
+    if (!a) { patch(u, { article_id: null }); return; }
+    patch(u, { article_id: a.id, label: a.name, cost_rate: Number(a.purchase_price), unit: a.unit ?? "Stk" });
+  }
+
+  async function save() {
+    if (!service) return;
+    if (!head.name.trim()) { setErr("Bitte Kurztext eingeben."); setTab("info"); return; }
+    if (!head.long_text.trim()) { setErr("Bitte Langtext eingeben."); setTab("info"); return; }
+    if (!head.unit) { setErr("Bitte Einheit auswählen."); setTab("info"); return; }
+    if (!head.trade_id) { setErr("Bitte Gewerk auswählen."); setTab("info"); return; }
+    if (!infoGNo) { setErr("Dieses Gewerk hat keine Gewerknummer. Bitte zuerst beim Gewerk eine Nummer hinterlegen."); setTab("info"); return; }
+    if (!isValidPosition(head.pos)) { setErr("Die Positionsnummer muss dreistellig sein (001–999)."); setTab("info"); return; }
+    const fullNr = `${infoGNo}-${head.pos}`;
+    if (allServices.some((x) => x.service_number === fullNr && x.id !== service.id)) { setErr(`Die Leistungsnummer ${fullNr} ist bereits vergeben.`); setTab("info"); return; }
+    setSaving(true); setErr(null);
+    const up = await supabase.from("services").update({
+      service_number: fullNr, positions_nummer: head.pos, name: head.name.trim(), internal_name: head.internal_name || null,
+      short_text: head.short_text || null, long_text: head.long_text || null,
+      calculation_text: head.calculation_text || null, image_url: head.image_url || null,
+      trade_id: head.trade_id || null,
+      category: head.category || null, unit: head.unit || null, vat_rate: head.vat_rate, internal_note: head.internal_note || null,
+      sort_order: head.sort_order || 0, aufschlag_percent: head.aufschlag_percent || 0,
+      vk_net_manual: head.vk_net_manual === "" ? null : Number(head.vk_net_manual),
+      material_mode: head.material_mode, pauschale_active: includesPauschale,
+      pauschale_type: head.pauschale_type, pauschale_fix: head.pauschale_fix || 0, pauschale_percent: head.pauschale_percent || 0,
+      active: head.active,
+    }).eq("id", service.id);
+    if (up.error) { setSaving(false); setErr(up.error.message); return; }
+    const del = await supabase.from("service_components").delete().eq("service_id", service.id);
+    if (del.error) { setSaving(false); setErr(del.error.message); return; }
+    if (comps.length) {
+      const rows = comps.map((c, i) => ({
+        service_id: service.id, kind: c.kind, sort_order: i, label: c.label || null,
+        hourly_rate_id: c.hourly_rate_id, article_id: c.article_id, minutes: c.minutes || 0,
+        quantity: c.quantity || 0, unit: c.unit || null, cost_rate: c.cost_rate || 0, sale_rate: 0, percent: 0, note: null,
+      }));
+      const ins = await supabase.from("service_components").insert(rows);
+      if (ins.error) { setSaving(false); setErr(ins.error.message); return; }
+    }
+    setSaving(false); setDirty(false);
+    setSavedAt(new Date().toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" }));
+    load();
+  }
+
+  if (loading) return <div className="pt-4"><Spinner /></div>;
+  if (!service) return (
+    <div className="pt-4">
+      <button className="btn-ghost mb-4" onClick={() => nav("/kalkulation/leistungen")}><ArrowLeft size={16} /> Zurück</button>
+      <ErrorBanner message="Leistung nicht gefunden." />
+    </div>
+  );
+
+  const lohnLines = comps.filter((c) => c.kind === "arbeitszeit");
+  const materialLines = comps.filter((c) => c.kind === "material");
+  const sonstigeLines = comps.filter((c) => c.kind === "individuell");
+
+  return (
+    <div className="pt-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <button className="btn-ghost" onClick={() => nav("/kalkulation/leistungen")}><ArrowLeft size={16} /> Leistungen</button>
+        <div className="flex items-center gap-3">
+          {savedAt && !dirty && <span className="text-xs text-emerald-500">gespeichert {savedAt}</span>}
+          {dirty && <span className="text-xs text-amber-500">ungespeichert</span>}
+          {!head.active && <Badge tone="slate">inaktiv</Badge>}
+          <button className="btn-primary" onClick={save} disabled={saving || !head.name.trim()}><Save size={16} /> {saving ? "Speichern …" : "Speichern"}</button>
+        </div>
+      </div>
+      <ErrorBanner message={err} />
+      <ConfirmDialog open={!!confirmTrade} title="Gewerk ändern?" confirmLabel="Nummer anpassen"
+        message={<>Soll die Leistungsnummer an das neue Gewerk angepasst werden? Gewerknummer und ein neuer Positionsvorschlag werden übernommen.</>}
+        onConfirm={() => { if (confirmTrade) applyTrade(confirmTrade); setConfirmTrade(null); }}
+        onClose={() => setConfirmTrade(null)} />
+
+      <div className="mb-5 flex gap-1.5 rounded-2xl border p-1.5" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+        {([["info", "Informationen", Info], ["calc", "Kalkulation", Calculator]] as const).map(([k, label, Icon]) => (
+          <button key={k} onClick={() => setTab(k)}
+            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all ${tab === k ? "text-white" : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"}`}
+            style={tab === k ? { background: "linear-gradient(135deg,var(--accent),var(--accent-h))" } : undefined}>
+            <Icon size={16} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "info" ? (
+        <div className="glass p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Leistungsfoto ganz oben (Upload/Ändern/Entfernen, Bucket service-images, signierte Anzeige). */}
+            <div className="col-span-2"><label className="label">Leistungsfoto (optional)</label>
+              <div className="flex items-center gap-3">
+                <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--hover)" }}>
+                  {head.image_url ? <SignedImage bucket="service-images" value={head.image_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus size={22} className="text-slate-400" />}
+                </div>
+                <input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(file); e.target.value = ""; }} />
+                <div className="flex flex-col gap-2">
+                  <button type="button" className="btn-outline" onClick={() => imgRef.current?.click()} disabled={uploading}>
+                    <Upload size={16} /> {uploading ? "Lädt …" : head.image_url ? "Bild ändern" : "Bild hochladen"}
+                  </button>
+                  {head.image_url && <button type="button" className="btn-ghost text-rose-500" onClick={() => setHeadF("image_url", "")}><X size={15} /> Entfernen</button>}
+                </div>
+              </div></div>
+            <div className="col-span-2"><label className="label label-req">Gewerk</label>
+              <select className="input" value={head.trade_id} onChange={(e) => changeTradeInfo(e.target.value)}>
+                <option value="">– kein Gewerk –</option>
+                {trades.map((t) => <option key={t.id} value={t.id}>{gewerkNo(t.sort_order) ?? "--"} · {t.name}</option>)}
+              </select></div>
+            <div className="col-span-2"><label className="label label-req">Leistungsnummer</label>
+              <div className="flex items-center gap-2">
+                <span className="rounded-xl border px-3 py-2.5 font-mono text-sm" style={{ background: "var(--hover)", borderColor: "var(--border)" }}>{infoGNo ?? "??"}-</span>
+                <input className="input max-w-[7rem] font-mono" inputMode="numeric" value={head.pos} placeholder="010"
+                  onChange={(e) => setHeadF("pos", e.target.value.replace(/\D/g, "").slice(0, 3))} />
+                <span className="text-sm text-slate-400">ergibt <b className="font-mono" style={{ color: "var(--accent)" }}>{infoGNo ?? "??"}-{head.pos}</b></span>
+              </div>
+              {!infoGNo && <p className="mt-1 text-[11px] text-rose-500">Dieses Gewerk hat keine Gewerknummer.</p>}</div>
+            <div className="col-span-2"><label className="label label-req">Kurztext</label>
+              <input className="input" value={head.name} onChange={(e) => setHeadF("name", e.target.value)} placeholder="z.B. Wand spachteln und streichen" /></div>
+            <div className="col-span-2"><label className="label label-req">Langtext</label>
+              <textarea className="input min-h-[160px]" value={head.long_text} onChange={(e) => setHeadF("long_text", e.target.value)} placeholder="Ausführliche Leistungsbeschreibung für Angebot, Leistungsverzeichnis und Rechnung …" /></div>
+            <div><label className="label label-req">Einheit</label>
+              <select className="input" value={head.unit} onChange={(e) => setHeadF("unit", e.target.value)}>
+                {(units.length ? units : [...ARTICLE_UNITS]).map((u) => <option key={u} value={u}>{u}</option>)}
+              </select></div>
+            <div><label className="label label-req">MwSt. %</label>
+              <select className="input" value={head.vat_rate} onChange={(e) => setHeadF("vat_rate", Number(e.target.value))}>
+                {VAT_RATES.map((v) => <option key={v} value={v}>{v} %</option>)}
+              </select></div>
+            <div className="col-span-2"><label className="label text-slate-400">Interne Notiz / Import-Metadaten (intern, optional)</label>
+              <input className="input text-xs text-slate-500" value={head.internal_note} onChange={(e) => setHeadF("internal_note", e.target.value)} placeholder="Interner Vermerk – erscheint nicht im Angebot/PDF" /></div>
+            <div className="flex items-end pb-1"><Toggle checked={head.active} onChange={(v) => setHeadF("active", v)} label="Aktiv" /></div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="space-y-5 lg:col-span-2">
+            {/* Materialmodus */}
+            <div className="glass p-4">
+              <label className="label">Materialmodus</label>
+              <select className="input max-w-md" value={head.material_mode} onChange={(e) => setHeadF("material_mode", e.target.value)}>
+                {MATERIAL_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+
+            {/* Berechnung: bewusst im Kalkulations-Reiter, damit der Text beim
+                Kalkulieren des Preises sichtbar/bearbeitbar ist (Feld services.calculation_text). */}
+            <div className="glass p-4">
+              <label className="label">Berechnung (optional)</label>
+              <textarea className="input min-h-[100px] font-mono text-sm" value={head.calculation_text} onChange={(e) => setHeadF("calculation_text", e.target.value)} placeholder="Berechnungs-/Staffelpreis-Hinweise, z. B. von 1.000 € bis 9.999 € = 1,2 % (mind. 285)" />
+            </div>
+
+            {/* Lohn */}
+            <Section title="Lohn" icon={Clock} onAdd={addLohn} addLabel="Lohnzeile">
+              {lohnLines.length === 0 ? <Hint text="Noch keine Lohnzeile." /> : lohnLines.map((c) => (
+                <div key={c.uid} className="grid grid-cols-12 items-end gap-2">
+                  <div className="col-span-12 sm:col-span-5"><label className="label">Lohngruppe</label>
+                    <select className="input" value={c.hourly_rate_id ?? ""} onChange={(e) => pickRate(c.uid, e.target.value)}>
+                      <option value="">– frei –</option>
+                      {rates.map((r) => <option key={r.id} value={r.id}>{r.label} ({eur(r.internal_rate)}/h)</option>)}
+                    </select></div>
+                  <div className="col-span-4 sm:col-span-2"><label className="label">Minuten</label>
+                    <NumCell value={c.minutes} onChange={(v) => patch(c.uid, { minutes: v })} /></div>
+                  <div className="col-span-4 sm:col-span-2"><label className="label">€/Std</label>
+                    <NumCell value={c.cost_rate} onChange={(v) => patch(c.uid, { cost_rate: v })} /></div>
+                  <div className="col-span-3 sm:col-span-2 text-right text-sm"><label className="label">Lohnkosten</label>
+                    <div className="tabular-nums">{eur((c.minutes / 60) * c.cost_rate)}</div></div>
+                  <div className="col-span-1 flex justify-end pb-1"><button className="btn-ghost px-1.5 text-rose-500" onClick={() => remove(c.uid)}><Trash2 size={15} /></button></div>
+                </div>
+              ))}
+            </Section>
+
+            {/* Material aus Artikelstamm */}
+            {includesArtikel && (
+              <Section title="Material aus Artikelstamm" icon={Package} onAdd={addMaterial} addLabel="Artikel">
+                <datalist id="comp-unit-opts">{(units.length ? units : [...ARTICLE_UNITS]).map((u) => <option key={u} value={u} />)}</datalist>
+                {materialLines.length === 0 ? <Hint text="Noch kein Artikel." /> : materialLines.map((c) => (
+                  <div key={c.uid} className="grid grid-cols-12 items-end gap-2">
+                    <div className="col-span-12 sm:col-span-4"><label className="label">Artikel</label>
+                      {/* Suchbare Auswahl statt einfachem Dropdown – bei großen Artikelstämmen
+                          über Nr./Name/Gewerk/Kategorie/Einheit/Lieferant filterbar. */}
+                      <ArticleSearchSelect articles={articles} trades={trades} value={c.article_id}
+                        onSelect={(artId) => pickArticle(c.uid, artId)} /></div>
+                    <div className="col-span-3 sm:col-span-2"><label className="label">Menge</label>
+                      <NumCell value={c.quantity} onChange={(v) => patch(c.uid, { quantity: v })} /></div>
+                    {/* Einheit als eigenes Feld (Artikel-Auswahl füllt sie vor, bleibt änderbar; persistiert in service_components.unit). */}
+                    <div className="col-span-3 sm:col-span-2"><label className="label">Einheit</label>
+                      <input className="input" list="comp-unit-opts" value={c.unit ?? ""} placeholder="Stk" onChange={(e) => patch(c.uid, { unit: e.target.value })} /></div>
+                    <div className="col-span-3 sm:col-span-2"><label className="label">EK netto €</label>
+                      <NumCell value={c.cost_rate} onChange={(v) => patch(c.uid, { cost_rate: v })} /></div>
+                    <div className="col-span-2 sm:col-span-1 text-right text-sm"><label className="label">Material</label>
+                      <div className="tabular-nums">{eur(c.quantity * c.cost_rate)}</div></div>
+                    <div className="col-span-1 flex justify-end pb-1"><button className="btn-ghost px-1.5 text-rose-500" onClick={() => remove(c.uid)}><Trash2 size={15} /></button></div>
+                  </div>
+                ))}
+              </Section>
+            )}
+
+            {/* Materialpauschale */}
+            {includesPauschale && (
+              <div className="glass p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-bold"><Layers size={16} /> Materialpauschale</div>
+                <div className="grid grid-cols-12 items-end gap-2">
+                  <div className="col-span-12 sm:col-span-6"><label className="label">Pauschaltyp</label>
+                    <select className="input" value={head.pauschale_type} onChange={(e) => setHeadF("pauschale_type", e.target.value)}>
+                      {PAUSCHALE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select></div>
+                  {head.pauschale_type === "fix" ? (
+                    <div className="col-span-6 sm:col-span-3"><label className="label">Fixbetrag netto €</label>
+                      <NumCell value={head.pauschale_fix} onChange={(v) => setHeadF("pauschale_fix", v)} /></div>
+                  ) : head.pauschale_type !== "kein" ? (
+                    <div className="col-span-6 sm:col-span-3"><label className="label">Prozentwert</label>
+                      <NumCell value={head.pauschale_percent} suffix="%" onChange={(v) => setHeadF("pauschale_percent", v)} /></div>
+                  ) : null}
+                  <div className="col-span-6 sm:col-span-3 text-right text-sm"><label className="label">Pauschale</label>
+                    <div className="tabular-nums">{eur(calc.pauschaleTotal)}</div></div>
+                </div>
+              </div>
+            )}
+
+            {/* Sonstige Kosten */}
+            <Section title="Sonstige Kosten" icon={Sparkles} onAdd={addSonstige} addLabel="Sonstige Kosten">
+              {sonstigeLines.length === 0 ? <Hint text="Keine sonstigen Kosten." /> : sonstigeLines.map((c) => (
+                <div key={c.uid} className="grid grid-cols-12 items-end gap-2">
+                  <div className="col-span-12 sm:col-span-8"><label className="label">Beschreibung</label>
+                    <input className="input" value={c.label} onChange={(e) => patch(c.uid, { label: e.target.value })} placeholder="z.B. Entsorgung, Anfahrt" /></div>
+                  <div className="col-span-7 sm:col-span-3"><label className="label">Kosten netto €</label>
+                    <NumCell value={c.cost_rate} onChange={(v) => patch(c.uid, { cost_rate: v })} /></div>
+                  <div className="col-span-1 flex justify-end pb-1"><button className="btn-ghost px-1.5 text-rose-500" onClick={() => remove(c.uid)}><Trash2 size={15} /></button></div>
+                </div>
+              ))}
+            </Section>
+          </div>
+
+          {/* Ergebnis */}
+          <div className="lg:col-span-1">
+            <div className="glass sticky top-24 p-5">
+              <div className="mb-4 flex items-center gap-2 text-sm font-bold"><Calculator size={18} /> Ergebnis (netto)</div>
+              <Row label="Lohnkosten gesamt" value={eur(calc.lohnTotal)} />
+              {includesArtikel && <Row label="Material (Artikel)" value={eur(calc.materialArtikelTotal)} />}
+              {includesPauschale && <Row label="Materialpauschale" value={eur(calc.pauschaleTotal)} />}
+              <Row label="Sonstige Kosten" value={eur(calc.sonstigeTotal)} />
+              <div className="my-2 h-px" style={{ background: "var(--border)" }} />
+              <Row label="EK gesamt" value={eur(calc.ekTotal)} strong />
+              <div className="mt-3"><label className="label">Aufschlag %</label>
+                <NumCell value={head.aufschlag_percent} suffix="%" onChange={(v) => setHeadF("aufschlag_percent", v)} /></div>
+              <Row label="VK netto berechnet" value={eur(calc.vkNetCalc)} />
+              <div className="mt-2"><label className="label">VK netto manuell (leer = berechnet)</label>
+                <input type="number" step="0.01" className="input" value={head.vk_net_manual} placeholder={String(calc.vkNetCalc)}
+                  onChange={(e) => setHeadF("vk_net_manual", e.target.value === "" ? "" : Number(e.target.value))} /></div>
+              <div className="my-2 h-px" style={{ background: "var(--border)" }} />
+              <Row label="VK netto final" value={eur(calc.vkNetFinal)} strong accent />
+              <Row label={`VK brutto (inkl. ${head.vat_rate}%)`} value={eur(calc.vkBrutto)} />
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm text-slate-500">Marge / DB</span>
+                <Badge tone={marginTone(calc.marginPct)}>{calc.marginPct}% · {eur(calc.db)}</Badge>
+              </div>
+              {calc.isManual && <div className="mt-2 text-[11px] text-amber-500">VK manuell gesetzt – Aufschlag wird überschrieben.</div>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Section({ title, icon: Icon, onAdd, addLabel, children }: { title: string; icon: typeof Clock; onAdd: () => void; addLabel: string; children: React.ReactNode }) {
+  return (
+    <div className="glass p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-bold"><Icon size={16} /> {title}</div>
+        <button className="btn-outline" onClick={onAdd}><Plus size={15} /> {addLabel}</button>
+      </div>
+      <div className="space-y-3">{children}</div>
+    </div>
+  );
+}
+function Hint({ text }: { text: string }) { return <div className="text-sm text-slate-400">{text}</div>; }
+function Row({ label, value, strong, accent }: { label: string; value: string; strong?: boolean; accent?: boolean }) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className={`text-sm ${strong ? "font-semibold" : "text-slate-500"}`}>{label}</span>
+      <span className={`tabular-nums ${strong ? "text-base font-bold" : "text-sm"}`} style={accent ? { color: "var(--accent)" } : undefined}>{value}</span>
+    </div>
+  );
+}

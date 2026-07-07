@@ -1,0 +1,51 @@
+name: Quality
+
+# Läuft NUR bei Pull Requests gegen main – nicht bei jedem direkten Commit,
+# damit keine fehlgeschlagenen Läufe (und keine Fehler-Mails) bei normalen Pushes entstehen.
+# Ersetzt die frühere ci.yml (gleiche Logik, zusätzlich Prettier-Check).
+on:
+  pull_request:
+    branches: [main]
+
+# Mehrfachläufe für denselben PR abbrechen, sobald neu gepusht wird.
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Format · Typecheck · Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies (reproduzierbar, schnell)
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Lint (nicht blockierend)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Format-Check (nicht blockierend)
+        run: npm run format:check
+        continue-on-error: true
+
+      # Build enthält bereits `tsc --noEmit` (Typecheck) → kein doppelter tsc-Lauf, spart Zeit.
+      - name: Typecheck & Build (Produktion)
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # Vitest-Unit-Tests im Merge-Gate. Node-Version kommt aus `.nvmrc` (=22),
+      # damit das globale `WebSocket` (von @supabase/realtime-js erwartet) vorhanden ist –
+      # unter Node < 22 fehlt es und vitest würde beim Modul-Laden scheitern.
+      - name: Tests (Vitest)
+        run: npm test

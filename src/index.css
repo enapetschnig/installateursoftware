@@ -1,0 +1,691 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================================
+   DESIGN-TOKENS  —  drei unabhängige Achsen
+   1) Akzentfarbe   → [data-accent="…"] setzt nur --accent-base*
+   2) Darstellungsmodus → :root / .dark setzt Flächen + löst --accent auf
+   3) Augenschonmodus → .warm-light / .warm-dark: warme Flächen + entsättigter Akzent
+   Neue Schemata einfach als weiteren [data-accent="…"]-Block ergänzen.
+   ===================================================================== */
+
+/* --- 1) AKZENT-SCHEMATA (Default = B4Y Blau) --- */
+:root,
+[data-accent="blau"] {
+  --accent-base: #2563eb;
+  --accent-base-h: #1d4ed8;
+  --accent-base-soft: #dbeafe;
+  --accent-base-dark: #60a5fa;
+}
+[data-accent="rot"] {
+  --accent-base: #ef2f2f;
+  --accent-base-h: #dc2626;
+  --accent-base-soft: #fee2e2;
+  --accent-base-dark: #f87171;
+}
+[data-accent="gruen"] {
+  --accent-base: #16a34a;
+  --accent-base-h: #15803d;
+  --accent-base-soft: #dcfce7;
+  --accent-base-dark: #4ade80;
+}
+[data-accent="gold"] {
+  --accent-base: #b45309;
+  --accent-base-h: #92400e;
+  --accent-base-soft: #fef3c7;
+  --accent-base-dark: #fbbf24;
+}
+[data-accent="petrol"] {
+  --accent-base: #0f766e;
+  --accent-base-h: #115e59;
+  --accent-base-soft: #ccfbf1;
+  --accent-base-dark: #2dd4bf;
+}
+[data-accent="violett"] {
+  --accent-base: #7c3aed;
+  --accent-base-h: #6d28d9;
+  --accent-base-soft: #ede9fe;
+  --accent-base-dark: #a78bfa;
+}
+[data-accent="graphit"] {
+  --accent-base: #475569;
+  --accent-base-h: #334155;
+  --accent-base-soft: #e2e8f0;
+  --accent-base-dark: #94a3b8;
+}
+[data-accent="orange"] {
+  --accent-base: #ea580c;
+  --accent-base-h: #c2410c;
+  --accent-base-soft: #ffedd5;
+  --accent-base-dark: #fb923c;
+}
+
+/* --- 2) MODUS: HELL (Default) --- */
+:root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --card-bd: rgba(15, 23, 42, 0.08);
+  --text: #111827;
+  --text2: #64748b;
+  --border: rgba(15, 23, 42, 0.1);
+  --hover: #f1f5f9;
+  --accent: var(--accent-base);
+  --accent-h: var(--accent-base-h);
+  --accent-a: var(--accent-base-dark);
+  --accent-soft: var(--accent-base-soft);
+  --accent2: var(--accent-base-h);
+  --c-red: #ef4444;
+  --c-blue: #3b82f6;
+  --c-amber: #f59e0b;
+  --c-green: #22c55e;
+  --glow1: var(--accent);
+  --glow2: color-mix(in srgb, var(--accent) 45%, #94a3b8);
+  --glow1o: 0.13;
+  --glow2o: 0.1;
+  --chart-filter: none;
+  --shadow-strength: 0.18;
+  --nav-glow: 0 8px 24px -8px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* --- 2) MODUS: DUNKEL --- */
+.dark {
+  color-scheme: dark;
+  --bg: #0b1120;
+  --card: #151c2c;
+  --card-bd: rgba(255, 255, 255, 0.08);
+  --text: #f8fafc;
+  --text2: #94a3b8;
+  --border: rgba(255, 255, 255, 0.1);
+  --hover: rgba(255, 255, 255, 0.06);
+  --accent: var(--accent-base-dark);
+  --accent-h: var(--accent-base);
+  --accent-a: var(--accent-base-dark);
+  --accent-soft: color-mix(in srgb, var(--accent-base-dark) 22%, transparent);
+  --accent2: var(--accent-base);
+  --c-red: #f87171;
+  --c-blue: #60a5fa;
+  --c-amber: #fbbf24;
+  --c-green: #4ade80;
+  --glow1: var(--accent);
+  --glow2: color-mix(in srgb, var(--accent) 45%, #1e293b);
+  --glow1o: 0.24;
+  --glow2o: 0.18;
+  --chart-filter: none;
+  --shadow-strength: 0.5;
+  --nav-glow: 0 8px 24px -8px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* --- 3) AUGENSCHON HELL: warme Beige-Fläche + entsättigter Akzent --- */
+.warm-light {
+  color-scheme: light;
+  --bg: #f6f0e6;
+  --card: #fbf7ef;
+  --card-bd: #ded2c2;
+  --text: #2d2722;
+  --text2: #7a6a5d;
+  --border: #ded2c2;
+  --hover: #f1e8da;
+  --accent: color-mix(in srgb, var(--accent-base) 72%, #8a7c69);
+  --accent-h: color-mix(in srgb, var(--accent-base-h) 72%, #8a7c69);
+  --accent-a: color-mix(in srgb, var(--accent-base-dark) 70%, #8a7c69);
+  --accent-soft: color-mix(in srgb, var(--accent-base) 16%, var(--card));
+  --accent2: color-mix(in srgb, var(--accent-base-h) 65%, #8a7c69);
+  --c-red: #bc6a5e;
+  --c-blue: #7488a0;
+  --c-amber: #b3915f;
+  --c-green: #7e9070;
+  --glow1: color-mix(in srgb, var(--accent) 60%, #cdbfa8);
+  --glow2: #dcc6a8;
+  --glow1o: 0.05;
+  --glow2o: 0.04;
+  --chart-filter: saturate(0.6) brightness(0.99);
+  --shadow-strength: 0.06;
+  --nav-glow: 0 3px 10px -8px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* --- 3) AUGENSCHON DUNKEL --- */
+.warm-dark {
+  color-scheme: dark;
+  --bg: #1e1a16;
+  --card: #29231e;
+  --card-bd: #463a32;
+  --text: #f4ede4;
+  --text2: #c8b8a8;
+  --border: #463a32;
+  --hover: #332b25;
+  --accent: color-mix(in srgb, var(--accent-base-dark) 70%, #7a6c58);
+  --accent-h: color-mix(in srgb, var(--accent-base) 70%, #7a6c58);
+  --accent-a: color-mix(in srgb, var(--accent-base-dark) 68%, #7a6c58);
+  --accent-soft: color-mix(in srgb, var(--accent-base-dark) 20%, transparent);
+  --accent2: color-mix(in srgb, var(--accent-base) 62%, #7a6c58);
+  --c-red: #cf8175;
+  --c-blue: #8ba0bb;
+  --c-amber: #c2a274;
+  --c-green: #94a784;
+  --glow1: color-mix(in srgb, var(--accent) 55%, #3a3024);
+  --glow2: #5e4d38;
+  --glow1o: 0.06;
+  --glow2o: 0.04;
+  --chart-filter: saturate(0.6) brightness(0.97);
+  --shadow-strength: 0.22;
+  --nav-glow: 0 3px 12px -8px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* --- SEMANTISCHE ALIAS-TOKENS (für neue Komponenten, modular & zukunftssicher) --- */
+:root {
+  --color-background: var(--bg);
+  --color-surface: var(--card);
+  --color-surface-hover: var(--hover);
+  --color-border: var(--border);
+  --color-text-primary: var(--text);
+  --color-text-secondary: var(--text2);
+  --color-primary: var(--accent);
+  --color-primary-hover: var(--accent-h);
+  --color-primary-soft: var(--accent-soft);
+  --color-success: var(--c-green);
+  --color-warning: var(--c-amber);
+  --color-danger: var(--c-red);
+  --color-sidebar-bg: var(--card);
+  --color-sidebar-active: var(--accent);
+  --color-card-bg: var(--card);
+  --color-card-border: var(--card-bd);
+  --color-button-primary-bg: var(--accent);
+  --color-button-primary-text: #ffffff;
+  --color-focus-ring: var(--accent);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: Inter, "SF Pro Display", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  transition:
+    background 0.35s ease,
+    color 0.35s ease;
+}
+
+/* Hintergrund-Glow (im Augenschonmodus deutlich reduziert) */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.app-bg::before,
+.app-bg::after {
+  content: "";
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  filter: blur(130px);
+}
+.app-bg::before {
+  top: -20vw;
+  left: -15vw;
+  background: radial-gradient(circle, var(--glow1) 0%, transparent 65%);
+  opacity: var(--glow1o);
+  animation:
+    drift 22s ease-in-out infinite,
+    pulseglow 10s ease-in-out infinite;
+}
+.app-bg::after {
+  top: -25vw;
+  right: -15vw;
+  background: radial-gradient(circle, var(--glow2) 0%, transparent 65%);
+  opacity: var(--glow2o);
+  animation:
+    drift 26s ease-in-out infinite reverse,
+    pulseglow 12s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 130, 150, 0.3);
+  border-radius: 8px;
+}
+
+@layer components {
+  .glass {
+    @apply rounded-2xl border backdrop-blur-xl transition-all duration-300;
+    background: var(--card);
+    border-color: var(--card-bd);
+    box-shadow: 0 12px 40px -18px rgba(0, 0, 0, var(--shadow-strength));
+  }
+  .glass-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 55px -22px rgba(0, 0, 0, calc(var(--shadow-strength) + 0.08));
+  }
+
+  .input {
+    @apply w-full rounded-xl border px-3 py-2 text-sm outline-none transition;
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .input::placeholder {
+    color: var(--text2);
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide;
+    color: var(--text2);
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 active:scale-[.97] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn text-white;
+    background: linear-gradient(135deg, var(--accent), var(--accent-h));
+    box-shadow: 0 10px 28px -10px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(135deg, var(--accent-a), var(--accent));
+  }
+  .btn-ghost {
+    @apply btn;
+    color: var(--text2);
+  }
+  .btn-ghost:hover {
+    background: var(--hover);
+  }
+  .btn-outline {
+    @apply btn border;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .navlink {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200;
+  }
+
+  /* Theme-Switcher */
+  .seg {
+    @apply flex items-center gap-1 rounded-xl border p-1;
+    background: var(--card);
+    border-color: var(--border);
+  }
+  .seg-btn {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200;
+    color: var(--text2);
+  }
+  .seg-btn:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+  .seg-btn[data-active="true"] {
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-h));
+    box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+}
+
+/* Diagramme/Sparklines im Augenschonmodus entschärfen */
+.b4y-chart {
+  filter: var(--chart-filter);
+  transition: filter 0.3s ease;
+}
+
+/* ===== Augenschon-Overrides für Tailwind-Utilities ===== */
+.warm-light [class~="text-slate-900"],
+.warm-light [class~="text-slate-800"],
+.warm-light [class~="text-slate-700"],
+.warm-light [class~="text-slate-600"],
+.warm-dark [class~="dark:text-slate-100"],
+.warm-dark [class~="dark:text-slate-200"],
+.warm-dark [class~="dark:text-slate-300"] {
+  color: var(--text) !important;
+}
+.warm-light [class~="text-slate-500"],
+.warm-light [class~="text-slate-400"],
+.warm-light [class~="text-slate-300"],
+.warm-dark [class~="dark:text-slate-400"],
+.warm-dark [class~="dark:text-slate-500"] {
+  color: var(--text2) !important;
+}
+.warm-light [class~="bg-white"],
+.warm-light [class~="bg-slate-50"] {
+  background-color: var(--card) !important;
+}
+.warm-light [class~="bg-slate-100"],
+.warm-light [class~="bg-slate-200"],
+.warm-light [class~="bg-slate-100/70"],
+.warm-dark [class~="dark:bg-white/5"],
+.warm-dark [class~="dark:bg-white/10"],
+.warm-dark [class~="dark:bg-white/[0.02]"],
+.warm-dark [class~="dark:bg-white/[0.03]"],
+.warm-dark [class~="dark:bg-white/[0.04]"] {
+  background-color: var(--hover) !important;
+}
+.warm-light [class~="border-slate-200"],
+.warm-light [class~="border-slate-300"],
+.warm-light [class~="border-slate-100"],
+.warm-dark [class~="dark:border-white/5"],
+.warm-dark [class~="dark:border-white/10"],
+.warm-dark [class~="dark:border-white/15"] {
+  border-color: var(--border) !important;
+}
+/* weiches Rot für Branding-Utilities */
+.warm-light [class~="text-brand-500"],
+.warm-light [class~="text-brand-600"],
+.warm-dark [class~="text-brand-500"],
+.warm-dark [class~="text-brand-600"] {
+  color: var(--accent) !important;
+}
+.warm-light [class~="bg-brand-500"],
+.warm-light [class~="bg-brand-600"],
+.warm-dark [class~="bg-brand-500"],
+.warm-dark [class~="bg-brand-600"] {
+  background-color: var(--accent) !important;
+}
+.warm-light [class~="border-brand-400"],
+.warm-dark [class~="border-brand-400"],
+.warm-light [class~="ring-brand-500"],
+.warm-dark [class~="ring-brand-500"] {
+  border-color: var(--accent) !important;
+  --tw-ring-color: var(--accent) !important;
+}
+
+/* ===== brand-* (Alt-Rot) global auf die aktive Akzentfarbe mappen =====
+   So folgen ALLE bestehenden Komponenten der gewählten Akzentfarbe,
+   ohne dass jede Datei einzeln angefasst werden muss. */
+[class~="text-brand-500"],
+[class~="text-brand-600"],
+[class~="text-brand-700"],
+[class~="text-brand-800"],
+[class~="dark:text-brand-300"] {
+  color: var(--accent) !important;
+}
+[class~="bg-brand-500"],
+[class~="bg-brand-600"] {
+  background-color: var(--accent) !important;
+}
+[class~="hover:bg-brand-600"]:hover {
+  background-color: var(--accent-h) !important;
+}
+[class~="bg-brand-50"],
+[class~="bg-brand-100"],
+[class~="bg-brand-50/40"],
+[class~="bg-brand-400/20"],
+[class~="bg-brand-600/30"],
+[class~="dark:bg-brand-500/10"],
+[class~="dark:bg-brand-500/15"] {
+  background-color: var(--accent-soft) !important;
+}
+[class~="border-brand-300"],
+[class~="border-brand-400"],
+[class~="border-brand-500"] {
+  border-color: var(--accent) !important;
+}
+[class~="ring-brand-400"],
+[class~="ring-brand-500"] {
+  --tw-ring-color: var(--accent) !important;
+}
+[class~="focus:border-brand-400"]:focus {
+  border-color: var(--accent) !important;
+}
+[class~="from-brand-950"] {
+  --tw-gradient-from: color-mix(in srgb, var(--accent) 30%, #0b1120) var(--tw-gradient-from-position) !important;
+}
+
+/* =====================================================================
+   GLOBAL: Sticky Tabellen-Spaltenüberschriften
+   Regel: In allen Tabellen bleiben die Spaltenüberschriften beim
+   vertikalen Scrollen sichtbar. Gilt zentral für ALLE bestehenden und
+   zukünftigen Tabellen – keine Komponente muss angepasst werden.
+   ===================================================================== */
+
+/* 1) Spaltenkopf klebt oben, mit DECKENDER Theme-Farbe (nicht transparent)
+      und sichtbarer Unterkante. Liegt über den (scrollenden) Datenzeilen.
+      Der zusätzliche Schatten -1px nach links deckt Sub-Pixel-Fugen zwischen
+      benachbarten Kopfzellen ab (Windows-Skalierung 125 %/150 % rundet
+      Zellbreiten – sonst blitzt der thead-Hintergrund als vertikaler
+      „Strich" zwischen zwei Spaltenüberschriften durch). */
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--card);
+  box-shadow:
+    inset 0 -1px 0 var(--border),
+    -1px 0 0 var(--card);
+}
+/* Kopfzeilen-Tönung (bg-slate-50 / dark:bg-white/5) vereinheitlichen: die
+   sticky th sind ohnehin deckend var(--card) – eine abweichende thead-Farbe
+   würde nur in den Rundungsfugen sichtbar und wirkt dort wie ein Strich. */
+thead[class],
+thead {
+  background: var(--card);
+}
+
+/* 2) Der Tabellen-Wrapper (overflow-x-auto um eine Tabelle) wird zum
+      beschränkten Scrollbereich. Nötig, weil overflow-x:auto sonst einen
+      Scroll-Kontext erzeugt, in dem ein vertikal-sticky Header nicht greift.
+      So funktioniert sticky auch bei breiten, horizontal scrollbaren Tabellen. */
+.overflow-x-auto:has(> table) {
+  overflow: auto;
+  max-height: calc(100dvh - 210px);
+}
+/* 3) Scrollbalken aus den runden Karten-Ecken heraushalten: Die Wrapper sind
+      rounded-xl/2xl (12–16px) – ohne Track-Rand läuft der Balken oben rechts
+      sichtbar in die Rundung. Der Rand gilt je Achse (vertikal = oben/unten,
+      horizontal = links/rechts). */
+.overflow-x-auto:has(> table)::-webkit-scrollbar-track {
+  margin: 14px;
+}
+.overflow-x-auto:has(> table)::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Neu eingefügte Dokumentposition: kurz aufleuchten + Luft beim Auto-Scroll
+   (scroll-margin hält die Zeile von den Rändern des Scrollbereichs frei). */
+[id^="pos-"] {
+  scroll-margin-top: 84px;
+  scroll-margin-bottom: 96px;
+}
+.pos-flash {
+  animation: b4y-pos-flash 1.5s ease-out 1;
+  border-radius: 12px;
+}
+@keyframes b4y-pos-flash {
+  0%, 30% {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 0 7px var(--accent-soft);
+    background-color: var(--accent-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background-color: transparent;
+  }
+}
+
+.anim-in > * {
+  animation: fadeup 0.5s cubic-bezier(0.21, 1, 0.21, 1) both;
+}
+.anim-in > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.anim-in > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.anim-in > *:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.anim-in > *:nth-child(5) {
+  animation-delay: 0.2s;
+}
+.anim-in > *:nth-child(6) {
+  animation-delay: 0.25s;
+}
+
+/* ===== Augenschon: ruhige Oberfläche ===== */
+/* Hintergrund-Glow im Augenschonmodus nicht pulsieren lassen (nur sanftes Driften) */
+.warm-light .app-bg::before,
+.warm-dark .app-bg::before {
+  animation: drift 30s ease-in-out infinite;
+}
+.warm-light .app-bg::after,
+.warm-dark .app-bg::after {
+  animation: drift 34s ease-in-out infinite reverse;
+}
+
+/* Aktiver Navigationspunkt: Schatten je Theme (im Augenschonmodus stark reduziert) */
+.nav-active {
+  box-shadow: var(--nav-glow);
+}
+
+/* Augenschon: Übersicht zusätzlich entsättigen (~40%) – ruhiges, warmes Dashboard */
+.warm-light .dash,
+.warm-dark .dash {
+  filter: saturate(0.6) brightness(0.99);
+}
+
+/* Pflichtfeld-Markierung (zentral) – Akzentfarbe, in allen Modi sichtbar */
+.label-req::after {
+  content: " *";
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* =====================================================================
+   Mobile-Optimierung (Handy/Tablet)
+   Ziel: jede Desktop-Funktion ist am Handy gut bedienbar.
+   ===================================================================== */
+
+/* Safe-Area (iPhone-Notch / Home-Indikator) */
+@supports (padding: max(0px)) {
+  .safe-b {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 640px) {
+  /* iOS zoomt beim Fokus auf Felder < 16px – das verhindern wir */
+  .input,
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Komfortable Touch-Ziele (min. ~44px) */
+  .btn,
+  .btn-primary,
+  .btn-outline,
+  .btn-ghost {
+    min-height: 44px;
+  }
+  button {
+    touch-action: manipulation;
+  }
+
+  /* Modals am Handy als Vollflächen-Sheet statt enges Zentrum */
+  .modal-sheet {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 100% !important;
+    height: 100%;
+    border-radius: 0 !important;
+    padding: 1rem !important;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+  }
+  .modal-shell {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+
+  /* Tabellen am Handy horizontal scrollbar machen, falls nicht gewrappt */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ===================== Mailvorlagen-Editor ===================== */
+/* Tailwind setzt Listen zurück – im WYSIWYG-Editor wieder herstellen. */
+.mail-editor ul {
+  list-style: disc;
+  padding-left: 1.4rem;
+  margin: 0.4rem 0;
+}
+.mail-editor ol {
+  list-style: decimal;
+  padding-left: 1.4rem;
+  margin: 0.4rem 0;
+}
+.mail-editor li {
+  margin: 0.15rem 0;
+}
+.mail-editor p {
+  margin: 0.4rem 0;
+}
+.mail-editor a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.mail-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text2);
+}
+
+/* ===================== Kompaktmodus (kleiner Bildschirm / Laptop) =====================
+   Dichtere Darstellung, aktiviert über <html class="compact"> (Einstellungen → Darstellung).
+   Bewusst gezielt (keine globale Root-Font-Änderung → kein iOS-Zoom-Risiko bei Eingaben):
+   weniger Innenabstände + schmalere rechte Seitenleiste im Dokumenteditor. */
+html.compact .glass {
+  padding: 0.6rem;
+}
+html.compact .input {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+html.compact thead th,
+html.compact tbody td {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+html.compact .doc-workspace-grid {
+  gap: 0.5rem;
+}
+
+/* Rechte Seitenleiste des Dokumenteditors im Kompaktmodus schmaler,
+   damit Positionsbereich + Sidebar nebeneinander gut lesbar bleiben. */
+@media (min-width: 1024px) {
+  html.compact .doc-workspace-grid {
+    grid-template-columns: 1fr 320px;
+  }
+}
+@media (min-width: 1280px) {
+  html.compact .doc-workspace-grid {
+    grid-template-columns: 1fr 360px;
+  }
+}
+
+/* Automatisch auf typischen Laptop-Breiten (1024–1366px) – auch ohne Kompaktmodus:
+   etwas schmalere Sidebar + kleinerer Spaltenabstand, damit der Dokumenteditor
+   (Navigation/Toolbar/Positionen/Sidebar) nicht gedrängt wirkt. */
+@media (min-width: 1024px) and (max-width: 1366px) {
+  .doc-workspace-grid {
+    grid-template-columns: 1fr 340px;
+    gap: 0.6rem;
+  }
+  .doc-workspace-grid .glass {
+    padding: 0.65rem;
+  }
+}
