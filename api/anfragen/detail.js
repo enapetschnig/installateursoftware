@@ -24,10 +24,10 @@ import { bearerFromRequest, verifyUser } from "../_lib/security.js";
 import { logSafe } from "../_lib/safe-log.js";
 
 const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 const SUPABASE_ANON =
   process.env.VITE_SUPABASE_ANON_KEY ||
-  "sb_publishable_SI2t5XGM8ftCbPiav3-HPA_XC26KXtg";
+  "sb_publishable_akH66S1-i4WaHAbVrCd50A_qd7OrwfD";
 
 // RFC4122-Kompatibel (inkl. Versionen 1-5). Wir sind hier streng, weil ein
 // nicht-validierter String unbeabsichtigt PostgREST-Operatoren triggern

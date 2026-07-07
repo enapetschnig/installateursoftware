@@ -35,7 +35,7 @@ const JWKS_URL =
   "https://login.microsoftonline.com/common/discovery/v2.0/keys";
 const COOKIE_NAME = "b4y_oauth_state";
 const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 
 // Wohin wir den Browser nach Erfolg/Fehler zurueckwerfen.
 const SETTINGS_INTEGRATIONS_URL = "/app/einstellungen?tab=integrationen";

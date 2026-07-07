@@ -27,7 +27,7 @@ import { logSafe } from "../_lib/safe-log.js";
 export const config = { maxDuration: 30 };
 
 const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 
 const ALLOWED_CLASSIFICATIONS = new Set([
   "interessent",

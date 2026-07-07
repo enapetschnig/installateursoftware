@@ -75,7 +75,7 @@ const ALLOWED_DOC_KINDS = new Set(["offer", "order", "invoice"]);
 let _adminSingleton = null;
 function getAdminClient() {
   if (_adminSingleton) return _adminSingleton;
-  const url = process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  const url = process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!key) {
     throw new Error(

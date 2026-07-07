@@ -32,10 +32,10 @@ import { logSafe } from "../_lib/safe-log.js";
 export const config = { maxDuration: 15 };
 
 const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 const SUPABASE_ANON =
   process.env.VITE_SUPABASE_ANON_KEY ||
-  "sb_publishable_SI2t5XGM8ftCbPiav3-HPA_XC26KXtg";
+  "sb_publishable_akH66S1-i4WaHAbVrCd50A_qd7OrwfD";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

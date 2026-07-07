@@ -11,9 +11,9 @@
 // Der Ordner `_lib` (Unterstrich) wird von Vercel NICHT als Route behandelt.
 // ============================================================
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 // anon/publishable Key ist bewusst öffentlich (nur zum Validieren des User-Tokens nötig)
-const SUPABASE_ANON = process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_SI2t5XGM8ftCbPiav3-HPA_XC26KXtg";
+const SUPABASE_ANON = process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_akH66S1-i4WaHAbVrCd50A_qd7OrwfD";
 
 /** Bearer-Token aus dem Request-Header lesen (case-insensitive). */
 export function bearerFromRequest(req) {

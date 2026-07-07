@@ -43,7 +43,7 @@ import { getGraphAccessToken } from "../_lib/microsoft-graph.js";
 export const config = { maxDuration: 15 };
 
 const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
 // Whitelist erlaubter Ordner-Namen fuer /mailFolders/{name}/messages.

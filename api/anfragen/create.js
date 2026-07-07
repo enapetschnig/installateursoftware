@@ -42,10 +42,10 @@ import { bearerFromRequest, verifyUser, checkRateLimit } from "../_lib/security.
 import { logSafe } from "../_lib/safe-log.js";
 
 const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 const SUPABASE_ANON =
   process.env.VITE_SUPABASE_ANON_KEY ||
-  "sb_publishable_SI2t5XGM8ftCbPiav3-HPA_XC26KXtg";
+  "sb_publishable_akH66S1-i4WaHAbVrCd50A_qd7OrwfD";
 
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;

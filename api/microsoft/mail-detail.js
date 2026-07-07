@@ -40,7 +40,7 @@ import {
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 
 // Service-Role-Client-Singleton pro Cold-Start (fuer memberships-Lookup und
 // als admin-Injection in getGraphAccessToken).

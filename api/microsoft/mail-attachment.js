@@ -41,7 +41,7 @@ import {
 } from "../_lib/microsoft-graph.js";
 
 const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
+  process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
 
 // MIME-Prefix-Whitelist fuer mode=inline. Alles andere → attachment.
 const INLINE_MIME = ["image/", "application/pdf"];

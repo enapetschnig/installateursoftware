@@ -20,8 +20,8 @@ import { checkRateLimit } from "../_lib/security.js";
 // wert und greift in beiden Plaenen.
 export const config = { maxDuration: 60 };
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://pqwcpgmsutpbuvdzslbc.supabase.co";
-const SUPABASE_ANON = process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_SI2t5XGM8ftCbPiav3-HPA_XC26KXtg";
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://xyhgckqxowqnzjtoblfs.supabase.co";
+const SUPABASE_ANON = process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_akH66S1-i4WaHAbVrCd50A_qd7OrwfD";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 const DEFAULT_SYSTEM =
