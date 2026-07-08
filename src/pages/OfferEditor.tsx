@@ -21,7 +21,7 @@ import { dateAt, eur } from "../lib/format";
 import { useAuth } from "../lib/auth";
 import { logProject } from "../lib/projectlog";
 import { addSupplementToOrder } from "../lib/document-supplement";
-import { createOrderFromOffers, findActiveOrderForOffer } from "../lib/document-chain";
+import { createOrderFromOffers, createInvoiceFromOffer, findActiveOrderForOffer } from "../lib/document-chain";
 import { isUuid, docPath } from "../lib/documents-overview";
 import { buildDocPlaceholders } from "../lib/document-placeholders";
 import { canConvertOffer } from "../lib/document-transitions";
@@ -757,6 +757,29 @@ export default function OfferEditor() {
     if (r.id) nav(docPath("order", r.id, r.number));
   }
 
+  // Direktweg: aus diesem Angebot SOFORT eine Rechnung erstellen. Im Hintergrund wird
+  // (wie beim manuellen Weg) ein Auftrag miterzeugt, damit die Kette lückenlos bleibt
+  // und §19/Snapshots/Quellverweise korrekt übernommen werden.
+  async function createInvoiceFromThis() {
+    if (!offer) return;
+    if (!can("invoices", "create")) { window.alert("Keine Berechtigung zum Erstellen von Rechnungen."); return; }
+    for (let waited = 0; savingRef.current && waited < 5000; waited += 100) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const saved = await save();
+    if (!saved) { window.alert("Bitte zuerst speichern – Rechnung wurde nicht erstellt."); return; }
+    const { data: fresh, error: reloadErr } = await supabase.from("offers").select("*").eq("id", offer.id).maybeSingle();
+    if (reloadErr || !fresh) { window.alert(reloadErr?.message ?? "Angebot konnte nicht neu geladen werden – Rechnung nicht erstellt."); return; }
+    const c = canConvertOffer(fresh as any);
+    if (!c.ok) { window.alert(c.reason); return; }
+    const r = await createInvoiceFromOffer(fresh, { projectId: head.project_id, contactId: (fresh as any).contact_id ?? head.contact_id ?? null });
+    if (r.error) { window.alert(r.error); return; }
+    if (head.project_id) {
+      await logProject(head.project_id, "rechnung", `Rechnung ${r.number || ""} direkt aus Angebot ${head.number || ""} erstellt (Auftrag ${r.orderNumber || ""})`, offer.id);
+    }
+    if (r.id) nav(docPath("invoice", r.id, r.number));
+  }
+
   if (loading) return <div className="pt-4"><Spinner /></div>;
   if (!offer || (offer as any).deleted_at) return (
     <div className="pt-4">
@@ -917,12 +940,15 @@ export default function OfferEditor() {
     canCopy: !isNachtrag && can("offers", "create"),
     canDelete: isDeletable("offer", offer) && can("offers", "delete"),
     canCreateOrder: !isNachtrag && !!head.project_id && can("orders", "create") && canConvertOffer(offerNow).ok,
+    // Direktweg Angebot → Rechnung (Auftrag wird im Hintergrund miterzeugt). Kein Projekt nötig.
+    canCreateInvoice: !isNachtrag && can("invoices", "create") && canConvertOffer(offerNow).ok,
     // Duplikat-Schutz: existiert bereits ein aktiver Auftrag aus diesem Angebot,
     // wird „Auftrag erstellen" deaktiviert + „Zum Auftrag wechseln" angeboten.
     existingOrderNumber: !isNachtrag && existingOrder ? (existingOrder.order_number || "ohne Nummer") : null,
     onGoToOrder: existingOrder ? () => nav(docPath("order", existingOrder.id, existingOrder.order_number)) : undefined,
     onCopy: duplicate,
     onCreateOrder: createOrderFromThis,
+    onCreateInvoice: createInvoiceFromThis,
     onDelete: () => setDelOpen(true),
   });
 

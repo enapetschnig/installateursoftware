@@ -413,6 +413,45 @@ function positionsToInvoiceJson(positions: SourcedPosition[]): { items: any[]; n
   return { items, net: round2(net), vat: round2(vat) };
 }
 
+/**
+ * Direktweg Angebot → Rechnung: erstellt im Hintergrund zuerst EINEN Auftrag aus
+ * dem Angebot (damit die Kette lückenlos bleibt und §19/Snapshots/Quellverweise
+ * korrekt übernommen werden) und daraus sofort die Rechnung. Liefert Rechnung +
+ * (zur Info) den miterzeugten Auftrag.
+ */
+export async function createInvoiceFromOffer(
+  offer: any,
+  opts?: { projectId?: string | null; contactId?: string | null; targetOfferTypeId?: string | null },
+): Promise<{ id?: string; number?: string; orderId?: string; orderNumber?: string; error?: string }> {
+  const blocked = checkOffersConvertible([offer]);
+  if (blocked) return { error: blocked };
+
+  const projectId = opts?.projectId ?? offer.project_id ?? null;
+  const contactId = opts?.contactId ?? offer.contact_id ?? null;
+
+  // 1) Auftrag aus dem Angebot (nutzt die geprüfte Ketten-Logik inkl. Doppelbeauftragungs-Schutz).
+  const order = await createOrderFromOffers({
+    projectId: projectId as string,
+    contactId,
+    offers: [offer],
+    targetOfferTypeId: opts?.targetOfferTypeId ?? offer.offer_type_id ?? null,
+  });
+  if (order.error || !order.id) return { error: order.error ?? "Auftrag konnte nicht erstellt werden." };
+
+  // 2) Frisch geladenen Auftrag als Quelle für die Rechnung (createInvoiceFromOrders braucht items/status/vat_mode).
+  const { data: orderRow, error: loadErr } = await supabase.from("orders").select("*").eq("id", order.id).maybeSingle();
+  if (loadErr || !orderRow) {
+    return { error: "Der erstellte Auftrag konnte nicht geladen werden.", orderId: order.id, orderNumber: order.number };
+  }
+
+  // 3) Rechnung aus dem Auftrag.
+  const inv = await createInvoiceFromOrders({ orders: [orderRow], projectId, contactId });
+  if (inv.error || !inv.id) {
+    return { error: inv.error ?? "Rechnung konnte nicht erstellt werden.", orderId: order.id, orderNumber: order.number };
+  }
+  return { id: inv.id, number: inv.number, orderId: order.id, orderNumber: order.number };
+}
+
 /** Erstellt EINE Rechnung aus einem/mehreren Aufträgen. Liefert die neue Rechnungs-ID. */
 export async function createInvoiceFromOrders(opts: CreateInvoiceOpts): Promise<{ id?: string; number?: string; error?: string }> {
   const blocked = checkOrdersConvertible(opts.orders);

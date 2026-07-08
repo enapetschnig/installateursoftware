@@ -22,12 +22,14 @@ export type DocActionsInput =
       canCopy?: boolean;          // Kopieren anbieten (Default an); für Angebot-Nachträge bewusst aus
       canDelete?: boolean;
       canCreateOrder?: boolean;   // fachlich zulässig (finalisiert, kein Nachtrag, mit Projekt) → echte Kette
+      canCreateInvoice?: boolean; // Direktweg Angebot→Rechnung (Auftrag wird im Hintergrund miterzeugt)
       /** Aus diesem Angebot existiert bereits ein aktiver Auftrag → „Auftrag erstellen"
        *  wird sichtbar deaktiviert und „Zum Auftrag wechseln" angeboten (kein Duplikat). */
       existingOrderNumber?: string | null;
       onGoToOrder?: () => void;
       onCopy: () => void;
       onCreateOrder?: () => void;
+      onCreateInvoice?: () => void;
       onDelete?: () => void;
     }
   | {
@@ -112,8 +114,14 @@ export function buildDocumentMoreActions(input: DocActionsInput): MoreAction[] {
     if (input.onGoToOrder) {
       actions.push({ label: "Zum Auftrag wechseln", icon: ic(<ArrowRight size={15} />), onClick: input.onGoToOrder });
     }
-  } else if (input.canCreateOrder && input.onCreateOrder) {
-    actions.push({ label: "Auftrag erstellen", icon: ic(<FileText size={15} />), onClick: input.onCreateOrder });
+  } else {
+    if (input.canCreateOrder && input.onCreateOrder) {
+      actions.push({ label: "Auftrag erstellen", icon: ic(<FileText size={15} />), onClick: input.onCreateOrder });
+    }
+    // Direktweg: Angebot → Rechnung (Auftrag wird im Hintergrund miterzeugt, Kette bleibt lückenlos).
+    if (input.canCreateInvoice && input.onCreateInvoice) {
+      actions.push({ label: "Rechnung erstellen", icon: ic(<FileText size={15} />), onClick: input.onCreateInvoice });
+    }
   }
   if (input.canDelete && input.onDelete) {
     actions.push({ label: "Entwurf löschen", icon: ic(<Trash2 size={15} />), onClick: input.onDelete, danger: true });
