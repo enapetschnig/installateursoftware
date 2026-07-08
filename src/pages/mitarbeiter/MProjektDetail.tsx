@@ -17,6 +17,7 @@ import { ErrorBanner } from "../../components/calc-ui";
 import { stageTone } from "../../lib/types";
 import { useAuth } from "../../lib/auth";
 import ProjectMediaGallery from "../../components/media/ProjectMediaGallery";
+import ProjectFilesSection from "../../components/mitarbeiter/ProjectFilesSection";
 
 type ProjectRow = {
   id: string;
@@ -111,6 +112,15 @@ export default function MProjektDetail() {
         projectId={project.id}
         uploadedBy={session?.user.id ?? null}
         perms={{ canUpload: true, canCapture: true, canDelete: false }}
+      />
+
+      {/* Pläne & Dokumente (PDF/Zeichnungen) – Upload aufs Projekt, Ansehen per Signed URL. */}
+      <ProjectFilesSection
+        projectId={project.id}
+        bucket="project-plans"
+        title="Pläne & Dokumente"
+        accept="application/pdf,image/*"
+        hint="Pläne, Skizzen oder Fotos vom Plan – am Handy fotografieren oder Datei wählen."
       />
     </div>
   );

@@ -11,17 +11,27 @@
 // ============================================================
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Clock, MapPin } from "lucide-react";
+import { Plus, Clock, MapPin, CalendarCheck } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { Empty, Spinner, Modal } from "../../components/ui";
 import { ErrorBanner } from "../../components/calc-ui";
 import { useMyEmployee } from "../../lib/my-employee";
 import { toast, toastError } from "../../lib/toast";
-import type { SollContext } from "../../lib/work-calendar";
+import { resolveDaySoll, type SollContext } from "../../lib/work-calendar";
 import {
   loadTimeEntries, saveTimeEntry, summarize, loadEmployeeSollContext, loadCompanyHolidays,
   hoursFromRange, fmtHours, fmtSaldo, LOCATION_TYPES, TimeEntry, LocationType,
 } from "../../lib/time-entries";
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+// Endzeit aus Start + Dauer(h) + Pause(min).
+function addToTime(start: string, hours: number, pauseMin: number): string {
+  const [sh, sm] = start.split(":").map(Number);
+  const total = sh * 60 + sm + Math.round(hours * 60) + pauseMin;
+  return `${pad2(Math.floor(total / 60) % 24)}:${pad2(total % 60)}`;
+}
+
+type FormPreset = { start?: string; end?: string; pause?: number } | null;
 
 type ProjectOpt = { id: string; title: string | null; project_number: string | null };
 
@@ -50,6 +60,7 @@ export default function MZeit() {
   const [dataLoading, setDataLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [preset, setPreset] = useState<FormPreset>(null);
 
   const todayIso = isoDate(new Date());
   const weekFrom = isoDate(startOfWeek(new Date()));
@@ -108,6 +119,29 @@ export default function MZeit() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, ctx, holidays, weekFrom, todayIso]);
 
+  // Regelarbeitszeit heute (Soll) und noch fehlende Stunden (Soll − bereits gebucht).
+  const todaySoll = useMemo(
+    () => (ctx ? Math.round(resolveDaySoll(new Date(`${todayIso}T00:00:00`), ctx) * 100) / 100 : 0),
+    [ctx, todayIso],
+  );
+  const todayIst = useMemo(
+    () => todayEntries.filter((e) => e.entry_kind === "arbeit").reduce((a, e) => a + (Number(e.hours) || 0), 0),
+    [todayEntries],
+  );
+  const remaining = Math.max(0, Math.round((todaySoll - todayIst) * 100) / 100);
+
+  // „Regelarbeitszeit einfüllen": öffnet das Formular mit einem Block, der den Tag
+  // auf die Regelarbeitszeit auffüllt – beginnend nach dem letzten Eintrag (sonst 07:00).
+  function fillRegularHours() {
+    if (todaySoll <= 0) { toast("Heute ist kein Regelarbeitstag."); return; }
+    if (remaining <= 0) { toast("Regelarbeitszeit für heute ist bereits erreicht."); return; }
+    const lastEnd = todayEntries.map((e) => e.end_time).filter(Boolean).map((t) => (t as string).slice(0, 5)).sort().pop();
+    const start = lastEnd || "07:00";
+    const pause = remaining >= 6 ? 30 : 0; // grobe Standardpause bei längeren Tagen
+    setPreset({ start, end: addToTime(start, remaining, pause), pause });
+    setFormOpen(true);
+  }
+
   if (loading) return <Spinner />;
   if (!employee) {
     return (
@@ -130,9 +164,15 @@ export default function MZeit() {
 
       <ErrorBanner message={err} />
 
-      <button className="btn-primary min-h-[52px] w-full justify-center text-base" onClick={() => setFormOpen(true)}>
-        <Plus size={18} /> Zeit erfassen
-      </button>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <button className="btn-primary min-h-[52px] w-full justify-center text-base" onClick={() => { setPreset(null); setFormOpen(true); }}>
+          <Plus size={18} /> Zeit erfassen
+        </button>
+        <button className="btn-outline min-h-[52px] w-full justify-center text-base" onClick={fillRegularHours} disabled={!ctx}>
+          <CalendarCheck size={18} /> Regelarbeitszeit
+          {todaySoll > 0 && <span className="ml-1 tabular-nums opacity-70">{remaining > 0 ? `(+${fmtHours(remaining)} h)` : "✓"}</span>}
+        </button>
+      </div>
 
       {/* Heutige Einträge */}
       <div className="glass p-4">
@@ -210,8 +250,9 @@ export default function MZeit() {
           employeeId={employee.id}
           projects={projects}
           defaultProjectId={projektParam ?? ""}
-          onClose={() => setFormOpen(false)}
-          onSaved={() => { setFormOpen(false); void reloadEntries(); }}
+          preset={preset}
+          onClose={() => { setFormOpen(false); setPreset(null); }}
+          onSaved={() => { setFormOpen(false); setPreset(null); void reloadEntries(); }}
         />
       )}
     </div>
@@ -222,20 +263,21 @@ export default function MZeit() {
 // Erfassungs-Formular (Vollbild-Sheet auf Mobil via Modal)
 // ------------------------------------------------------------
 function ZeitForm({
-  employeeId, projects, defaultProjectId, onClose, onSaved,
+  employeeId, projects, defaultProjectId, preset, onClose, onSaved,
 }: {
   employeeId: string;
   projects: ProjectOpt[];
   defaultProjectId: string;
+  preset: FormPreset;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [datum, setDatum] = useState<string>(isoDate(new Date()));
   const [locationType, setLocationType] = useState<LocationType>("baustelle");
   const [projectId, setProjectId] = useState<string>(defaultProjectId);
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  const [pause, setPause] = useState<number>(0);
+  const [start, setStart] = useState(preset?.start ?? "");
+  const [end, setEnd] = useState(preset?.end ?? "");
+  const [pause, setPause] = useState<number>(preset?.pause ?? 0);
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -305,17 +347,24 @@ function ZeitForm({
         </div>
 
         <div className="grid grid-cols-2 items-end gap-3">
-          <label className="block">
-            <span className="mb-1 block text-sm font-semibold">Pause (Min.)</span>
-            <input
-              type="number"
-              min={0}
-              className="input"
-              value={pause === 0 ? "" : pause}
-              placeholder="0"
-              onChange={(e) => setPause(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-            />
-          </label>
+          <div className="block">
+            <span className="mb-1 block text-sm font-semibold">Pause</span>
+            <div className="flex gap-1.5">
+              {[0, 30, 45, 60].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setPause(m)}
+                  className={`min-h-[44px] flex-1 rounded-xl text-sm font-semibold tabular-nums transition ${
+                    pause === m ? "text-white" : "text-slate-600 dark:text-slate-300"
+                  }`}
+                  style={pause === m ? { background: "var(--accent)" } : { background: "var(--hover)" }}
+                >
+                  {m === 0 ? "–" : m}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="rounded-xl p-3 text-center" style={{ background: "var(--hover)" }}>
             <div className="flex items-center justify-center gap-1 text-2xl font-extrabold tabular-nums">
               <Clock size={18} className="text-slate-400" /> {fmtHours(hours)}
