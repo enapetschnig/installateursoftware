@@ -552,7 +552,14 @@ export default function Anfragen() {
         // filtern wir client-seitig (siehe Datei-Kommentar oben).
         const r = await listAnfragen({ search: search || undefined, limit: FETCH_LIMIT, offset: 0 });
         if (reqId !== reqRef.current) return;
-        setRows(r.rows);
+        // Defensive: bei unerwarteter Antwort (z. B. /api nicht erreichbar) niemals
+        // rows auf undefined setzen – die Liste würde sonst beim Filtern abstürzen.
+        if (Array.isArray(r?.rows)) {
+          setRows(r.rows);
+        } else {
+          setRows([]);
+          setError("Anfragen sind derzeit nicht verfügbar (API nicht erreichbar).");
+        }
       } catch (e) {
         if (reqId !== reqRef.current) return;
         const msg = e instanceof Error ? e.message : "Anfragen konnten nicht geladen werden.";

@@ -61,8 +61,6 @@ test("Installateur-Showcase durchklicken", async ({ page }) => {
   current = "11-projekte-board";
   await page.goto("/app/projekte");
   await page.waitForTimeout(1500);
-  // zweiter Ansicht-Button (Board) in der Kopfzeile
-  const viewButtons = page.locator("button:has(svg)");
   await page.getByRole("button").nth(0).waitFor().catch(() => {});
   try {
     // Board-Umschalter: das LayoutGrid-Icon (zweiter Toggle)
