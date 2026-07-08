@@ -35,6 +35,7 @@ import {
   RefreshCw,
   Search,
   AlertTriangle,
+  Mail,
 } from "lucide-react";
 import {
   Spinner,
@@ -50,6 +51,7 @@ import {
   type AnfrageSource,
 } from "../lib/anfragen";
 import { toast, toastError, toastInfo } from "../lib/toast";
+import { pollInbox, summarizePoll } from "../lib/mail";
 import { useNewAnfragenSubscription } from "../hooks/useNewAnfragenSubscription";
 import { SortHeader } from "../components/SortHeader";
 import { useTableSort } from "../lib/useTableSort";
@@ -513,6 +515,7 @@ export default function Anfragen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [polling, setPolling] = useState(false);
 
   // Such-Eingabe debouncen, damit nicht jede Tastenbewegung ein Reload triggert.
   useEffect(() => {
@@ -598,6 +601,25 @@ export default function Anfragen() {
   }, []);
   useNewAnfragenSubscription(onNewAnfrage);
 
+  // ── Postfach manuell abrufen ("Jetzt abrufen") ─────────────────────────
+  // Löst den serverseitigen IMAP-Abruf + KI-Triage aus. Neue Kundenanfragen
+  // kommen per Realtime rein; wir laden zusätzlich die Liste nach.
+  const handlePoll = useCallback(async () => {
+    setPolling(true);
+    try {
+      const res = await pollInbox();
+      const msg = summarizePoll(res);
+      if (!res.ok && res.reason === "not_configured") toastInfo(msg);
+      else if (!res.ok) toastError(msg);
+      else toast(msg);
+      if (res.ok && (res.fetched ?? 0) > 0) load("refresh");
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Postfach-Abruf fehlgeschlagen.");
+    } finally {
+      setPolling(false);
+    }
+  }, [load]);
+
   // ── Client-seitige Filter ──────────────────────────────────────────────
   const filteredAll = useMemo(() => {
     return rows.filter((r) => {
@@ -659,12 +681,23 @@ export default function Anfragen() {
             Anfragen
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Posteingang aus dem KI-Telefonagenten (Fonio) und manuell erfassten Anliegen
+            Smartes KI-Postfach: E-Mails, KI-Telefonagent (Fonio) und manuell erfasste Anliegen
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setModalOpen(true)}>
-          <Plus size={18} /> Anfrage erfassen
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="btn-secondary"
+            onClick={handlePoll}
+            disabled={polling}
+            title="Neue E-Mails aus dem Postfach abrufen und per KI einordnen"
+          >
+            <Mail size={16} className={polling ? "animate-pulse" : ""} />
+            {polling ? "Rufe ab …" : "Postfach abrufen"}
+          </button>
+          <button className="btn-primary" onClick={() => setModalOpen(true)}>
+            <Plus size={18} /> Anfrage erfassen
+          </button>
+        </div>
       </div>
 
       <TabBar current={tab} counts={counts} onChange={setTab} />
@@ -699,7 +732,7 @@ export default function Anfragen() {
       ) : visible.length === 0 ? (
         <Empty
           title="Noch keine Anfragen."
-          hint="Fonio-Anrufe und manuelle Anfragen erscheinen hier."
+          hint="E-Mails, Fonio-Anrufe und manuelle Anfragen erscheinen hier."
         />
       ) : (
         <>

@@ -6,8 +6,12 @@
   "functions": {
     "api/render-pdf.js": { "maxDuration": 30 },
     "api/ai/transcribe.js": { "maxDuration": 30 },
-    "api/ai/chat.js": { "maxDuration": 60 }
+    "api/ai/chat.js": { "maxDuration": 60 },
+    "api/mail/poll.js": { "maxDuration": 60 }
   },
+  "crons": [
+    { "path": "/api/mail/poll", "schedule": "*/15 * * * *" }
+  ],
   "rewrites": [
     { "source": "/landingpage", "destination": "/landingpage.html" },
     { "source": "/app", "destination": "/app/index.html" },

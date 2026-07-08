@@ -71,6 +71,7 @@ Das Aktualisieren dieser Dateien ist **Teil jeder Änderung** (Definition-of-Don
 | KI-Assistent (Isabella) | [ki-assistent-isabella.md](ki-assistent-isabella.md) | Sprach-/Chat-Assistent, OpenAI/Claude-Fallback |
 | KI-Schulungsmodus | [ki-schulungsmodus.md](ki-schulungsmodus.md) | Geführte Touren mit virtuellem Cursor (data-tour-id) |
 | E-Mail (Outlook-ähnlich) | [email.md](email.md) | Outlook-ähnliches Mail-Modul, Fundament ohne Graph (Mock-Adapter, Demo-Modus) |
+| Smartes KI-Postfach | [smartes-ki-postfach.md](smartes-ki-postfach.md) | IMAP-Eingang → KI liest jede Mail → Kundenanfragen ins Anfragen-Postfach, Rechnungen für die Buchhaltung |
 | Sicherheit & Härtung | [sicherheit.md](sicherheit.md) | API-Auth, Rate-Limit, RBAC, private Buckets/signierte URLs, Sanitisierung, Header |
 
 ### Marketing / Öffentliche Seite

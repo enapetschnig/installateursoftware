@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import {
   FolderKanban, FileText, Receipt, CheckCircle2, Plus, Camera, UserPlus,
   TrendingUp, TrendingDown, Calendar, Clock, Building2, ArrowUpRight, ArrowRight,
-  AlertTriangle, CalendarClock, Bell, ListChecks, MapPin, User, type LucideIcon,
+  AlertTriangle, CalendarClock, Bell, ListChecks, MapPin, User, Inbox, Mail, Phone,
+  Sparkles, type LucideIcon,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
@@ -32,6 +33,11 @@ function buildRevenue(rows: { net: number | null; invoice_date: string | null }[
 
 type TaskRow = { id: string; title: string; due_date: string | null; priority: string | null; project_id: string | null };
 type Reminder = { id: string; title: string; reminder_date: string | null; reminder_text: string | null };
+type NewRequest = {
+  id: string; source: string; subject: string | null; caller_name: string | null;
+  ai_summary: string | null; ai_classification: string | null; ai_priority: string | null;
+  created_at: string;
+};
 
 type DashData = {
   projectsActive: number; projectsRunning: number; projectsThisWeek: number;
@@ -40,14 +46,28 @@ type DashData = {
   tasksOpen: number; tasksOverdue: number;
   topProjects: Project[]; taskList: TaskRow[]; projTitle: Record<string, string>;
   reminders: Reminder[]; appts: Appointment[]; revenue: number[];
+  newRequests: NewRequest[]; requestsNew: number;
 };
 
 const EMPTY: DashData = {
   projectsActive: 0, projectsRunning: 0, projectsThisWeek: 0,
   offersTotal: 0, offersThisWeek: 0, invoicesOpen: 0, invoicesOverdue: 0,
   tasksOpen: 0, tasksOverdue: 0, topProjects: [], taskList: [], projTitle: {},
-  reminders: [], appts: [], revenue: [],
+  reminders: [], appts: [], revenue: [], newRequests: [], requestsNew: 0,
 };
+
+const REQ_SOURCE_ICON: Record<string, LucideIcon> = {
+  email: Mail, phone_fonio: Phone, manual: User, website_form: Inbox,
+};
+const REQ_SOURCE_LABEL: Record<string, string> = {
+  email: "E-Mail", phone_fonio: "Telefon", manual: "Manuell", website_form: "Website",
+  instagram: "Instagram", facebook: "Facebook", whatsapp: "WhatsApp", other: "Sonstige",
+};
+function reqPrioTone(p?: string | null): Tone {
+  if (p === "hoch") return "red";
+  if (p === "mittel") return "amber";
+  return "slate";
+}
 
 function prioTone(p?: string | null): Tone {
   const s = (p ?? "").toLowerCase();
@@ -127,6 +147,23 @@ export default function Dashboard() {
           appts = materializeOccurrences(rows, todayStart, todayEnd);
         } catch { /* Termine optional – leerer Block bei Fehler */ }
 
+        // Neue Anfragen (smartes KI-Postfach) – optional, bricht das Dashboard
+        // bei Fehler/RLS nicht ab.
+        let newRequests: NewRequest[] = [];
+        let requestsNew = 0;
+        try {
+          const [reqListRes, reqCntRes] = await Promise.all([
+            supabase.from("anfragen")
+              .select("id,source,subject,caller_name,ai_summary,ai_classification,ai_priority,created_at")
+              .eq("status", "neu")
+              .order("created_at", { ascending: false })
+              .limit(5),
+            supabase.from("anfragen").select("id", { count: "exact", head: true }).eq("status", "neu"),
+          ]);
+          newRequests = (reqListRes.data as NewRequest[]) ?? [];
+          requestsNew = reqCntRes.count ?? 0;
+        } catch { /* Anfragen optional */ }
+
         if (!alive) return;
         setData({
           projectsActive: allProj.length,
@@ -144,6 +181,8 @@ export default function Dashboard() {
           reminders,
           appts,
           revenue: buildRevenue(inv.map((i) => ({ net: i.net, invoice_date: i.invoice_date }))),
+          newRequests,
+          requestsNew,
         });
       } catch {
         if (alive) setError(true);
@@ -220,6 +259,11 @@ export default function Dashboard() {
             <Summary icon={Receipt} label="offene Rechnungen" value={data.invoicesOpen} />
             <Summary icon={FolderKanban} label="laufende Projekte" value={data.projectsRunning} />
             <Summary icon={CalendarClock} label="Termine heute" value={data.appts.length} />
+            {data.requestsNew > 0 && (
+              <Link to="/anfragen" className="inline-flex items-center gap-1.5 font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                <Inbox size={15} /> <span className="tabular-nums">{data.requestsNew}</span> neue Anfrage{data.requestsNew === 1 ? "" : "n"}
+              </Link>
+            )}
             {hints > 0 ? (
               <span className="inline-flex items-center gap-1.5 font-semibold text-amber-600 dark:text-amber-400">
                 <AlertTriangle size={15} /> {hints} überfällig – Aufmerksamkeit nötig
@@ -362,6 +406,53 @@ export default function Dashboard() {
 
         {/* Rechte 1/3 */}
         <div className="space-y-4">
+          {/* Neue Anfragen – smartes KI-Postfach */}
+          <div className="glass p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 font-bold">
+                <Sparkles size={16} style={{ color: "var(--accent)" }} /> Neue Anfragen
+                {data.requestsNew > 0 && (
+                  <span className="rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white" style={{ background: "var(--accent)" }}>
+                    {data.requestsNew}
+                  </span>
+                )}
+              </h2>
+              <Link to="/anfragen" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Alle anzeigen</Link>
+            </div>
+            {data.newRequests.length === 0 ? (
+              <EmptyState icon={Inbox} text="Keine neuen Anfragen" actionTo="/anfragen" actionLabel="Posteingang öffnen" />
+            ) : (
+              <ul className="space-y-2.5">
+                {data.newRequests.map((r) => {
+                  const SrcIcon = REQ_SOURCE_ICON[r.source] ?? Inbox;
+                  const who = r.caller_name?.trim() || r.subject?.trim() || "Unbekannt";
+                  return (
+                    <li key={r.id}>
+                      <Link to={`/anfragen/${r.id}`} className="group flex items-start gap-2.5 rounded-xl px-1 py-1 hover:bg-[var(--hover)]">
+                        <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: "var(--accent-soft, rgba(239,68,68,0.1))", color: "var(--accent)" }}>
+                          <SrcIcon size={14} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate text-sm font-semibold group-hover:underline">{who}</span>
+                            <span className="shrink-0 text-[10px] text-slate-400">{fmtDay(r.created_at)}</span>
+                          </div>
+                          {r.ai_summary && (
+                            <p className="mt-0.5 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{r.ai_summary}</p>
+                          )}
+                          <div className="mt-1 flex flex-wrap items-center gap-1">
+                            <Badge tone="slate">{REQ_SOURCE_LABEL[r.source] ?? r.source}</Badge>
+                            {r.ai_priority && <Badge tone={reqPrioTone(r.ai_priority)}>{r.ai_priority}</Badge>}
+                          </div>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
           {/* Schnellaktionen */}
           <div className="glass p-4">
             <h2 className="mb-3 font-bold">Schnellaktionen</h2>
