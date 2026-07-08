@@ -142,6 +142,14 @@ export default function MZeit() {
     setFormOpen(true);
   }
 
+  // Standard-Regelarbeitstag als Vorbelegung für „Zeit erfassen" (1-Tap-Standardtag,
+  // Vorbild Birgmann): 07:00 + Regelarbeitszeit, Pause bei längeren Tagen.
+  function regularDayPreset(): FormPreset {
+    if (todaySoll <= 0) return null;
+    const pause = todaySoll >= 6 ? 30 : 0;
+    return { start: "07:00", end: addToTime("07:00", todaySoll, pause), pause };
+  }
+
   if (loading) return <Spinner />;
   if (!employee) {
     return (
@@ -165,7 +173,7 @@ export default function MZeit() {
       <ErrorBanner message={err} />
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <button className="btn-primary min-h-[52px] w-full justify-center text-base" onClick={() => { setPreset(null); setFormOpen(true); }}>
+        <button className="btn-primary min-h-[52px] w-full justify-center text-base" onClick={() => { setPreset(regularDayPreset()); setFormOpen(true); }}>
           <Plus size={18} /> Zeit erfassen
         </button>
         <button className="btn-outline min-h-[52px] w-full justify-center text-base" onClick={fillRegularHours} disabled={!ctx}>
@@ -314,14 +322,24 @@ function ZeitForm({
           <input type="date" className="input" value={datum} onChange={(e) => setDatum(e.target.value)} />
         </label>
 
-        <label className="block">
+        <div className="block">
           <span className="mb-1 block text-sm font-semibold">Arbeitsort</span>
-          <select className="input" value={locationType} onChange={(e) => setLocationType(e.target.value as LocationType)}>
+          <div className="grid grid-cols-2 gap-2">
             {LOCATION_TYPES.map((l) => (
-              <option key={l.value} value={l.value}>{l.icon} {l.label}</option>
+              <button
+                key={l.value}
+                type="button"
+                onClick={() => setLocationType(l.value)}
+                className={`flex min-h-[48px] items-center justify-center gap-2 rounded-xl text-sm font-semibold transition ${
+                  locationType === l.value ? "text-white" : "text-slate-600 dark:text-slate-300"
+                }`}
+                style={locationType === l.value ? { background: "var(--accent)" } : { background: "var(--hover)" }}
+              >
+                <span className="text-base">{l.icon}</span> {l.label}
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
 
         <label className="block">
           <span className="mb-1 block text-sm font-semibold">Projekt (optional)</span>
