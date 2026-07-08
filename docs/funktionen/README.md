@@ -44,6 +44,7 @@ Das Aktualisieren dieser Dateien ist **Teil jeder Änderung** (Definition-of-Don
 | Angebote | [angebote.md](angebote.md) | Angebote inkl. Typen (Standard/Pauschal/Regie) & Nachtrag |
 | Aufträge | [auftraege.md](auftraege.md) | Aufträge aus Angeboten, Subunternehmer-Aufträge (SUB) |
 | Rechnungen | [rechnungen.md](rechnungen.md) | Rechnungen, Teil-/Storno/Skonto, §11 UStG |
+| Buchhaltung | [buchhaltung.md](buchhaltung.md) | Eingangsrechnungen (auto aus KI-Postfach) + offene Posten, Belege |
 | Dokumente | [dokumente.md](dokumente.md) | Zentrale Dokumentenübersicht, Upload, Dokumentarten |
 | Kalkulation | [kalkulation.md](kalkulation.md) | Gewerke, Artikel, Leistungen, Stundensätze, Einheiten, Texte |
 | Planung | [planung.md](planung.md) | Termine, Ressourcen, Abwesenheiten, Plantafel |

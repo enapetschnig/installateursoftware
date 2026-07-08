@@ -43,8 +43,8 @@ IMAP (ungelesene Mails) → `mailparser` → **KI-Klassifizierung** (eine OpenAI
 `vercel.json` → `crons: [{ path: "/api/mail/poll", schedule: "*/15 * * * *" }]`. Hinweis: Auf **Vercel Hobby** laufen Crons nur ~1×/Tag – für nahezu-Echtzeit **Vercel Pro** nötig; unabhängig davon funktioniert der **manuelle** Button jederzeit.
 
 **Erweitern**
-- **Buchhaltung (Phase 2)**: `incoming_mails` mit `mail_class='rechnung'` sind die Eingangsrechnungs-Kandidaten (Felder bereits in `ai_extracted_data.invoice` vorextrahiert). Neues Modul soll daraus Eingangsrechnungen + Belege (Bucket `belege`) erzeugen und `incoming_mails.status` auf `verarbeitet`/verknüpft setzen.
-- **Anhänge**: aktuell werden nur Metadaten (`attachments`) gespeichert; für Rechnungs-PDFs die Attachments in den `belege`-Bucket laden (Service-Role, private URLs).
+- **Buchhaltung (umgesetzt)**: Mails mit `mail_class='rechnung'` erzeugen automatisch eine **Eingangsrechnung** (`public.eingangsrechnungen`, idempotent über `incoming_mail_id`); PDF-/Bild-Anhänge werden in den `belege`-Bucket geladen und verknüpft. Details: [buchhaltung.md](buchhaltung.md).
+- **Anhänge**: `api/_lib/mail-imap.js` liefert `rawAttachments` (Buffer, nie ins JSONB); `api/mail/poll.js` `uploadBelege()` lädt PDFs/Bilder org-isoliert in `belege` (`<orgId>/eingangsrechnungen/<id>/...`).
 - **Weitere Quellen**: die Anfrage-Struktur ist quellenneutral (`source`), neue Kanäle analog anbinden.
 
 **Verknüpfungen**

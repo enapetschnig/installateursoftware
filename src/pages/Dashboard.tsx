@@ -47,6 +47,7 @@ type DashData = {
   topProjects: Project[]; taskList: TaskRow[]; projTitle: Record<string, string>;
   reminders: Reminder[]; appts: Appointment[]; revenue: number[];
   newRequests: NewRequest[]; requestsNew: number;
+  eingangOffen: number; eingangFaellig: number;
 };
 
 const EMPTY: DashData = {
@@ -54,6 +55,7 @@ const EMPTY: DashData = {
   offersTotal: 0, offersThisWeek: 0, invoicesOpen: 0, invoicesOverdue: 0,
   tasksOpen: 0, tasksOverdue: 0, topProjects: [], taskList: [], projTitle: {},
   reminders: [], appts: [], revenue: [], newRequests: [], requestsNew: 0,
+  eingangOffen: 0, eingangFaellig: 0,
 };
 
 const REQ_SOURCE_ICON: Record<string, LucideIcon> = {
@@ -164,6 +166,20 @@ export default function Dashboard() {
           requestsNew = reqCntRes.count ?? 0;
         } catch { /* Anfragen optional */ }
 
+        // Eingangsrechnungen (Buchhaltung) – offen/fällig, defensiv.
+        let eingangOffen = 0;
+        let eingangFaellig = 0;
+        try {
+          const [offenRes, faelligRes] = await Promise.all([
+            supabase.from("eingangsrechnungen").select("id", { count: "exact", head: true })
+              .in("status", ["offen", "geprueft", "freigegeben"]),
+            supabase.from("eingangsrechnungen").select("id", { count: "exact", head: true })
+              .in("status", ["offen", "geprueft", "freigegeben"]).lt("due_date", todayDateStr),
+          ]);
+          eingangOffen = offenRes.count ?? 0;
+          eingangFaellig = faelligRes.count ?? 0;
+        } catch { /* Buchhaltung optional */ }
+
         if (!alive) return;
         setData({
           projectsActive: allProj.length,
@@ -183,6 +199,8 @@ export default function Dashboard() {
           revenue: buildRevenue(inv.map((i) => ({ net: i.net, invoice_date: i.invoice_date }))),
           newRequests,
           requestsNew,
+          eingangOffen,
+          eingangFaellig,
         });
       } catch {
         if (alive) setError(true);
@@ -262,6 +280,11 @@ export default function Dashboard() {
             {data.requestsNew > 0 && (
               <Link to="/anfragen" className="inline-flex items-center gap-1.5 font-semibold hover:underline" style={{ color: "var(--accent)" }}>
                 <Inbox size={15} /> <span className="tabular-nums">{data.requestsNew}</span> neue Anfrage{data.requestsNew === 1 ? "" : "n"}
+              </Link>
+            )}
+            {data.eingangFaellig > 0 && (
+              <Link to="/buchhaltung" className="inline-flex items-center gap-1.5 font-semibold text-amber-600 hover:underline dark:text-amber-400">
+                <Receipt size={15} /> <span className="tabular-nums">{data.eingangFaellig}</span> Eingangsrechnung{data.eingangFaellig === 1 ? "" : "en"} fällig
               </Link>
             )}
             {hints > 0 ? (

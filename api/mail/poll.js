@@ -138,7 +138,8 @@ async function upsertIncomingMail(admin, orgId, mail, triage, existing) {
     status: "neu",
   };
   if (existing?.id) {
-    await admin.from("incoming_mails").update(row).eq("id", existing.id);
+    const { error: updErr } = await admin.from("incoming_mails").update(row).eq("id", existing.id);
+    if (updErr) throw new Error(`incoming_mails update: ${updErr.message}`);
     return existing.id;
   }
   const { data, error } = await admin
@@ -227,6 +228,144 @@ async function createAnfrageFromMail(admin, orgId, mail, triage) {
   return data.id;
 }
 
+// ── Eingangsrechnung → public.eingangsrechnungen (idempotent) ──
+const BELEGE_BUCKET = "belege";
+const MAX_BELEG_BYTES = 25 * 1024 * 1024;
+
+// Muss zur Bucket-Allowlist (Migration 0142) passen.
+const ALLOWED_BELEG_MIME = new Set([
+  "application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif",
+]);
+const EXT_MIME = {
+  pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg",
+  png: "image/png", webp: "image/webp", heic: "image/heic", heif: "image/heif",
+};
+
+/**
+ * Ermittelt einen für den 'belege'-Bucket erlaubten Content-Type. Priorität:
+ * gültiger contentType → sonst aus Dateiendung ableiten. null = überspringen.
+ * (Viele Rechnungs-PDFs kommen als application/octet-stream; die Endung rettet sie.)
+ */
+function resolveBelegContentType(filename, contentType) {
+  const ct = String(contentType || "").toLowerCase().split(";")[0].trim();
+  if (ALLOWED_BELEG_MIME.has(ct)) return ct;
+  const ext = String(filename || "").toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+  return ext && EXT_MIME[ext] ? EXT_MIME[ext] : null;
+}
+
+/** Belege additiv per Pfad zusammenführen (kein Verlust manuell ergänzter Belege). */
+function mergeBelegeByPath(existing, added) {
+  const seen = new Set((existing || []).map((b) => b?.path).filter(Boolean));
+  const out = [...(existing || [])];
+  for (const b of added || []) {
+    if (b?.path && !seen.has(b.path)) { seen.add(b.path); out.push(b); }
+  }
+  return out;
+}
+
+function safeFileName(n) {
+  return (
+    String(n || "beleg")
+      .replace(/[/\\]/g, "_")
+      .replace(/[^\w.-]+/g, "_")
+      .slice(0, 120) || "beleg"
+  );
+}
+
+/** Lieferant aus dem KI-Namen auflösen – nur bei GENAU einem Treffer verknüpfen. */
+async function resolveSupplier(admin, orgId, name) {
+  const n = String(name || "").trim();
+  if (n.length < 3) return null;
+  const esc = n.replace(/[%,()]/g, " ").trim();
+  if (!esc) return null;
+  const { data } = await admin
+    .from("contacts")
+    .select("id")
+    .eq("organization_id", orgId)
+    .eq("type", "lieferant")
+    .ilike("company", `%${esc}%`)
+    .limit(2);
+  return data && data.length === 1 ? data[0].id : null;
+}
+
+/** Legt (idempotent) eine Eingangsrechnung aus einer Rechnungs-Mail an. */
+async function createEingangsrechnungFromMail(admin, orgId, mail, triage, mailRowId) {
+  // Idempotenz: höchstens EINE Eingangsrechnung je Herkunfts-Mail.
+  const { data: ex } = await admin
+    .from("eingangsrechnungen")
+    .select("id")
+    .eq("organization_id", orgId)
+    .eq("incoming_mail_id", mailRowId)
+    .maybeSingle();
+  if (ex?.id) return ex.id;
+
+  const inv = triage.invoice && typeof triage.invoice === "object" ? triage.invoice : {};
+  const supplierName = inv.supplier_name || mail.from?.name || mail.from?.email || null;
+  const supplierContactId = supplierName ? await resolveSupplier(admin, orgId, supplierName) : null;
+
+  const row = {
+    organization_id: orgId,
+    supplier_contact_id: supplierContactId,
+    supplier_name: supplierName,
+    invoice_number: inv.invoice_number || null,
+    invoice_date: inv.invoice_date || null,
+    due_date: inv.due_date || null,
+    gross: typeof inv.amount_gross === "number" ? inv.amount_gross : null,
+    currency: inv.currency || "EUR",
+    iban: inv.iban || null,
+    status: "offen",
+    source: "email",
+    incoming_mail_id: mailRowId,
+    ai_extracted_data: inv,
+    notes: triage.summary || null,
+  };
+  // received_date nur setzen, wenn die Mail ein Datum hat (sonst DB-Default current_date).
+  if (mail.date) row.received_date = String(mail.date).slice(0, 10);
+
+  const { data, error } = await admin
+    .from("eingangsrechnungen")
+    .insert(row)
+    .select("id")
+    .single();
+  if (error) throw new Error(`eingangsrechnungen insert: ${error.message}`);
+  return data.id;
+}
+
+/** Lädt PDF-/Bild-Anhänge (Belege) in den 'belege'-Bucket. Pfad org-isoliert. */
+async function uploadBelege(admin, orgId, erId, mail) {
+  const raws = Array.isArray(mail.rawAttachments) ? mail.rawAttachments : [];
+  const out = [];
+  for (let i = 0; i < raws.length; i++) {
+    const a = raws[i];
+    const buf = a?.content;
+    if (!Buffer.isBuffer(buf) || buf.byteLength === 0 || buf.byteLength > MAX_BELEG_BYTES) continue;
+    // Inline-Grafiken (Logo/Signatur im HTML-Body) NICHT als Beleg übernehmen.
+    if (a?.related === true || a?.contentDisposition === "inline") continue;
+    const filename = a?.filename || `beleg-${i + 1}`;
+    // Content-Type auf die Bucket-Allowlist normalisieren (octet-stream-PDFs retten,
+    // Nicht-Beleg-Typen überspringen).
+    const contentType = resolveBelegContentType(filename, a?.contentType);
+    if (!contentType) continue;
+    // Deterministischer Pfad (Index) + upsert → Retry überschreibt statt zu duplizieren.
+    const path = `${orgId}/eingangsrechnungen/${erId}/${i}-${safeFileName(filename)}`;
+    const { error } = await admin.storage
+      .from(BELEGE_BUCKET)
+      .upload(path, buf, { contentType, upsert: true });
+    if (error) {
+      logSafe({ action: "mail.poll.beleg", status: "error", error: error.message });
+      continue;
+    }
+    out.push({
+      path,
+      filename,
+      content_type: contentType,
+      size: buf.byteLength,
+      uploaded_at: new Date().toISOString(),
+    });
+  }
+  return out;
+}
+
 // ── Handler ────────────────────────────────────────────────
 export default async function handler(req, res) {
   const started = Date.now();
@@ -288,13 +427,33 @@ export default async function handler(req, res) {
         anfrageId = await createAnfrageFromMail(admin, orgId, mail, triage);
       }
 
-      await admin
+      // Eingangsrechnung → direkt ins Buchhaltungsmodul (inkl. Beleg-PDF).
+      if (triage.mail_class === "rechnung") {
+        const erId = await createEingangsrechnungFromMail(admin, orgId, mail, triage, mailRowId);
+        const uploaded = await uploadBelege(admin, orgId, erId, mail);
+        if (uploaded.length) {
+          // Bestehende Belege additiv mergen (Reprocess/manuelle Belege nicht überschreiben).
+          const { data: cur } = await admin
+            .from("eingangsrechnungen").select("belege").eq("id", erId).maybeSingle();
+          const merged = mergeBelegeByPath(cur?.belege || [], uploaded);
+          const { error: erErr } = await admin
+            .from("eingangsrechnungen").update({ belege: merged }).eq("id", erId);
+          if (erErr) throw new Error(`eingangsrechnungen belege: ${erErr.message}`);
+          // incoming_mails.attachments mit Storage-Pfaden anreichern (Audit/Nachvollzug).
+          const { error: imErr } = await admin
+            .from("incoming_mails").update({ attachments: uploaded }).eq("id", mailRowId);
+          if (imErr) throw new Error(`incoming_mails attachments: ${imErr.message}`);
+        }
+      }
+
+      const { error: statusErr } = await admin
         .from("incoming_mails")
         .update({
           status: "verarbeitet",
           anfrage_id: anfrageId,
         })
         .eq("id", mailRowId);
+      if (statusErr) throw new Error(`incoming_mails verarbeitet: ${statusErr.message}`);
 
       routed[triage.mail_class] = (routed[triage.mail_class] || 0) + 1;
       return true; // Erfolg → als gelesen markieren

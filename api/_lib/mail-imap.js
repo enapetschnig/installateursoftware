@@ -50,13 +50,17 @@ async function parseSource(source) {
   const to = firstAddr(parsed.to);
   const text = String(parsed.text || "").trim();
   const subject = String(parsed.subject || "").trim();
-  const attachments = (parsed.attachments || [])
-    .filter((a) => a && (a.filename || a.contentType))
-    .map((a) => ({
-      filename: a.filename || "unbenannt",
-      contentType: a.contentType || "application/octet-stream",
-      size: Number(a.size || (a.content ? a.content.length : 0)) || 0,
-    }));
+  // rawAttachments behält den Node-Buffer (a.content) für den Upload in den
+  // Belege-Bucket. attachments ist metadaten-only und geht in DB/JSONB/KI –
+  // der Buffer darf dort NIE landen (würde die Zeile massiv aufblähen).
+  const rawAttachments = (parsed.attachments || []).filter(
+    (a) => a && (a.filename || a.contentType),
+  );
+  const attachments = rawAttachments.map((a) => ({
+    filename: a.filename || "unbenannt",
+    contentType: a.contentType || "application/octet-stream",
+    size: Number(a.size || (a.content ? a.content.length : 0)) || 0,
+  }));
   return {
     messageId: parsed.messageId ? String(parsed.messageId) : null,
     from,
@@ -68,6 +72,7 @@ async function parseSource(source) {
     text,
     hasHtml: Boolean(parsed.html),
     attachments,
+    rawAttachments,
   };
 }
 

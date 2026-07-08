@@ -30,6 +30,7 @@ import ContactDetail from "./pages/ContactDetail";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import Placeholder from "./pages/Placeholder";
+import Buchhaltung from "./pages/Buchhaltung";
 import Settings from "./pages/Settings";
 import KalkLayout from "./pages/kalkulation/KalkLayout";
 import Trades from "./pages/kalkulation/Trades";
@@ -168,7 +169,7 @@ export default function App() {
         <Route path="/auftraege/:id" element={<Guard module="orders"><OrderEditor /></Guard>} />
         {/* Auftrag-SUB nutzt dasselbe Rechte-Modul wie Aufträge ('orders'). */}
         <Route path="/auftraege-sub/:id" element={<Guard module="orders"><SubOrderEditor /></Guard>} />
-        <Route path="/buchhaltung" element={<Guard module="buchhaltung"><Placeholder title="Buchhaltung" note="Offene Posten, Mahnwesen, Zeiterfassung – in Vorbereitung." /></Guard>} />
+        <Route path="/buchhaltung" element={<Guard module="buchhaltung"><Buchhaltung /></Guard>} />
         <Route path="/rechnungen" element={<Navigate to="/dokumente?typ=rechnungen" replace />} />
         <Route path="/rechnungen/:id" element={<Guard module="invoices"><InvoiceEditor /></Guard>} />
         <Route path="/persoenliche-daten" element={<Placeholder title="Persönliche Daten" note="Eigenes Profil, Stammdaten, Kontodaten – in Vorbereitung." />} />
