@@ -808,8 +808,10 @@ async function withSignature(meta: PrintMeta, s: CompanySettings | null): Promis
   }
 }
 
-export async function printDocument(positions: DocPosition[], summary: DocSummary, meta: PrintMeta, returnUrl?: string) {
-  const w = window.open("", "_blank", "width=900,height=1200");
+export async function printDocument(positions: DocPosition[], summary: DocSummary, meta: PrintMeta, returnUrl?: string, targetWin?: Window | null) {
+  // targetWin: bereits im Klick geöffnetes Fenster wiederverwenden (kein neues
+  // window.open nach await → kein Popup-Blocker beim Server-PDF-Fallback).
+  const w = targetWin && !targetWin.closed ? targetWin : window.open("", "_blank", "width=900,height=1200");
   if (!w) { alert("Bitte Popups erlauben, um das PDF zu erstellen."); return; }
   let co: CompanyLines = FALLBACK_CO;
   let s: CompanySettings | null = null;
@@ -830,8 +832,8 @@ export async function printDocument(positions: DocPosition[], summary: DocSummar
  * erneuten Drucken exakt unverändert – auch wenn sich Firmendaten, Logo oder
  * Texte später ändern. autoPrint wird aktiviert.
  */
-export function printStoredHtml(html: string, returnUrl?: string) {
-  const w = window.open("", "_blank", "width=900,height=1200");
+export function printStoredHtml(html: string, returnUrl?: string, targetWin?: Window | null) {
+  const w = targetWin && !targetWin.closed ? targetWin : window.open("", "_blank", "width=900,height=1200");
   if (!w) { alert("Bitte Popups erlauben, um das PDF zu erstellen."); return; }
   const withAutoprint = html.includes('data-autoprint="0"')
     ? html.replace('data-autoprint="0"', 'data-autoprint="1"')

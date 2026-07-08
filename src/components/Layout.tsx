@@ -29,6 +29,7 @@ type NavItem = {
   group?: "projekte";
   module?: string; // Permission-Modul; undefined = immer sichtbar
   adminOnly?: boolean; // true = nur Administratoren (kein vergebbares Modul)
+  hidden?: boolean; // true = vorerst ausgeblendet (Route bleibt bestehen, nur nicht im Menü)
 };
 
 // Reihenfolge exakt wie vorgegeben - keine automatische Sortierung.
@@ -48,12 +49,13 @@ const NAV: NavItem[] = [
   { to: "/stundenauswertung", label: "Stundenauswertung", icon: Timer, module: "time_tracking" },
   { to: "/meine-stunden", label: "Meine Stunden", icon: Clock },
   { to: "/buero", label: "Büroorganisation", icon: Building2, module: "buero" },
-  { to: "/buchhaltung", label: "Buchhaltung", icon: Receipt, module: "buchhaltung" },
+  // Vorerst ausgeblendet (Routen bleiben erreichbar, nur nicht im Menü sichtbar).
+  { to: "/buchhaltung", label: "Buchhaltung", icon: Receipt, module: "buchhaltung", hidden: true },
   { to: "/dokumente", label: "Dokumente", icon: Files, module: "documents" },
-  { to: "/news", label: "News", icon: Newspaper, module: "news" },
-  { to: "/automationen", label: "Automationen", icon: Zap, module: "automations" },
-  { to: "/delegieren", label: "Delegieren", icon: UserCheck, module: "delegieren" },
-  { to: "/persoenliche-daten", label: "Persönliche Daten", icon: User },
+  { to: "/news", label: "News", icon: Newspaper, module: "news", hidden: true },
+  { to: "/automationen", label: "Automationen", icon: Zap, module: "automations", hidden: true },
+  { to: "/delegieren", label: "Delegieren", icon: UserCheck, module: "delegieren", hidden: true },
+  { to: "/persoenliche-daten", label: "Persönliche Daten", icon: User, hidden: true },
   { to: "/mitarbeiter", label: "Mitarbeiter", icon: UsersRound, module: "employees" },
   { to: "/m", label: "Mitarbeiter-App", icon: Smartphone, module: "mitarbeiter_app" },
   { to: "/einstellungen", label: "Einstellungen", icon: Settings },
@@ -67,7 +69,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [accentOpen, setAccentOpen] = useState(false);
   const { can, isAdmin } = usePermissions();
   const { types: projectTypes } = useProjectConfig();
-  const visibleNav = NAV.filter((n) => (n.adminOnly ? isAdmin : isAdmin || !n.module || can(n.module, "view")));
+  const visibleNav = NAV.filter((n) => !n.hidden && (n.adminOnly ? isAdmin : isAdmin || !n.module || can(n.module, "view")));
   const nav = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();

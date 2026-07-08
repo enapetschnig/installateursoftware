@@ -351,7 +351,7 @@ function showPdfError(win: Window, err: PdfRenderError, fallback: () => void) {
 }
 
 /** Fertiges PDF in das (ggf. vorab geöffnete) Fenster laden; bei Fehler klare Meldung + Fallback-Option. */
-function finish(win: Window | null, result: PdfRenderResult, fallback: () => void, fileName?: string, returnUrl?: string) {
+function finish(win: Window | null, result: PdfRenderResult, fallback: (targetWin?: Window | null) => void, fileName?: string, returnUrl?: string) {
   if ("blob" in result) {
     const url = URL.createObjectURL(result.blob);
     const name = fileName || "Dokument.pdf";
@@ -363,9 +363,15 @@ function finish(win: Window | null, result: PdfRenderResult, fallback: () => voi
     setTimeout(() => URL.revokeObjectURL(url), 300_000);
     return;
   }
-  // Fehler: NICHT still schließen (sah wie Netzwerkfehler aus), sondern klare Meldung im
-  // Fenster + bewusste Fallback-Option (Client-Druck). Ohne Fenster → direkt Fallback.
-  if (win) showPdfError(win, result.error, fallback);
+  // Server-PDF nicht verfügbar: Bei 503 (PDFShift nicht konfiguriert/aus) hilft "erneut
+  // versuchen" nie → direkt den Browser-Druck-Fallback im bereits offenen Tab rendern
+  // (kein neues window.open → kein Popup-Blocker). So funktioniert PDF/Druck auch ohne
+  // PDFShift-Key. Bei transienten Fehlern (429/502/504/…): klare Meldung + Fallback-Button.
+  if (result.error.status === 503) {
+    fallback(win);
+    return;
+  }
+  if (win) showPdfError(win, result.error, () => fallback());
   else fallback();
 }
 
@@ -392,7 +398,7 @@ export async function openDocumentPdf(
   console.debug(`[pdf] HTML-Erzeugung ${Math.round(performance.now() - tHtml)}ms (${Math.round(html.length / 1024)} KB)`);
   const result = await htmlToPdfBlob(html, opts?.cacheRef);
   const name = fileName || buildDocumentPdfFileName({ number: meta.number, baseLabel: meta.numberLabel || meta.docLabel });
-  finish(w, result, () => printDocument(positions, summary, meta, ret), name, ret);
+  finish(w, result, (tw) => printDocument(positions, summary, meta, ret, tw), name, ret);
 }
 
 /**
@@ -407,5 +413,5 @@ export async function openSnapshotPdf(
   const w = win ?? openPdfWindow();
   const ret = currentReturnUrl(opts?.returnUrl);
   const result = await htmlToPdfBlob(printHtml, opts?.cacheRef);
-  finish(w, result, () => printStoredHtml(printHtml, ret), fileName, ret);
+  finish(w, result, (tw) => printStoredHtml(printHtml, ret, tw), fileName, ret);
 }

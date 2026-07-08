@@ -32,8 +32,10 @@ export type EinsatzDialogProps = {
   onClose: () => void;
   /** Bestehender Einsatz -> Bearbeiten; fehlt er -> Anlegen. */
   event?: EventWithLinks | null;
-  /** Vorbelegtes Datum (Klick auf leere Zelle). */
+  /** Vorbelegtes Start-Datum (Klick/Aufziehen auf leere Zelle). */
   defaultDate?: Date | null;
+  /** Vorbelegtes Ende-Datum (beim Aufziehen über mehrere Tage). */
+  defaultEndDate?: Date | null;
   /** Vorbelegter Mitarbeiter (Zeile, in die geklickt wurde). */
   defaultEmployeeId?: string | null;
   projects: PlantafelProjectOption[];
@@ -49,14 +51,14 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 const timeStr = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
 export default function EinsatzDialog({
-  open, onClose, event, defaultDate, defaultEmployeeId,
+  open, onClose, event, defaultDate, defaultEndDate, defaultEmployeeId,
   projects, employees, onSaved, mayEdit = true, mayDelete = false,
 }: EinsatzDialogProps) {
   const isEdit = !!event?.id;
   const readOnly = !mayEdit;
 
   const baseStart = event?.start_at ? new Date(event.start_at) : (defaultDate ?? new Date());
-  const baseEnd = event?.end_at ? new Date(event.end_at) : baseStart;
+  const baseEnd = event?.end_at ? new Date(event.end_at) : (defaultEndDate ?? baseStart);
 
   const [projectId, setProjectId] = useState<string>(event?.project_id ?? "");
   const [empIds, setEmpIds] = useState<string[]>(

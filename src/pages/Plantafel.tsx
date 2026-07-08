@@ -76,6 +76,19 @@ function dayTintClass(d: DayCell): string {
   return "";
 }
 
+/** Findet die Plantafel-Zelle (Mitarbeiter + Tag) unter einem Bildschirmpunkt. */
+function cellAtPoint(x: number, y: number): { emp: string | null; date: string } | null {
+  const stack = document.elementsFromPoint(x, y);
+  for (const el of stack) {
+    const c = (el as Element).closest?.("[data-date]");
+    if (c) {
+      const date = c.getAttribute("data-date");
+      if (date) return { emp: c.getAttribute("data-emp") || null, date };
+    }
+  }
+  return null;
+}
+
 export default function Plantafel() {
   const { can, isAdmin, loading: permLoading } = usePermissions();
   const mayEdit = isAdmin || can("plantafel", "edit") || can("plantafel", "create");
@@ -99,7 +112,7 @@ export default function Plantafel() {
 
   // Dialog
   const [dialog, setDialog] = useState<
-    { event?: EventWithLinks; defaultDate?: Date; defaultEmployeeId?: string | null } | null
+    { event?: EventWithLinks; defaultDate?: Date; defaultEndDate?: Date; defaultEmployeeId?: string | null } | null
   >(null);
 
   const colW = COL_W[mode];
@@ -290,48 +303,89 @@ export default function Plantafel() {
   };
 
   // ── Drag-State (Pointer-Events, Touch-/iPad-tauglich) ──
+  //  • dragRef       = bestehenden Balken verschieben/umverteilen
+  //  • createDragRef = leere Zellen „aufziehen" → neuer Einsatz über den Zeitraum
   const dragRef = useRef<{ ev: EventWithLinks; rowEmp: string | null; startX: number; startY: number; moved: boolean } | null>(null);
+  const createDragRef = useRef<{ empId: string | null; fromIso: string; toIso: string; moved: boolean } | null>(null);
   const justDraggedRef = useRef(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number; title: string; color: string } | null>(null);
+  const [createSel, setCreateSel] = useState<{ empId: string | null; fromIso: string; toIso: string } | null>(null);
+
+  // Aufziehen starten (nur Maus/Stift – auf Touch bleibt Tippen = anlegen, damit Scrollen frei bleibt).
+  const onCellPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>, empId: string | null, iso: string) => {
+    if (!mayEdit || e.pointerType === "touch") return;
+    if (e.button !== 0) return;
+    createDragRef.current = { empId, fromIso: iso, toIso: iso, moved: false };
+  }, [mayEdit]);
+
+  const openRangeRef = useRef<(empId: string | null, fromIso: string, toIso: string) => void>(() => {});
+  openRangeRef.current = (empId, fromIso, toIso) => {
+    const [from, to] = fromIso <= toIso ? [fromIso, toIso] : [toIso, fromIso];
+    setDialog({
+      defaultEmployeeId: empId,
+      defaultDate: new Date(`${from}T00:00:00`),
+      defaultEndDate: new Date(`${to}T00:00:00`),
+    });
+  };
 
   useEffect(() => {
     function onMove(e: PointerEvent) {
+      // 1) Balken verschieben
       const d = dragRef.current;
-      if (!d) return;
-      const dx = e.clientX - d.startX;
-      const dy = e.clientY - d.startY;
-      if (!d.moved) {
-        if (Math.hypot(dx, dy) < 6) return; // erst ab kleiner Schwelle als Drag werten
-        d.moved = true;
-        setDragId(d.ev.id);
+      if (d) {
+        const dx = e.clientX - d.startX;
+        const dy = e.clientY - d.startY;
+        if (!d.moved) {
+          if (Math.hypot(dx, dy) < 6) return;
+          d.moved = true;
+          setDragId(d.ev.id);
+        }
+        setGhost({ x: e.clientX, y: e.clientY, title: d.ev.title, color: colorOfRef.current(d.ev) });
+        return;
       }
-      setGhost({ x: e.clientX, y: e.clientY, title: d.ev.title, color: colorOfRef.current(d.ev) });
+      // 2) Aufziehen (neuer Einsatz) – nur innerhalb derselben Mitarbeiter-Zeile
+      const cd = createDragRef.current;
+      if (cd) {
+        const cell = cellAtPoint(e.clientX, e.clientY);
+        if (cell && cell.emp === cd.empId) {
+          if (cell.date !== cd.fromIso) cd.moved = true;
+          cd.toIso = cell.date;
+          const [from, to] = cd.fromIso <= cd.toIso ? [cd.fromIso, cd.toIso] : [cd.toIso, cd.fromIso];
+          setCreateSel({ empId: cd.empId, fromIso: from, toIso: to });
+        }
+      }
     }
     function finish(e: PointerEvent) {
+      // 1) Balken-Drop
       const d = dragRef.current;
-      if (!d) return;
-      dragRef.current = null;
-      setDragId(null);
-      setGhost(null);
-      if (!d.moved) return; // war ein Tap -> Klick öffnet Bearbeiten
-      justDraggedRef.current = true;
-      window.setTimeout(() => { justDraggedRef.current = false; }, 250);
-      // Ziel-Zelle bestimmen (elementsFromPoint sieht die Hintergrund-Zelle unter den Balken)
-      const stack = document.elementsFromPoint(e.clientX, e.clientY);
-      let cell: Element | null = null;
-      for (const el of stack) {
-        const c = el.closest?.("[data-date]");
-        if (c) { cell = c; break; }
+      if (d) {
+        dragRef.current = null;
+        setDragId(null);
+        setGhost(null);
+        if (!d.moved) return; // Tap -> Klick öffnet Bearbeiten
+        justDraggedRef.current = true;
+        window.setTimeout(() => { justDraggedRef.current = false; }, 250);
+        const cell = cellAtPoint(e.clientX, e.clientY);
+        if (!cell) return;
+        doMoveRef.current(d.ev, new Date(`${cell.date}T00:00:00`), d.rowEmp, cell.emp);
+        return;
       }
-      if (!cell) return;
-      const dateStr = cell.getAttribute("data-date");
-      if (!dateStr) return;
-      const empAttr = cell.getAttribute("data-emp");
-      const newEmp = empAttr ? empAttr : null;
-      doMoveRef.current(d.ev, new Date(`${dateStr}T00:00:00`), d.rowEmp, newEmp);
+      // 2) Aufziehen abschließen
+      const cd = createDragRef.current;
+      if (cd) {
+        createDragRef.current = null;
+        setCreateSel(null);
+        if (cd.moved) {
+          // Über mehrere Tage gezogen → Klick auf der Zelle unterdrücken, Dialog mit Zeitraum.
+          justDraggedRef.current = true;
+          window.setTimeout(() => { justDraggedRef.current = false; }, 250);
+          openRangeRef.current(cd.empId, cd.fromIso, cd.toIso);
+        }
+        // Nicht bewegt → onClick der Zelle legt einen Ein-Tages-Einsatz an.
+      }
     }
-    function cancel() { dragRef.current = null; setDragId(null); setGhost(null); }
+    function cancel() { dragRef.current = null; createDragRef.current = null; setDragId(null); setGhost(null); setCreateSel(null); }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", finish);
     window.addEventListener("pointercancel", cancel);
@@ -483,6 +537,8 @@ export default function Plantafel() {
                   subtitleFor={subtitleFor}
                   tooltipFor={tooltipFor}
                   onCreate={onCreate}
+                  onCellPointerDown={onCellPointerDown}
+                  selRange={createSel && createSel.empId === def.empId ? { fromIso: createSel.fromIso, toIso: createSel.toIso } : null}
                   onBarClick={onBarClick}
                   onBarPointerDown={onBarPointerDown}
                   onToggleDone={onToggleDone}
@@ -498,7 +554,7 @@ export default function Plantafel() {
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm bg-slate-400/20" /> Wochenende</span>
           <span className="inline-flex items-center gap-1.5"><Sun size={13} className="text-rose-500" /> Feiertag</span>
           <span className="inline-flex items-center gap-1.5"><Palmtree size={13} className="text-rose-500" /> Abwesenheit</span>
-          {mayEdit && <span className="ml-auto hidden sm:inline">Leere Zelle klicken = Einsatz anlegen · Balken ziehen = verschieben</span>}
+          {mayEdit && <span className="ml-auto hidden sm:inline">Zelle klicken oder über Tage ziehen = Einsatz anlegen · Balken ziehen = verschieben/umverteilen</span>}
         </div>
       </div>
 
@@ -518,6 +574,7 @@ export default function Plantafel() {
           onClose={() => setDialog(null)}
           event={dialog.event ?? null}
           defaultDate={dialog.defaultDate ?? null}
+          defaultEndDate={dialog.defaultEndDate ?? null}
           defaultEmployeeId={dialog.defaultEmployeeId ?? null}
           projects={projects}
           employees={employees}
@@ -548,6 +605,8 @@ type BoardRowProps = {
   subtitleFor: (e: EventWithLinks) => string | null;
   tooltipFor: (e: EventWithLinks) => string;
   onCreate: (empId: string | null, date: Date) => void;
+  onCellPointerDown: (e: ReactPointerEvent<HTMLDivElement>, empId: string | null, iso: string) => void;
+  selRange: { fromIso: string; toIso: string } | null;
   onBarClick: (e: EventWithLinks) => void;
   onBarPointerDown: (e: ReactPointerEvent<HTMLDivElement>, ev: EventWithLinks, rowEmp: string | null) => void;
   onToggleDone: (e: EventWithLinks) => void;
@@ -590,8 +649,11 @@ const BoardRow = memo(function BoardRow(p: BoardRowProps) {
         <div className="absolute inset-0 flex">
           {days.map((d) => {
             const isToday = d.isToday;
+            const inSel = !!p.selRange && d.iso >= p.selRange.fromIso && d.iso <= p.selRange.toIso;
             const cellStyle: CSSProperties = { width: colW, borderColor: "var(--border)" };
-            if (isToday) {
+            if (inSel) {
+              cellStyle.background = "color-mix(in srgb, var(--accent) 22%, transparent)";
+            } else if (isToday) {
               cellStyle.background = "color-mix(in srgb, var(--accent) 9%, transparent)";
               cellStyle.boxShadow = "inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent)";
             }
@@ -600,8 +662,9 @@ const BoardRow = memo(function BoardRow(p: BoardRowProps) {
                 key={d.iso}
                 data-emp={empAttr}
                 data-date={d.iso}
+                onPointerDown={(e) => p.onCellPointerDown(e, def.empId, d.iso)}
                 onClick={() => p.onCreate(def.empId, d.date)}
-                className={`h-full border-r ${isToday ? "" : dayTintClass(d)} ${mayEdit ? "cursor-pointer hover:bg-[var(--hover)]" : ""}`}
+                className={`h-full border-r ${isToday || inSel ? "" : dayTintClass(d)} ${mayEdit ? "cursor-pointer hover:bg-[var(--hover)]" : ""}`}
                 style={cellStyle}
               />
             );

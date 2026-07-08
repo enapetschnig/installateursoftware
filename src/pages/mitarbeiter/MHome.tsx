@@ -10,12 +10,14 @@
 // ============================================================
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FolderOpen, ClipboardList, Clock, Mic } from "lucide-react";
+import { FolderOpen, ClipboardList, Clock, Mic, CalendarDays, CheckCircle2 } from "lucide-react";
 import { Empty, Spinner } from "../../components/ui";
 import { useMyEmployee } from "../../lib/my-employee";
 import {
   loadTimeEntries, summarize, loadEmployeeSollContext, loadCompanyHolidays, fmtHours, fmtSaldo,
 } from "../../lib/time-entries";
+import { loadEvents, addDays, fmtDate, fmtTime, type EventWithLinks } from "../../lib/planning";
+import { loadProjectOptions } from "../../lib/documents-overview";
 
 // Montag der aktuellen Woche (lokale Zeit).
 function startOfWeek(d: Date): Date {
@@ -34,6 +36,8 @@ export default function MHome() {
   const { employee, loading } = useMyEmployee();
   const [stats, setStats] = useState<WeekStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [assignments, setAssignments] = useState<EventWithLinks[]>([]);
+  const [projLabels, setProjLabels] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (!employee) return;
@@ -56,6 +60,25 @@ export default function MHome() {
       })
       .catch(() => { if (!cancelled) setStats(null); })
       .finally(() => { if (!cancelled) setStatsLoading(false); });
+    return () => { cancelled = true; };
+  }, [employee]);
+
+  // Meine Einteilung: eigene Plantafel-Einsätze der nächsten ~3 Wochen.
+  useEffect(() => {
+    if (!employee) return;
+    let cancelled = false;
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = addDays(start, 21);
+    Promise.all([
+      loadEvents(start.toISOString(), end.toISOString(), { employeeId: employee.id }),
+      loadProjectOptions(),
+    ])
+      .then(([evs, projs]) => {
+        if (cancelled) return;
+        setAssignments(evs.slice(0, 8));
+        setProjLabels(new Map(projs.map((p) => [p.id, p.label])));
+      })
+      .catch(() => { if (!cancelled) setAssignments([]); });
     return () => { cancelled = true; };
   }, [employee]);
 
@@ -104,6 +127,43 @@ export default function MHome() {
                   </div>
                   <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Saldo</div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Meine Einteilung (Plantafel-Einsätze des Monteurs) */}
+          <div className="glass p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <CalendarDays size={16} className="text-[var(--accent)]" />
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Meine Einteilung</h2>
+            </div>
+            {assignments.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">Aktuell sind keine Einsätze für dich geplant.</p>
+            ) : (
+              <div className="space-y-2">
+                {assignments.map((ev) => {
+                  const s = new Date(ev.start_at);
+                  const e = new Date(ev.end_at);
+                  const oneDay = s.toDateString() === e.toDateString();
+                  const when = ev.all_day
+                    ? (oneDay ? fmtDate(ev.start_at) : `${fmtDate(ev.start_at)} – ${fmtDate(ev.end_at)}`)
+                    : `${fmtDate(ev.start_at)} · ${fmtTime(ev.start_at)}–${fmtTime(ev.end_at)}`;
+                  const proj = ev.project_id ? projLabels.get(ev.project_id) : null;
+                  return (
+                    <div key={ev.id} className="flex items-center gap-3 rounded-xl p-2.5" style={{ background: "var(--hover)" }}>
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white"
+                        style={{ background: ev.done_at ? "var(--c-green)" : "linear-gradient(135deg,var(--accent),var(--accent-h))" }}>
+                        {ev.done_at ? <CheckCircle2 size={18} /> : <CalendarDays size={18} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-semibold">{ev.title || proj || "Einsatz"}</div>
+                        <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                          {when}{proj && ev.title ? ` · ${proj}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
