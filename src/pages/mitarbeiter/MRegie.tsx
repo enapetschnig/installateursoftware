@@ -3,30 +3,31 @@
 //
 // Zwei Ansichten in einer Route-Familie:
 //  • /m/regie       → Liste der EIGENEN Regieberichte (createdBy = Login)
-//  • /m/regie/neu   → schlankes, mobil-optimiertes Erfassungsformular
-//    (optional vorbelegtes Projekt über ?projekt=<id>).
+//  • /m/regie/neu   → mobil-optimiertes Erfassungsformular, u. a. PER SPRACHE:
+//    Einsatz diktieren → Transkription (/api/ai/transcribe) → KI-Parse
+//    (runVoiceRegie → /api/ai/chat) füllt Kunde, Arbeit und Material aus.
 //
-// Das Formular baut BEWUSST NICHT auf einer (parallel entstehenden)
-// RegieForm-Komponente auf, sondern nutzt direkt den zentralen Datenlayer
-// saveRegieReport (Nummernkreis + RLS + Zeit-Sync laufen dort zentral). Der
-// eingeloggte Mitarbeiter wird als Haupt-Beteiligter gespeichert, damit die
-// erfassten Stunden über die zentrale RPC in die Zeiterfassung synchronisiert
-// werden. Mandantenfähig, keine Hardcodierung.
+// Speichern läuft zentral über saveRegieReport (Nummernkreis + RLS +
+// Zeit-Sync). Der eingeloggte Mitarbeiter ist Haupt-Beteiligter, damit die
+// Stunden in die Zeiterfassung synchronisiert werden. Mandantenfähig.
 // ============================================================
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Plus, ClipboardList } from "lucide-react";
+import { ArrowLeft, Plus, ClipboardList, Trash2, Package, Mic } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { Badge, Empty, Spinner } from "../../components/ui";
 import { ErrorBanner } from "../../components/calc-ui";
+import InlineMicButton from "../../components/voice/InlineMicButton";
 import { useAuth } from "../../lib/auth";
 import { useMyEmployee, MyEmployee } from "../../lib/my-employee";
 import { dateAt } from "../../lib/format";
 import { toast, toastError } from "../../lib/toast";
+import { loadCompanySettings } from "../../lib/company";
 import {
-  loadRegieReports, saveRegieReport, RegieReport, regieStatusMeta,
+  loadRegieReports, saveRegieReport, RegieReport, RegieMaterial, regieStatusMeta, materialSum,
 } from "../../lib/regie";
 import { hoursFromRange, fmtHours } from "../../lib/time-entries";
+import { runVoiceRegie, regieMaterialsFromParse } from "../../lib/voice/runVoiceRegie";
 import type { Tone } from "../../components/ui";
 
 type ProjectOpt = { id: string; title: string | null; project_number: string | null };
@@ -95,7 +96,7 @@ function RegieList() {
       {loading ? (
         <Spinner />
       ) : reports.length === 0 ? (
-        <Empty title="Noch keine Regieberichte" hint="Erstelle deinen ersten Regiebericht über die Schaltfläche Neu." />
+        <Empty title="Noch keine Regieberichte" hint="Erstelle deinen ersten Regiebericht über die Schaltfläche Neu – auch per Sprache." />
       ) : (
         <div className="space-y-3">
           {reports.map((r) => {
@@ -129,7 +130,7 @@ function RegieList() {
 }
 
 // ------------------------------------------------------------
-// Neues Regiebericht-Formular (schlank, mobil)
+// Neues Regiebericht-Formular (schlank, mobil, mit Sprach-Erfassung)
 // ------------------------------------------------------------
 function RegieForm({ employee }: { employee: MyEmployee }) {
   const navigate = useNavigate();
@@ -144,6 +145,9 @@ function RegieForm({ employee }: { employee: MyEmployee }) {
   const [end, setEnd] = useState("");
   const [pause, setPause] = useState<number>(0);
   const [beschreibung, setBeschreibung] = useState("");
+  const [materials, setMaterials] = useState<RegieMaterial[]>([]);
+  const [firmaName, setFirmaName] = useState<string>("");
+  const [parsing, setParsing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -154,14 +158,45 @@ function RegieForm({ employee }: { employee: MyEmployee }) {
       .eq("archived", false)
       .order("created_at", { ascending: false })
       .then(({ data }) => setProjects((data as ProjectOpt[]) ?? []));
+    loadCompanySettings().then((c) => setFirmaName(c?.name ?? "")).catch(() => { /* Fallback im Prompt */ });
   }, []);
 
   const stunden = useMemo(() => hoursFromRange(start || null, end || null, pause), [start, end, pause]);
+
+  // ── Sprach-Erfassung: Diktat → Transkript → KI-Parse → Felder füllen ──────
+  async function onVoiceTranscript(text: string) {
+    setParsing(true); setErr(null);
+    try {
+      const r = await runVoiceRegie({ text, firmaName });
+      if (r.beschreibung) setBeschreibung((p) => (p.trim() ? `${p.trim()}\n${r.beschreibung}` : r.beschreibung));
+      if (r.kunde_name) setKundeName((p) => p || (r.kunde_name as string));
+      if (r.start_time) setStart(r.start_time);
+      if (r.end_time) setEnd(r.end_time);
+      if (r.pause_minutes != null) setPause(r.pause_minutes);
+      if (r.materials.length) setMaterials((prev) => [...prev, ...regieMaterialsFromParse(r)]);
+      toast("Diktat übernommen.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Sprach-Auswertung fehlgeschlagen.";
+      setErr(msg); toastError(msg);
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  // ── Material-Zeilen ───────────────────────────────────────────────────────
+  const setMat = (i: number, patch: Partial<RegieMaterial>) =>
+    setMaterials((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addMat = () =>
+    setMaterials((rows) => [...rows, { article_id: null, material: "", menge: 1, einheit: "Stk", einzelpreis: 0, notizen: null, sort_order: rows.length }]);
+  const removeMat = (i: number) => setMaterials((rows) => rows.filter((_, idx) => idx !== i));
 
   async function save() {
     if (!kundeName.trim()) { setErr("Bitte einen Kundennamen angeben."); return; }
     if (!beschreibung.trim()) { setErr("Bitte die geleistete Arbeit beschreiben."); return; }
     setBusy(true); setErr(null);
+    const cleanMaterials = materials
+      .filter((m) => m.material.trim())
+      .map((m, i) => ({ ...m, sort_order: i }));
     const { error } = await saveRegieReport({
       project_id: projectId || null,
       datum,
@@ -172,6 +207,7 @@ function RegieForm({ employee }: { employee: MyEmployee }) {
       stunden,
       beschreibung: beschreibung.trim(),
       status: "offen",
+      materials: cleanMaterials,
       // Eigene Stunden als Haupt-Beteiligter → zentrale Zeit-Sync-RPC.
       workers: [{ employee_id: employee.id, is_main: true, hours: stunden }],
     });
@@ -190,6 +226,28 @@ function RegieForm({ employee }: { employee: MyEmployee }) {
       <h1 className="text-2xl font-extrabold tracking-tight">Neuer Regiebericht</h1>
 
       <ErrorBanner message={err} />
+
+      {/* Sprach-Erfassung (prominent oben) */}
+      <div
+        className="glass flex items-center gap-4 p-4"
+        style={{ border: "1px solid color-mix(in srgb, var(--accent) 35%, var(--border))" }}
+      >
+        <InlineMicButton
+          size="lg"
+          onResult={onVoiceTranscript}
+          onError={setErr}
+          disabled={parsing || busy}
+          placeholder="Regiebericht diktieren"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 font-bold">
+            <Mic size={16} className="text-[var(--accent)]" /> Per Sprache erfassen
+          </div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">
+            {parsing ? "Diktat wird ausgewertet …" : "Einsatz diktieren – Kunde, Arbeit und Material werden ausgefüllt."}
+          </div>
+        </div>
+      </div>
 
       <div className="glass space-y-4 p-4">
         <label className="block">
@@ -248,22 +306,80 @@ function RegieForm({ employee }: { employee: MyEmployee }) {
           </div>
         </div>
 
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold">Arbeit / Beschreibung</span>
+        <div className="block">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-semibold">Arbeit / Beschreibung</span>
+            <InlineMicButton
+              size="sm"
+              onResult={(t) => setBeschreibung((p) => (p.trim() ? `${p.trim()} ${t}` : t))}
+              onError={setErr}
+              disabled={parsing || busy}
+              placeholder="Beschreibung diktieren"
+            />
+          </div>
           <textarea
             className="input min-h-[120px]"
-            placeholder="Was wurde gemacht?"
+            placeholder="Was wurde gemacht? (oder oben diktieren)"
             value={beschreibung}
             onChange={(e) => setBeschreibung(e.target.value)}
           />
-        </label>
+        </div>
+      </div>
+
+      {/* Material */}
+      <div className="glass space-y-3 p-4">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <Package size={16} /> Material {materials.length > 0 && `(${materials.length})`}
+          </span>
+          <button className="btn-outline min-h-[40px] px-3 text-sm" onClick={addMat}>
+            <Plus size={16} /> Position
+          </button>
+        </div>
+        {materials.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">Kein Material – per Sprache diktieren oder Position hinzufügen.</p>
+        ) : (
+          <div className="space-y-2">
+            {materials.map((m, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="Material"
+                  value={m.material}
+                  onChange={(e) => setMat(i, { material: e.target.value })}
+                />
+                <input
+                  type="number"
+                  className="input w-16 text-center"
+                  value={m.menge}
+                  min={0}
+                  onChange={(e) => setMat(i, { menge: Math.max(0, Number(e.target.value)) })}
+                />
+                <input
+                  className="input w-20"
+                  placeholder="Einh."
+                  value={m.einheit}
+                  onChange={(e) => setMat(i, { einheit: e.target.value })}
+                />
+                <button className="btn-ghost min-h-[40px] px-2 text-[var(--c-red)]" onClick={() => removeMat(i)} aria-label="Position entfernen">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+            {materialSum(materials) > 0 && (
+              <div className="pt-1 text-right text-sm text-slate-500 dark:text-slate-400">
+                Materialsumme netto: <span className="font-semibold tabular-nums">{materialSum(materials).toFixed(2)} €</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3">
         <button className="btn-outline min-h-[52px] flex-1 justify-center" onClick={() => navigate("/m/regie")} disabled={busy}>
           Abbrechen
         </button>
-        <button className="btn-primary min-h-[52px] flex-1 justify-center text-base" onClick={save} disabled={busy}>
+        <button className="btn-primary min-h-[52px] flex-1 justify-center text-base" onClick={save} disabled={busy || parsing}>
           {busy ? "Speichert …" : "Speichern"}
         </button>
       </div>

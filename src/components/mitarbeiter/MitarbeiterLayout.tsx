@@ -13,18 +13,19 @@
 // ============================================================
 import { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, FolderOpen, ClipboardList, Clock, LogOut } from "lucide-react";
+import { Home, ClipboardList, Clock, LogOut } from "lucide-react";
 import { LogoFull } from "../Logo";
 import { useAuth } from "../../lib/auth";
 import { useMyEmployee } from "../../lib/my-employee";
 
 // Tab-Ziele der Mitarbeiter-App (Reihenfolge = Anzeige-Reihenfolge).
 // `end` nur für die Startseite, damit /m nicht bei jeder Unterroute aktiv bleibt.
+// Fokus der Mitarbeiter-App: reine Zeiterfassung + Regieberichte.
+// Projekte/Fotos bleiben über die Startseite (Karte) erreichbar.
 const TABS: { to: string; label: string; icon: typeof Home; end?: boolean }[] = [
   { to: "/m", label: "Start", icon: Home, end: true },
-  { to: "/m/projekte", label: "Projekte", icon: FolderOpen },
-  { to: "/m/regie", label: "Regie", icon: ClipboardList },
   { to: "/m/zeit", label: "Zeit", icon: Clock },
+  { to: "/m/regie", label: "Regie", icon: ClipboardList },
 ];
 
 export default function MitarbeiterLayout({ children }: { children: ReactNode }) {

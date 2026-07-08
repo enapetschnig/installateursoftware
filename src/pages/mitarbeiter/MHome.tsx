@@ -1,16 +1,16 @@
 // ============================================================
 // Installateursoftware – Mitarbeiter-App: Startseite (/m)
 //
-// Begrüßung + kompakte Wochen-Kennzahlen (Ist/Soll/Saldo aus der zentralen
-// Zeiterfassungs-Engine) + große Schnellzugriff-Kacheln zu Projekten,
-// Regieberichten und Zeiterfassung. Bewusst wenig Text, dicke Touch-Ziele.
-// Die Kennzahlen nutzen dieselbe Logik wie das Admin-Zeitmodul
-// (loadTimeEntries + summarize + loadEmployeeSollContext), damit Zahlen
-// überall konsistent sind.
+// Karten-Launcher im Fasching-Stil: Begrüßung, kompakte Wochen-Kennzahlen
+// und große Aktions-Karten. Bewusster Fokus auf die zwei Kernfunktionen der
+// Mitarbeiter-App: ZEITERFASSUNG und REGIEBERICHTE (letztere auch per Sprache).
+// Projekte/Fotos bleiben als sekundäre Karte erreichbar. Wenig Text, dicke
+// Touch-Ziele; nutzt ausschließlich zentrale Design-Tokens (var(--accent) …)
+// → Dark/Light + alle Akzent-Themes automatisch.
 // ============================================================
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FolderOpen, ClipboardList, Clock, ChevronRight } from "lucide-react";
+import { FolderOpen, ClipboardList, Clock, Mic } from "lucide-react";
 import { Empty, Spinner } from "../../components/ui";
 import { useMyEmployee } from "../../lib/my-employee";
 import {
@@ -29,12 +29,6 @@ const isoDate = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 type WeekStats = { ist: number; soll: number; saldo: number };
-
-const TILES = [
-  { to: "/m/projekte", label: "Projekte", hint: "Ansehen & Fotos hochladen", icon: FolderOpen },
-  { to: "/m/regie", label: "Regieberichte", hint: "Erstellen & ansehen", icon: ClipboardList },
-  { to: "/m/zeit", label: "Zeit erfassen", hint: "Stunden buchen", icon: Clock },
-];
 
 export default function MHome() {
   const { employee, loading } = useMyEmployee();
@@ -70,10 +64,10 @@ export default function MHome() {
   const greeting = employee?.first_name ? `Hallo, ${employee.first_name}!` : "Hallo!";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight">{greeting}</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Willkommen in deiner Mitarbeiter-App.</p>
+        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{greeting}</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Zeiterfassung und Regieberichte.</p>
       </div>
 
       {!employee ? (
@@ -114,30 +108,67 @@ export default function MHome() {
             )}
           </div>
 
-          {/* Schnellzugriff */}
-          <div className="space-y-3">
-            {TILES.map((t) => (
-              <Link
-                key={t.to}
-                to={t.to}
-                className="glass glass-hover flex min-h-[64px] items-center gap-4 p-4"
-              >
-                <span
-                  className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white"
-                  style={{ background: "linear-gradient(135deg,var(--accent),var(--accent-h))" }}
-                >
-                  <t.icon size={24} />
+          {/* Aktions-Karten (Fasching-Stil): Icon-Kachel + Titel + Beschreibung + Button */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+            <ActionCard
+              to="/m/zeit"
+              icon={Clock}
+              title="Zeiterfassung"
+              desc="Arbeitszeit auf Projekte buchen"
+              button="Stunden erfassen"
+            />
+            <ActionCard
+              to="/m/regie/neu"
+              icon={ClipboardList}
+              title="Regiebericht"
+              desc="Einsatz dokumentieren – auch per Sprache"
+              button="Bericht erstellen"
+              badge={
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                  style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                  <Mic size={12} /> Sprache
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-bold">{t.label}</span>
-                  <span className="block text-sm text-slate-500 dark:text-slate-400">{t.hint}</span>
-                </span>
-                <ChevronRight size={20} className="shrink-0 text-slate-400" />
-              </Link>
-            ))}
+              }
+            />
+            <ActionCard
+              to="/m/projekte"
+              icon={FolderOpen}
+              title="Projekte & Fotos"
+              desc="Projekte ansehen, Fotos hochladen"
+              button="Projekte öffnen"
+              variant="outline"
+            />
           </div>
         </>
       )}
     </div>
+  );
+}
+
+function ActionCard({
+  to, icon: Icon, title, desc, button, variant = "primary", badge,
+}: {
+  to: string; icon: typeof Clock; title: string; desc: string; button: string;
+  variant?: "primary" | "outline"; badge?: React.ReactNode;
+}) {
+  return (
+    <Link to={to} className="glass glass-hover flex flex-col gap-3 p-5">
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white"
+          style={{ background: "linear-gradient(135deg,var(--accent),var(--accent-h))" }}
+        >
+          <Icon size={24} />
+        </span>
+        {badge}
+      </div>
+      <div>
+        <div className="text-lg font-bold">{title}</div>
+        <div className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{desc}</div>
+      </div>
+      <span className={`${variant === "primary" ? "btn-primary" : "btn-outline"} mt-1 min-h-[44px] w-full justify-center`}>
+        {button}
+      </span>
+    </Link>
   );
 }

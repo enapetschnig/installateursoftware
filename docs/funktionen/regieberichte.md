@@ -35,8 +35,12 @@
 - RPC `regie_sync_time_entries(p_report_id)` – erzeugt/ersetzt Zeiteinträge je Beteiligtem.
 - RLS: Modul `regiestunden` + Eigen-Zweig (Ersteller/Beteiligte über `employees.auth_user_id`).
 
+**Sprach-Erfassung (Mitarbeiter-App)**
+- In `/m/regie/neu` kann ein Regiebericht **per Sprache** erstellt werden: Diktat → `InlineMicButton` (`transcribeAudio` → `/api/ai/transcribe`) → `runVoiceRegie` (`src/lib/voice/runVoiceRegie.ts`, ruft `aiComplete` → `/api/ai/chat` im JSON-Modus) → füllt Kunde, Beschreibung, Zeiten und Material aus. Prompt: `src/lib/ai/prompts/regiebericht.ts` (mandantenfähig via Firmenname). Voraussetzung: `OPENAI_API_KEY` serverseitig gesetzt.
+
 **So erweitern**
 - Rechnungs-Import: Material (× Einzelpreis) + Stunden (× Stundensatz) als Rechnungspositionen übernehmen – über die zentrale Dokumentlogik ([[dokumentketten]] / [[rechnungen]]).
 - E-Mail-Versand des PDFs analog zur bestehenden Mailfunktion ([[email]]).
+- Denselben `runVoiceRegie`-Runner künftig auch im Desktop-`RegieForm` einbinden (keine Doppellogik).
 
 Querbezüge: [[zeiterfassung]] (Beteiligten-Stunden), [[projekte]], [[kalkulation]] (Artikel/Material), [[nummernkreise]], [[rechte-rollen]] (`regiestunden`), [[mitarbeiter-app]].

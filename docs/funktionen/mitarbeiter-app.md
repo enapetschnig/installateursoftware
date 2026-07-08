@@ -1,13 +1,13 @@
 # Mitarbeiter-App
-> Eigener, schlanker, mobil-first Bereich (Routenpräfix `/m`) nur für Monteure/Mitarbeiter: Projekte ansehen, Fotos hochladen, Regieberichte erstellen, Stunden schreiben.
+> Eigener, schlanker, mobil-first Bereich (Routenpräfix `/m`) nur für Monteure/Mitarbeiter. **Fokus (Fasching-Stil): reine Zeiterfassung + Regieberichte** (Regieberichte auch per Sprache). Projekte/Fotos bleiben als Nebenfunktion erreichbar.
 
 ## Für Anwender
 **Was kann die Funktion?**
-- Startseite mit Begrüßung und Wochenstunden-Überblick.
-- Projekte ansehen (Liste + Detail) und Fotos/Videos direkt aufs Projekt hochladen.
-- Regieberichte für ein Projekt anlegen (mobil-optimiert).
+- Startseite als Karten-Launcher (Fasching-Stil): Wochen-Kennzahlen (Ist/Soll/Saldo) + große Aktions-Karten „Zeiterfassung" und „Regiebericht" (mit 🎤-Sprache-Badge) sowie sekundär „Projekte & Fotos".
 - Stunden schreiben (Von–Bis + Pause, Arbeitsort, Projekt) mit Wochensumme.
-- Untere Tab-Leiste: Start · Projekte · Regie · Zeit.
+- Regieberichte anlegen – **komplett per Sprache**: Einsatz diktieren → Transkription → KI füllt Kunde, Arbeit und Material aus. Zusätzlich Diktat-Mikro direkt am Beschreibungsfeld.
+- Projekte ansehen und Fotos/Videos aufs Projekt hochladen (über die „Projekte & Fotos"-Karte).
+- Untere Tab-Leiste (fokussiert): Start · Zeit · Regie.
 
 **Bedienung**
 1. Mitarbeiter meldet sich an und wird (je Rolle) in den `/m`-Bereich geführt.
@@ -20,8 +20,9 @@
 
 ## Technik
 **Routen & Komponenten**
-- Layout: `src/components/mitarbeiter/MitarbeiterLayout.tsx` (eigenes, ohne Admin-Sidebar; Kopfzeile + untere Tab-Bar mit Safe-Area).
-- Seiten unter `src/pages/mitarbeiter/`: `MHome.tsx`, `MProjekte.tsx`, `MProjektDetail.tsx`, `MRegie.tsx`, `MZeit.tsx`.
+- Layout: `src/components/mitarbeiter/MitarbeiterLayout.tsx` (eigenes, ohne Admin-Sidebar; Kopfzeile + untere Tab-Bar Start/Zeit/Regie mit Safe-Area).
+- Seiten unter `src/pages/mitarbeiter/`: `MHome.tsx` (Karten-Launcher), `MProjekte.tsx`, `MProjektDetail.tsx`, `MRegie.tsx` (inkl. Sprach-Erfassung), `MZeit.tsx`.
+- Sprach-Regiebericht: `src/components/voice/InlineMicButton.tsx` (Aufnahme → `transcribeAudio`), `src/lib/voice/runVoiceRegie.ts` (Transkript → KI-Parse via `aiComplete`/`parseJsonResponse`), `src/lib/ai/prompts/regiebericht.ts` (mandantenfähiger Prompt). Braucht `OPENAI_API_KEY` serverseitig (`/api/ai/transcribe` + `/api/ai/chat`).
 - Wiederverwendung: `useMyEmployee` (`src/lib/my-employee.ts`), Zeiterfassung (`src/lib/time-entries.ts`), Regieberichte (`src/lib/regie.ts`), Foto-Upload (`src/components/media/ProjectMediaGallery.tsx`).
 - Routing/Guard in `src/App.tsx`: `/m/*` rendert `MitarbeiterLayout` statt des Admin-`Layout`; Zugang über Modul `mitarbeiter_app`.
 
