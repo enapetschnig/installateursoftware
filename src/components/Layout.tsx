@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import {
-  LayoutDashboard, Gauge, BarChart3, Mail, FolderKanban, Users, Calculator, ListTodo,
+  LayoutDashboard, BarChart3, Mail, FolderKanban, Users, Calculator, ListTodo,
   CalendarRange, Building2, Zap, Receipt, User, UsersRound, Settings,
   Eye, Check, LogOut, Search, Menu, ChevronRight, ChevronDown,
   Palette, X, Files, Newspaper, UserCheck, Inbox,
@@ -69,7 +69,6 @@ const NAV: NavItem[] = [
   { to: "/m", label: "Mitarbeiter-App", icon: Smartphone, section: "Team", module: "mitarbeiter_app" },
 
   // Steuerung & Analyse
-  { to: "/cockpit", label: "Leitstand", icon: Gauge, section: "Steuerung & Analyse", adminOnly: true },
   { to: "/auswertungen", label: "Auswertungen", icon: BarChart3, section: "Steuerung & Analyse", module: "analytics" },
   { to: "/automationen", label: "Automationen", icon: Zap, section: "Steuerung & Analyse", module: "automations" },
 
@@ -210,6 +209,11 @@ export default function Layout({ children }: { children: ReactNode }) {
     return acc;
   }, []);
 
+  // Stabile Tour-Anker für den KI-Schulungsmodus: jeder Menüpunkt ist über
+  // `nav-<slug>` adressierbar (Projekte behält den historischen Namen).
+  const navTourId = (to: string) =>
+    to === "/projekte" ? "project-nav" : `nav-${to === "/" ? "start" : to.replace(/^\//, "")}`;
+
   const renderNavItem = (n: NavItem) =>
     n.group === "projekte" ? (
       <div key={n.to}>
@@ -249,6 +253,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </div>
     ) : (
       <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setMobileOpen(false)}
+        data-tour-id={navTourId(n.to)}
         className={({ isActive }) => navItemClass(isActive)}
         style={({ isActive }: any) => (isActive ? activeStyle : undefined)}>
         <NavIcon I={n.icon} /> <span className="min-w-0 break-words leading-snug">{n.label}</span>

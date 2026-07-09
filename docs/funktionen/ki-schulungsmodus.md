@@ -37,3 +37,15 @@ Neue Tour = Eintrag in `TOURS` (`ai-tour.ts`) + `data-tour-id` an den Zielelemen
 
 **Verknüpfungen**
 [ki-assistent-isabella.md](ki-assistent-isabella.md) · [projekte.md](projekte.md)
+
+## Verfügbare Touren (Stand 2026-07-09)
+
+| Tour-ID | Titel | Bereich |
+|---|---|---|
+| `project-create` | Projekt anlegen | Projekte |
+| `marketing-post` | Social-Beitrag mit KI planen | Marketing |
+| `eingangsrechnung-erfassen` | Eingangsrechnung erfassen | Buchhaltung |
+
+Neue Tour ergänzen: (1) `data-tour-id` an den Ziel-Elementen setzen, (2) Definition in `src/lib/ai-tour.ts` (`TOURS`) anlegen,
+(3) Tour-ID in `api/ai/chat.js` bei `TOUR_IDS` **und** im `startTour`-Tool-Enum registrieren.
+Jeder Menüpunkt ist über `nav-<slug>` adressierbar (Ausnahme: Projekte = `project-nav`).

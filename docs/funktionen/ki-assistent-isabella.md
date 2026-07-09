@@ -34,3 +34,15 @@ Neue KI-Aktionen serverseitig in `api/ai/chat.js` als Tool kapseln (Key bleibt a
 
 **Verknüpfungen**
 [ki-schulungsmodus.md](ki-schulungsmodus.md) · [automationen.md](automationen.md) · [dokumentketten.md](dokumentketten.md) · [einstellungen.md](einstellungen.md)
+
+## „Sag mir, was du willst" (Stand 2026-07-09)
+
+Der Assistent führt aktiv statt nur zu beschreiben:
+
+- **„Wo finde ich …?" / „Wie komme ich zu …?"** → nennt den Menüweg in einem Satz und **öffnet den Bereich sofort** (`navigateTo`).
+- **„Wie mache ich …?"** → startet die passende **Führung** (`startTour`); die App scrollt, hebt hervor und klickt den Weg vor.
+- Ohne passende Tour: kurze nummerierte Schrittfolge (max. 5 Schritte) **plus** Navigation zum Startpunkt.
+- Laien-Begriffe werden übersetzt („Rechnungen, die wir bekommen" → Buchhaltung; „Geld, das uns Kunden schulden" → Offene Posten).
+
+Navigations-Ziele stehen in `api/ai/chat.js` (`NAV_TARGETS`), die deutschen Anzeigenamen in `NAV_LABELS`
+(der interne Schlüssel darf dem Nutzer nie angezeigt werden). Ziele, die nur auf Platzhalterseiten führen, sind bewusst **nicht** enthalten.

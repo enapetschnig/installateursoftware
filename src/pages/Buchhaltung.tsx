@@ -173,7 +173,7 @@ export default function Buchhaltung() {
           </p>
         </div>
         {mainTab === "eingang" && mayCreate && (
-          <button className="btn-primary" onClick={() => setEdit("new")}>
+          <button className="btn-primary" data-tour-id="buchhaltung-new" onClick={() => setEdit("new")}>
             <Plus size={16} /> Neue Eingangsrechnung
           </button>
         )}
@@ -523,7 +523,7 @@ function EingangsrechnungForm({
 
   return (
     <Modal open onClose={onClose} title={current ? "Eingangsrechnung bearbeiten" : "Neue Eingangsrechnung"} size="xl">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-tour-id="buchhaltung-form">
         <label className="flex flex-col text-sm sm:col-span-2">
           <span className="label">Lieferant</span>
           <input className="input" list="lieferanten-list" value={supplierName_}
@@ -643,7 +643,7 @@ function EingangsrechnungForm({
       <div className="mt-4 flex items-center justify-end gap-2">
         <button className="btn-outline" onClick={onClose} disabled={busy}>Schließen</button>
         {canEdit && (
-          <button className="btn-primary" onClick={save} disabled={busy}>
+          <button className="btn-primary" data-tour-id="buchhaltung-save" onClick={save} disabled={busy}>
             {busy ? "Speichere …" : current ? "Speichern" : "Anlegen"}
           </button>
         )}

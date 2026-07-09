@@ -47,3 +47,16 @@ Neue Konfigurierbarkeit immer als DB-Einstellung statt Code-Konstante (mandanten
 
 **Verknüpfungen**
 [nummernkreise.md](nummernkreise.md) · [textbausteine.md](textbausteine.md) · [rechte-rollen.md](rechte-rollen.md) · [mandantenfaehigkeit.md](mandantenfaehigkeit.md) · [pdf-engine.md](pdf-engine.md) · [mitarbeiter.md](mitarbeiter.md)
+
+## Aufbau der Reiter (Stand 2026-07-09)
+
+Die Einstellungs-Bereiche sind nach Themen **gruppiert** und **durchsuchbar** (statt 16 gleichrangiger Reiter):
+
+- **Persönlich** – Design/Darstellung, Konto
+- **Firma** – Firmeneinstellungen, Nummernkreise, Kalender & Arbeitszeiten
+- **Dokumente & Texte** – Dokumentarten, Dokumentvarianten, Mailvorlagen, Kalkulation
+- **Projekte** – Projekttypen, Projektstatus, Fotos & Videos
+- **System** – Integrationen, KI-Einstellungen, Zugriffsrechte, Modulmap, Datenreset
+
+Jeder Bereich trägt eine Kurzbeschreibung (`desc` in `TABS`, `src/pages/Settings.tsx`), die als Tooltip und unter der
+Reiterleiste angezeigt wird. Das Suchfeld filtert über Bezeichnung **und** Beschreibung. `?tab=` bleibt unverändert deep-linkbar.

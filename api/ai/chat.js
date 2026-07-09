@@ -38,8 +38,19 @@ const DEFAULT_SYSTEM =
   "Sicherheitsstufen (action_level): 1 Lesen/Suchen/Navigieren ohne Bestätigung; 2 Texte/Entwürfe vorbereiten – " +
   "diese gibst du als Vorschlag direkt im Chat aus und speicherst NICHTS in der Datenbank; 3+ Datenänderung/Finalisierung/" +
   "Senden/Löschen nur über Vorschau-Tools mit ausdrücklicher Bestätigung. " +
-  "Wenn der Nutzer wissen möchte, WIE eine Funktion bedient wird (z. B. „zeig mir, wie man ein Projekt anlegt“), " +
-  "rufe das Tool startTour auf, statt es nur zu beschreiben. " +
+  // ── Der Nutzer soll nie suchen müssen: Weg nennen UND hinführen ──
+  "WICHTIGSTE REGEL – der Nutzer soll nie selbst suchen müssen:\n" +
+  "• Fragt jemand, WO etwas ist oder WIE er irgendwo hinkommt („wo finde ich die offenen Posten?“, „wie komme ich zu den Anfragen?“), " +
+  "nenne in EINEM kurzen Satz den Weg im Menü (z. B. „Menü → Finanzen → Buchhaltung, Reiter ‚Offene Posten‘“) und rufe SOFORT navigateTo auf. " +
+  "Nicht fragen, ob du hingehen sollst – einfach öffnen. Navigieren ändert keine Daten.\n" +
+  "• Fragt jemand, WIE er etwas TUT („wie lege ich ein Projekt an?“, „wie plane ich einen Beitrag?“, „wie erfasse ich eine Eingangsrechnung?“), " +
+  "und es gibt dafür eine Tour, dann rufe startTour auf – die App klickt den Weg dann vor. Beschreibe es NICHT nur.\n" +
+  "• Gibt es keine passende Tour, antworte mit einer kurzen nummerierten Schrittfolge (max. 5 Schritte, jeder Schritt eine Zeile, " +
+  "konkrete Buttonnamen in Anführungszeichen) und navigiere zusätzlich an den Startpunkt.\n" +
+  "• Kennt der Nutzer den Fachbegriff nicht, übersetze in seine Worte: „Rechnungen, die WIR bekommen“ = Eingangsrechnungen (Buchhaltung); " +
+  "„Geld, das uns Kunden schulden“ = Offene Posten; „Facebook-Beitrag“ = Marketing → Redaktionsplan; „Kundenanfragen“ = Anfragen.\n" +
+  "• Der Leitstand (Firmen-Kennzahlen, Angebots-Pipeline, Mitarbeiter-Einteilung) ist Teil der Startseite und nur für Administratoren sichtbar – " +
+  "es gibt keine eigene Cockpit-Seite mehr.\n" +
   "Sollst du Angebots-/Auftragstexte, E-Mails, Erinnerungen, Gesprächsnotizen, Logbucheinträge oder Berichte „vorbereiten“, " +
   "formuliere den Entwurf direkt als Text-Antwort (Stufe 2) – ohne zu speichern; das Speichern übernimmt der Nutzer.";
 
@@ -82,8 +93,21 @@ function docRoute(kind, id) { return KIND_ROUTE[kind] ? `${KIND_ROUTE[kind]}/${i
 const NAV_TARGETS = {
   dashboard: "/", projects: "/projekte", contacts: "/kontakte", documents: "/dokumente",
   offers: "/dokumente?typ=angebote", orders: "/dokumente?typ=auftraege", invoices: "/dokumente?typ=rechnungen",
-  tasks: "/aufgaben", calendar: "/planung", planning: "/planung", settings: "/einstellungen",
-  email: "/email", accounting: "/buchhaltung", news: "/news", delegieren: "/delegieren",
+  calendar: "/planung", planning: "/planung", settings: "/einstellungen",
+  email: "/email", accounting: "/buchhaltung", marketing: "/marketing",
+  requests: "/anfragen", plantafel: "/plantafel", employees: "/mitarbeiter",
+  calculation: "/kalkulation", reports: "/auswertungen", automations: "/automationen",
+  timesheets: "/stundenauswertung", myhours: "/meine-stunden", regie: "/regieberichte",
+};
+// Deutsche Anzeigenamen – der Nutzer darf nie den internen Schlüssel sehen.
+const NAV_LABELS = {
+  dashboard: "Übersicht", projects: "Projekte", contacts: "Kontakte", documents: "Dokumente",
+  offers: "Angebote", orders: "Aufträge", invoices: "Rechnungen",
+  calendar: "Planung", planning: "Planung", settings: "Einstellungen",
+  email: "E-Mail", accounting: "Buchhaltung", marketing: "Marketing",
+  requests: "Anfragen", plantafel: "Plantafel", employees: "Mitarbeiter",
+  calculation: "Kalkulation", reports: "Auswertungen", automations: "Automationen",
+  timesheets: "Stundenauswertung", myhours: "Meine Stunden", regie: "Regieberichte",
 };
 const DOCTYPE_TO_SLUG = {
   angebot: "angebote", angebote: "angebote", offer: "angebote",
@@ -103,11 +127,11 @@ const TOOLS = [
   { type: "function", function: { name: "navigateTo", description: "Zu einem App-Bereich navigieren.", parameters: { type: "object", properties: { target: { type: "string", enum: Object.keys(NAV_TARGETS) } }, required: ["target"] } } },
   { type: "function", function: { name: "continueOfferToOrderPreview", description: "Bereitet vor, aus einem ABGESCHLOSSENEN Angebot einen Auftrag zu erstellen. Zeigt nur eine Vorschau; Erstellung erst nach Bestätigung. Entwürfe sind nicht erlaubt. offerId weglassen, wenn gerade ein Angebot geöffnet ist.", parameters: { type: "object", properties: { offerId: { type: "string" } } } } },
   { type: "function", function: { name: "continueOrderToInvoicePreview", description: "Bereitet vor, aus einem Auftrag eine Rechnung zu erstellen. Nur Vorschau; Erstellung erst nach Bestätigung. orderId weglassen, wenn gerade ein Auftrag geöffnet ist.", parameters: { type: "object", properties: { orderId: { type: "string" } } } } },
-  { type: "function", function: { name: "startTour", description: "Startet eine visuelle Schritt-für-Schritt-Schulung in der App (KI-Schulungsmodus mit virtuellem Cursor). Nutze dies, wenn der Nutzer gezeigt bekommen möchte, WIE eine Funktion bedient wird (z. B. „Zeig mir, wie man ein Projekt anlegt“). Es werden keine Daten geändert (Erklär-Modus); echte Aktionen erfolgen nur nach ausdrücklicher Bestätigung.", parameters: { type: "object", properties: { tourId: { type: "string", enum: ["project-create"], description: "Welche Tour: project-create = Projekt anlegen." } }, required: ["tourId"] } } },
+  { type: "function", function: { name: "startTour", description: "Startet eine visuelle Schritt-für-Schritt-Schulung in der App (KI-Schulungsmodus mit virtuellem Cursor): die App scrollt, hebt hervor und klickt den Weg vor. Nutze dies IMMER, wenn der Nutzer wissen will, WIE etwas geht und eine passende Tour existiert (z. B. „Wie lege ich ein Projekt an?“, „Wie plane ich einen Beitrag?“, „Wie erfasse ich eine Eingangsrechnung?“). Es werden keine Daten geändert (Erklär-Modus).", parameters: { type: "object", properties: { tourId: { type: "string", enum: ["project-create", "marketing-post", "eingangsrechnung-erfassen"], description: "project-create = Projekt anlegen; marketing-post = Social-Beitrag mit KI planen; eingangsrechnung-erfassen = Eingangsrechnung in der Buchhaltung erfassen." } }, required: ["tourId"] } } },
 ];
 
 // Verfügbare Touren (müssen den Definitionen in src/lib/ai-tour.ts entsprechen).
-const TOUR_IDS = new Set(["project-create"]);
+const TOUR_IDS = new Set(["project-create", "marketing-post", "eingangsrechnung-erfassen"]);
 
 // ── Tool-Handler (alle Level 1 = lesend/navigieren) ────────
 function variantToTarget(v, noun) {
@@ -168,7 +192,8 @@ async function runTool(name, args, token, context) {
   if (name === "navigateTo") {
     const route = NAV_TARGETS[args.target];
     if (!route) return { type: "message", message: "Diesen Bereich kenne ich nicht." };
-    return { type: "navigate", route, message: `Ich öffne den Bereich ${args.target}.`, _target: args.target };
+    const label = NAV_LABELS[args.target] || args.target;
+    return { type: "navigate", route, message: `Ich öffne „${label}“.`, _target: args.target };
   }
 
   if (name === "searchProjects") {

@@ -24,7 +24,6 @@ function useBrandingFavicon() {
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Cockpit from "./pages/Cockpit";
 import Contacts from "./pages/Contacts";
 import ContactDetail from "./pages/ContactDetail";
 import Projects from "./pages/Projects";
@@ -90,13 +89,6 @@ function Guard({ module, action = "view", children }: { module: string; action?:
   return isAdmin || can(module, action) ? <>{children}</> : <Forbidden />;
 }
 
-// Strikt nur für Administratoren – kein vergebbares Permission-Modul (z. B. Cockpit).
-function AdminGuard({ children }: { children: ReactNode }) {
-  const { isAdmin, loading } = usePermissions();
-  if (loading) return <div className="grid h-full place-items-center text-slate-400">Lädt …</div>;
-  return isAdmin ? <>{children}</> : <Forbidden />;
-}
-
 // Startseite: reine Mitarbeiter (Monteure) ohne Dashboard-Recht landen in der
 // Mitarbeiter-App (/m). Alle anderen sehen das normale Dashboard.
 function HomeRedirect() {
@@ -154,9 +146,9 @@ export default function App() {
       <Toaster />
       <Routes>
         <Route path="/" element={<HomeRedirect />} />
-        {/* Admin-Cockpit (Leitstand) – firmenweite KPIs, Einteilung, Aufgaben, Automationen.
-            Strikt Admin-only (AdminGuard), kein vergebbares Permission-Modul. */}
-        <Route path="/cockpit" element={<AdminGuard><Cockpit /></AdminGuard>} />
+        {/* Cockpit ist in die Startseite aufgegangen (Leitstand-Abschnitt für Admins).
+            Alte Links/Lesezeichen bleiben gültig. */}
+        <Route path="/cockpit" element={<Navigate to="/" replace />} />
         {/* Passwort festlegen nach Einladungs-/Recovery-Link – ohne Guard (eigenes Konto). */}
         <Route path="/passwort-setzen" element={<PasswordSet />} />
         <Route path="/kontakte" element={<Guard module="contacts"><Contacts /></Guard>} />

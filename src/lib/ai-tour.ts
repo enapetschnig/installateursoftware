@@ -95,6 +95,90 @@ export function findTourEl(tourId?: string): HTMLElement | null {
 // Tour-Katalog (erweiterbar). Erste Tour: „Projekt anlegen".
 // ============================================================
 export const TOURS: Record<string, TourDefinition> = {
+  // ── Marketing: Beitrag mit KI planen ──────────────────────
+  "marketing-post": {
+    id: "marketing-post",
+    title: "Social-Beitrag mit KI planen",
+    area: "marketing",
+    steps: [
+      {
+        id: "open-marketing",
+        targetTourId: "nav-marketing",
+        navigateTo: "/marketing",
+        text: "Unter „Marketing“ planst du Beiträge für Facebook und Instagram und steuerst Werbeanzeigen.",
+        action: "highlight",
+      },
+      {
+        id: "open-plan",
+        targetTourId: "marketing-tab-beitraege",
+        text: "Im Reiter „Redaktionsplan“ siehst du alle Beiträge – als Liste oder im Monatskalender.",
+        action: "click",
+        waitFor: "marketing-new-post",
+      },
+      {
+        id: "click-new",
+        targetTourId: "marketing-new-post",
+        text: "Mit „Neuer Beitrag“ öffnest du den Planer. Ich öffne ihn jetzt zum Zeigen.",
+        action: "click",
+        waitFor: "marketing-post-modal",
+      },
+      {
+        id: "ai-topic",
+        targetTourId: "marketing-ai-topic",
+        text: "Hier beschreibst du in einem Satz, worum es geht – mehr braucht die KI nicht.",
+        action: "input",
+        demoValue: "Vorher/Nachher Badsanierung in Linz, 9 Tage, bodengleiche Dusche",
+      },
+      {
+        id: "ai-generate",
+        targetTourId: "marketing-ai-generate",
+        text: "„Vorschlag erstellen“ schreibt Titel, Beitragstext, Hashtags und empfiehlt eine Uhrzeit. Rechts siehst du sofort, wie der Beitrag aussieht.",
+        action: "highlight",
+      },
+      {
+        id: "save",
+        targetTourId: "marketing-post-save",
+        text: "Text anpassen, Kanäle und Termin wählen – dann speichern. Veröffentlicht wird erst, wenn der Kanal verbunden ist.",
+        action: "highlight",
+      },
+    ],
+  },
+
+  // ── Buchhaltung: Eingangsrechnung erfassen ────────────────
+  "eingangsrechnung-erfassen": {
+    id: "eingangsrechnung-erfassen",
+    title: "Eingangsrechnung erfassen",
+    area: "buchhaltung",
+    steps: [
+      {
+        id: "open-buchhaltung",
+        targetTourId: "nav-buchhaltung",
+        navigateTo: "/buchhaltung",
+        text: "Unter „Buchhaltung“ liegen deine Eingangsrechnungen und die offenen Posten.",
+        action: "highlight",
+      },
+      {
+        id: "click-new",
+        targetTourId: "buchhaltung-new",
+        text: "Rechnungen aus dem KI-Postfach landen automatisch hier. Manuell geht es über „Neue Eingangsrechnung“ – ich öffne das Formular.",
+        action: "click",
+        waitFor: "buchhaltung-form",
+      },
+      {
+        id: "form",
+        targetTourId: "buchhaltung-form",
+        text: "Lieferant, Rechnungsnummer, Datum und Betrag eintragen. Ein Projekt kannst du optional zuordnen.",
+        action: "highlight",
+      },
+      {
+        id: "save",
+        targetTourId: "buchhaltung-save",
+        text: "Nach dem Anlegen kannst du das Beleg-PDF anhängen und den Status bis „bezahlt“ führen.",
+        action: "highlight",
+      },
+    ],
+  },
+
   "project-create": {
     id: "project-create",
     title: "Projekt anlegen",

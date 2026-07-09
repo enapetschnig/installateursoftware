@@ -107,8 +107,8 @@ export const MODULE_MAP_NODES: ModuleNode[] = [
     subfunctions: ["KPI-Karten", "Aufgaben heute", "12-Monats-Umsatz", "Bauwetter (Open-Meteo)"],
   },
   {
-    id: "cockpit", label: "Cockpit (Leitstand)", group: "betrieb", level: 1,
-    status: "produktiv", route: "/cockpit",
+    id: "cockpit", label: "Leitstand (Startseite)", group: "betrieb", level: 1,
+    status: "produktiv", route: "/",
     purpose: "Admin-Leitstand: firmenweite KPIs, Angebots-Pipeline, Mitarbeiter-Einteilung, Automationen.",
     subfunctions: ["Pipeline", "Einteilung heute", "Schnell-Aufgaben", "Automations-Überblick"],
   },

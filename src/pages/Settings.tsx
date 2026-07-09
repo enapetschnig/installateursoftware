@@ -24,7 +24,7 @@ import IntegrationsTab from "../components/integrations/IntegrationsTab";
 import KalkulationSettings from "../components/settings/KalkulationSettings";
 import { extractConnectReason } from "../components/integrations/connect-reason";
 import { toast, toastError } from "../lib/toast";
-import { FileText, Sparkles, RefreshCcw, Calculator } from "lucide-react";
+import { FileText, Sparkles, RefreshCcw, Calculator, Search } from "lucide-react";
 
 const MODE_OPTIONS: { key: ThemeMode; label: string; desc: string; icon: any }[] = [
   { key: "light", label: "Hell", desc: "Heller Tagmodus", icon: Sun },
@@ -56,6 +56,7 @@ export default function Settings() {
   const requestedTab = params.get("tab");
   const requestedSub = params.get("sub");
   const [tab, setTab] = useState<Tab>(isValidTab(requestedTab) ? requestedTab : "darstellung");
+  const [tabSearch, setTabSearch] = useState(""); // filtert die Einstellungs-Bereiche
 
   // Reiter-Klick: sichtbaren Tab UND `?tab=` synchron halten. Ohne URL-Update laufen
   // State und Query auseinander (Reload/Teilen landet am falschen Reiter; „Modul öffnen"
@@ -114,25 +115,40 @@ export default function Settings() {
     }
   }, [params]);
 
-  const TABS: { key: Tab; label: string; icon: any }[] = [
-    { key: "darstellung",   label: "Design / Darstellung", icon: Palette },
-    { key: "firma",         label: "Firmeneinstellungen", icon: Building2 },
-    { key: "integrationen", label: "Integrationen",      icon: Plug },
-    { key: "projekttypen",  label: "Projekttypen",       icon: FolderTree },
-    { key: "projektstatus", label: "Projektstatus",      icon: ListChecks },
-    { key: "nummernkreise", label: "Nummernkreise",      icon: Hash },
-    { key: "medien",        label: "Fotos & Videos",     icon: Images },
-    { key: "mailvorlagen",  label: "Mailvorlagen",       icon: Mail },
-    { key: "dokumentarten", label: "Dokumentarten",      icon: FileStack },
-    { key: "angebote",      label: "Dokumentvarianten",  icon: FileText },
-    { key: "kalkulation",   label: "Kalkulation",        icon: Calculator },
-    { key: "buak",          label: "Kalender & Arbeitszeiten", icon: CalendarClock },
-    { key: "ki",            label: "KI-Einstellungen",   icon: Sparkles },
-    { key: "modulmap",      label: "Modulmap",           icon: Orbit },
-    ...(canPerms ? [{ key: "zugriffsrechte" as Tab, label: "Zugriffsrechte", icon: ShieldCheck }] : []),
-    ...(isAdmin ? [{ key: "datenreset" as Tab, label: "Datenreset", icon: RefreshCcw }] : []),
-    { key: "konto",         label: "Konto",              icon: UserRound },
+  // Reiter sind nach Themen gruppiert (statt 16 gleichrangiger Chips) und
+  // durchsuchbar. `desc` erklärt jeden Bereich in wenigen Worten – wichtig,
+  // damit auch eine fremde Firma sofort versteht, was sich dahinter verbirgt.
+  type TabDef = { key: Tab; label: string; icon: any; group: string; desc: string };
+  const TABS: TabDef[] = [
+    { key: "darstellung",   label: "Design / Darstellung", icon: Palette,       group: "Persönlich", desc: "Farbschema, hell/dunkel, Augenschonmodus" },
+    { key: "konto",         label: "Konto",                icon: UserRound,     group: "Persönlich", desc: "Eigenes Passwort und Anmeldedaten" },
+
+    { key: "firma",         label: "Firmeneinstellungen",  icon: Building2,     group: "Firma",      desc: "Name, Adresse, UID, Bank, Logo" },
+    { key: "nummernkreise", label: "Nummernkreise",        icon: Hash,          group: "Firma",      desc: "Belegnummern für Angebot, Auftrag, Rechnung …" },
+    { key: "buak",          label: "Kalender & Arbeitszeiten", icon: CalendarClock, group: "Firma",  desc: "Jahreskalender und Arbeitszeitmodelle" },
+
+    { key: "dokumentarten", label: "Dokumentarten",        icon: FileStack,     group: "Dokumente & Texte", desc: "Welche Dokumenttypen es gibt" },
+    { key: "angebote",      label: "Dokumentvarianten",    icon: FileText,      group: "Dokumente & Texte", desc: "Varianten und Vor-/Nachtexte je Dokument" },
+    { key: "mailvorlagen",  label: "Mailvorlagen",         icon: Mail,          group: "Dokumente & Texte", desc: "Textbausteine für den E-Mail-Versand" },
+    { key: "kalkulation",   label: "Kalkulation",          icon: Calculator,    group: "Dokumente & Texte", desc: "Zuschläge, Stundensätze, Sprach-Angebote" },
+
+    { key: "projekttypen",  label: "Projekttypen",         icon: FolderTree,    group: "Projekte",   desc: "Arten von Bauvorhaben (z. B. Badsanierung)" },
+    { key: "projektstatus", label: "Projektstatus",        icon: ListChecks,    group: "Projekte",   desc: "Phasen, die ein Projekt durchläuft" },
+    { key: "medien",        label: "Fotos & Videos",       icon: Images,        group: "Projekte",   desc: "Kategorien für Baustellen-Medien" },
+
+    { key: "integrationen", label: "Integrationen",        icon: Plug,          group: "System",     desc: "Microsoft/Outlook und andere Verbindungen" },
+    { key: "ki",            label: "KI-Einstellungen",     icon: Sparkles,      group: "System",     desc: "Verhalten des KI-Assistenten" },
+    ...(canPerms ? [{ key: "zugriffsrechte" as Tab, label: "Zugriffsrechte", icon: ShieldCheck, group: "System", desc: "Rollen und wer was darf" }] : []),
+    { key: "modulmap",      label: "Modulmap",             icon: Orbit,         group: "System",     desc: "Systemübersicht aller Module (nur Ansicht)" },
+    ...(isAdmin ? [{ key: "datenreset" as Tab, label: "Datenreset", icon: RefreshCcw, group: "System", desc: "Daten unwiderruflich zurücksetzen" }] : []),
   ];
+
+  const GROUP_ORDER = ["Persönlich", "Firma", "Dokumente & Texte", "Projekte", "System"];
+  const q = tabSearch.trim().toLowerCase();
+  const matches = (t: TabDef) => !q || t.label.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q);
+  const groups = GROUP_ORDER
+    .map((g) => ({ group: g, items: TABS.filter((t) => t.group === g && matches(t)) }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <div className="anim-in space-y-5 pt-1">
@@ -140,24 +156,58 @@ export default function Settings() {
          (Bewusst keine harte Bereichsliste, damit sie nicht wieder veraltet.) */}
       <PageHeader title="Einstellungen" />
 
-      {/* Reiter-Navigation */}
-      <div className="flex flex-wrap gap-1 rounded-2xl border bg-[var(--card)] p-1" style={{ borderColor: "var(--border)" }}>
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => switchTab(t.key)}
-              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                active ? "text-white" : "text-slate-500 hover:bg-[var(--hover)] dark:text-slate-400"
-              }`}
-              style={active ? { background: "linear-gradient(135deg,var(--accent),var(--accent2))" } : undefined}
-            >
-              <t.icon size={16} /> {t.label}
-            </button>
-          );
-        })}
+      {/* Reiter-Navigation: nach Themen gruppiert + durchsuchbar */}
+      <div className="rounded-2xl border bg-[var(--card)] p-3" style={{ borderColor: "var(--border)" }}>
+        <div className="relative mb-3">
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className="input pl-9"
+            placeholder="Einstellung suchen … (z. B. Logo, Rechte, Nummernkreis)"
+            value={tabSearch}
+            onChange={(e) => setTabSearch(e.target.value)}
+          />
+        </div>
+
+        {groups.length === 0 ? (
+          <p className="px-1 py-6 text-center text-sm text-slate-400">Keine Einstellung gefunden.</p>
+        ) : (
+          <div className="space-y-3">
+            {groups.map((g) => (
+              <div key={g.group}>
+                <div className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  {g.group}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {g.items.map((t) => {
+                    const active = tab === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => switchTab(t.key)}
+                        title={t.desc}
+                        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                          active ? "text-white" : "text-slate-500 hover:bg-[var(--hover)] dark:text-slate-400"
+                        }`}
+                        style={active ? { background: "linear-gradient(135deg,var(--accent),var(--accent2))" } : undefined}
+                      >
+                        <t.icon size={16} /> {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Kurzbeschreibung des offenen Bereichs – erklärt, was hier eingestellt wird. */}
+      {(() => {
+        const cur = TABS.find((t) => t.key === tab);
+        return cur ? (
+          <p className="-mt-2 px-1 text-sm text-slate-500 dark:text-slate-400">{cur.desc}</p>
+        ) : null;
+      })()}
 
       {/* Design / Darstellung */}
       {tab === "darstellung" && <DesignSettings />}

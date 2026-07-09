@@ -130,7 +130,7 @@ export default function Marketing() {
           </p>
         </div>
         {tab === "beitraege" && mayCreate && (
-          <button className="btn-primary" onClick={() => setEditPost("new")}><Plus size={16} /> Neuer Beitrag</button>
+          <button className="btn-primary" data-tour-id="marketing-new-post" onClick={() => setEditPost("new")}><Plus size={16} /> Neuer Beitrag</button>
         )}
         {tab === "anzeigen" && mayCreate && (
           <button className="btn-primary" onClick={() => setEditCamp("new")}><Plus size={16} /> Neue Kampagne</button>
@@ -140,7 +140,7 @@ export default function Marketing() {
       {/* Tabs */}
       <div className="glass mb-4 flex gap-1 overflow-x-auto p-1">
         {([["uebersicht", "Übersicht"], ["beitraege", "Redaktionsplan"], ["anzeigen", "Werbeanzeigen"], ["kanaele", "Kanäle"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)}
+          <button key={k} onClick={() => setTab(k)} data-tour-id={`marketing-tab-${k}`}
             className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition ${
               tab === k ? "text-white" : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"}`}
             style={tab === k ? { background: "linear-gradient(135deg,var(--accent),var(--accent-h))" } : undefined}>
@@ -599,7 +599,7 @@ function PostModal({ value, campaigns, company, canEdit, anyConnected, onClose, 
 
   return (
     <Modal open onClose={onClose} title={value ? "Beitrag bearbeiten" : "Neuer Beitrag"} size="2xl">
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.15fr_.85fr]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.15fr_.85fr]" data-tour-id="marketing-post-modal">
         {/* Formular */}
         <div className="space-y-3">
           {/* KI-Assistent */}
@@ -607,14 +607,14 @@ function PostModal({ value, campaigns, company, canEdit, anyConnected, onClose, 
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--accent)" }}>
               <Sparkles size={15} /> Text mit KI erstellen
             </div>
-            <textarea className="input min-h-[60px] text-sm" value={topic} onChange={(e) => setTopic(e.target.value)}
+            <textarea className="input min-h-[60px] text-sm" data-tour-id="marketing-ai-topic" value={topic} onChange={(e) => setTopic(e.target.value)}
               placeholder="Worum geht es? z. B. „Vorher/Nachher Badsanierung in Linz, 9 Tage, bodengleiche Dusche“"
               disabled={!canEdit || generating} />
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select className="input max-w-[11rem] text-sm" value={tone} onChange={(e) => setTone(e.target.value as typeof tone)} disabled={!canEdit}>
                 {TONES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
               </select>
-              <button className="btn-primary text-sm" onClick={runAi} disabled={!canEdit || generating}>
+              <button className="btn-primary text-sm" data-tour-id="marketing-ai-generate" onClick={runAi} disabled={!canEdit || generating}>
                 <Sparkles size={15} /> {generating ? "Schreibt …" : "Vorschlag erstellen"}
               </button>
               {timeHint && <span className="text-[11px] text-slate-500">Empfohlen: {timeHint}</span>}
@@ -713,7 +713,7 @@ function PostModal({ value, campaigns, company, canEdit, anyConnected, onClose, 
       <div className="mt-5 flex items-center justify-end gap-2">
         <button className="btn-outline" onClick={onClose} disabled={busy}>Abbrechen</button>
         {canEdit && (
-          <button className="btn-primary" onClick={save} disabled={busy}>
+          <button className="btn-primary" data-tour-id="marketing-post-save" onClick={save} disabled={busy}>
             {busy ? "Speichere …" : value ? "Speichern" : "Beitrag anlegen"}
           </button>
         )}

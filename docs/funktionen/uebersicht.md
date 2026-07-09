@@ -40,3 +40,17 @@
 **Erweitern** – Neue Kennzahl: KPI in der `kpis`-Liste ergänzen (echte Datenquelle, kein Hardcoding) und ggf. Ladeabfrage im `useEffect` erweitern. Empty-/Loading-/Error-States beibehalten. Mandantenneutral halten (keine BAU4YOU-fixen Werte); Daten werden DB-seitig per RLS/`organization_id` getrennt. Dark-Mode + iPad-Responsivität prüfen.
 
 **Verknüpfungen** – [projekte.md](projekte.md), [rechnungen.md](rechnungen.md), [planung.md](planung.md), [auswertungen.md](auswertungen.md).
+
+## Leitstand (Stand 2026-07-09)
+
+Die frühere separate Seite **/cockpit** ist in die Startseite aufgegangen – es gibt nur noch **eine** Startseite.
+Administratoren sehen unterhalb der persönlichen Kacheln zusätzlich den **Leitstand** (`src/components/dashboard/Leitstand.tsx`,
+Daten aus `src/lib/cockpit.ts`) mit den Blöcken, die es auf der Übersicht nicht schon gab:
+
+- **Offene Forderungen** – offener Betrag, Anzahl, überfällige Summe
+- **Angebots-Pipeline** – Entwurf → Abgeschlossen → Versendet → Angenommen (je Anzahl + Summe)
+- **Mitarbeiter-Einteilung heute** – inkl. „ohne Zuordnung" und Abwesenheiten
+
+Weggefallen sind die Doppelungen (KPIs, Anfragen, Schnellaktionen) und der Platzhalter „KI-Telefonagent".
+Das **Sprach-Angebot** ist als Schnellaktion „Angebot per Sprache" erhalten.
+`/cockpit` leitet dauerhaft auf `/` um (alte Links/Lesezeichen bleiben gültig).

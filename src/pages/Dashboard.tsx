@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FolderKanban, FileText, Receipt, CheckCircle2, Plus, Megaphone, UserPlus,
   TrendingUp, TrendingDown, Calendar, Clock, Building2, ArrowUpRight, ArrowRight,
   AlertTriangle, CalendarClock, Bell, ListChecks, MapPin, User, Inbox, Mail, Phone,
-  Sparkles, type LucideIcon,
+  Sparkles, Mic, type LucideIcon,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import { usePermissions } from "../lib/permissions";
+import Leitstand from "../components/dashboard/Leitstand";
+import { VoiceAngebotPrestepModal, type VoiceAngebotPrestepResult } from "../components/voice/VoiceAngebotPrestepModal";
+import { startCreateRoute, type DocTypeOption } from "../lib/documents-overview";
+import { toastError } from "../lib/toast";
 import { AreaChart } from "../components/Charts";
 import Weather from "../components/Weather";
 import { Spinner, Badge, Tone } from "../components/ui";
@@ -87,10 +92,31 @@ const fmtDay = (d: string | Date) =>
 
 export default function Dashboard() {
   const { profile, session } = useAuth();
+  const { isAdmin } = usePermissions();
+  const nav = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [data, setData] = useState<DashData>(EMPTY);
   const [clock, setClock] = useState(() => new Date());
+
+  // Angebot per Sprache – früher der große Cockpit-Button, jetzt eine
+  // gleichrangige Schnellaktion (kein Feature verloren, weniger Lärm).
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceStarting, setVoiceStarting] = useState(false);
+  async function handleVoiceConfirm(r: VoiceAngebotPrestepResult) {
+    if (voiceStarting) return;
+    setVoiceStarting(true);
+    try {
+      const res = await startCreateRoute({ slug: "angebote" } as DocTypeOption, {
+        contactId: r.contactId,
+        projectId: r.projectId,
+      });
+      if (res.error) { toastError(res.error); return; }
+      if (res.route) { setVoiceOpen(false); nav(`${res.route}?voice=1`); }
+    } finally {
+      setVoiceStarting(false);
+    }
+  }
 
   // Live-Uhrzeit (30-s-Takt reicht für HH:MM und vermeidet unnötige Re-Renders).
   useEffect(() => {
@@ -318,6 +344,9 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Leitstand (Firmensicht) – ersetzt die frühere separate Seite /cockpit */}
+      {isAdmin && <Leitstand />}
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* Linke 2/3 */}
         <div className="space-y-4 xl:col-span-2">
@@ -479,7 +508,9 @@ export default function Dashboard() {
           <div className="glass p-4">
             <h2 className="mb-3 font-bold">Schnellaktionen</h2>
             <div className="space-y-2">
-              <QA to="/projekte" icon={Plus} label="Neues Projekt" primary />
+              <QAButton onClick={() => setVoiceOpen(true)} disabled={voiceStarting} icon={Mic}
+                label={voiceStarting ? "Wird vorbereitet …" : "Angebot per Sprache"} primary />
+              <QA to="/projekte" icon={Plus} label="Neues Projekt" />
               <QA to="/angebote" icon={FileText} label="Angebot erstellen" />
               <QA to="/rechnungen" icon={Receipt} label="Rechnung erstellen" />
               <QA to="/marketing" icon={Megaphone} label="Beitrag planen" />
@@ -526,6 +557,13 @@ export default function Dashboard() {
           <Weather />
         </div>
       </div>
+
+      <VoiceAngebotPrestepModal
+        open={voiceOpen}
+        onClose={() => setVoiceOpen(false)}
+        onConfirm={handleVoiceConfirm}
+        submitting={voiceStarting}
+      />
     </div>
   );
 }
@@ -553,14 +591,32 @@ function EmptyState({ icon: Icon, text, actionTo, actionLabel }: { icon: LucideI
   );
 }
 
+const qaClass = (primary?: boolean) =>
+  `group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-semibold transition ${
+    primary ? "text-white" : "border border-slate-200 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"}`;
+const qaStyle = (primary?: boolean) =>
+  primary ? { background: "linear-gradient(135deg,var(--accent),var(--accent-h))", boxShadow: "0 10px 26px -10px rgba(239,68,68,0.6)" } : undefined;
+
 function QA({ to, icon: Icon, label, primary }: { to: string; icon: LucideIcon; label: string; primary?: boolean }) {
   return (
-    <Link to={to} className={`group flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition ${
-      primary ? "text-white" : "border border-slate-200 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"}`}
-      style={primary ? { background: "linear-gradient(135deg,var(--accent),var(--accent-h))", boxShadow: "0 10px 26px -10px rgba(239,68,68,0.6)" } : undefined}>
+    <Link to={to} className={qaClass(primary)} style={qaStyle(primary)}>
       <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${primary ? "bg-white/20" : "bg-slate-100 dark:bg-white/5"}`}><Icon size={16} /></span>
       <span className="flex-1">{label}</span>
       <ArrowUpRight size={15} className="opacity-0 transition group-hover:opacity-100" />
     </Link>
+  );
+}
+
+/** Schnellaktion, die keine Route öffnet sondern eine Aktion startet (z. B. Sprach-Angebot). */
+function QAButton({ onClick, icon: Icon, label, primary, disabled }: {
+  onClick: () => void; icon: LucideIcon; label: string; primary?: boolean; disabled?: boolean;
+}) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled}
+      className={`${qaClass(primary)} disabled:opacity-60`} style={qaStyle(primary)}>
+      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${primary ? "bg-white/20" : "bg-slate-100 dark:bg-white/5"}`}><Icon size={16} /></span>
+      <span className="flex-1">{label}</span>
+      <ArrowUpRight size={15} className="opacity-0 transition group-hover:opacity-100" />
+    </button>
   );
 }
