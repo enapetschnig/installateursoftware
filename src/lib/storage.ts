@@ -16,10 +16,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
-export type StorageBucket = "project-files" | "article-images" | "service-images" | "document-images" | "belege";
+export type StorageBucket = "project-files" | "article-images" | "service-images" | "document-images" | "belege" | "marketing";
 
 /** Alle bekannten Buckets (für die Bucket-Erkennung aus gespeicherten URLs/Pfaden). */
-const ALL_BUCKETS: StorageBucket[] = ["project-files", "article-images", "service-images", "document-images", "belege"];
+const ALL_BUCKETS: StorageBucket[] = ["project-files", "article-images", "service-images", "document-images", "belege", "marketing"];
 
 /**
  * Erkennt den Bucket aus einem gespeicherten Wert (volle URL oder Pfad). Da

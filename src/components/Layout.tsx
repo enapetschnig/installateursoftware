@@ -5,7 +5,7 @@ import {
   CalendarRange, Building2, Zap, Receipt, User, UsersRound, Settings,
   Eye, Check, LogOut, Search, Menu, ChevronRight, ChevronDown,
   Palette, X, Files, Newspaper, UserCheck, Inbox,
-  CalendarClock, ClipboardList, Timer, Clock, Smartphone,
+  CalendarClock, ClipboardList, Timer, Clock, Smartphone, Megaphone,
 } from "lucide-react";
 import GlobalSearch from "./GlobalSearch";
 import TopbarIndicators from "./TopbarIndicators";
@@ -27,37 +27,61 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   end?: boolean;
   group?: "projekte";
+  section?: string; // Sektions-Überschrift; gleiche Sektion = ein Block
   module?: string; // Permission-Modul; undefined = immer sichtbar
   adminOnly?: boolean; // true = nur Administratoren (kein vergebbares Modul)
   hidden?: boolean; // true = vorerst ausgeblendet (Route bleibt bestehen, nur nicht im Menü)
 };
 
-// Reihenfolge exakt wie vorgegeben - keine automatische Sortierung.
+// Gruppierte Navigation: Reihenfolge folgt dem realen Auftragsablauf
+// (Anfrage → Kalkulation → Projekt → Planung → Zeit → Abrechnung).
+// `hidden: true` = Modul hat noch keinen echten Inhalt ("in Vorbereitung") →
+// erscheint nicht im Menü, die Route bleibt per Direkt-Link erreichbar.
 const NAV: NavItem[] = [
+  // Start (ohne Sektions-Überschrift)
   { to: "/", label: "Übersicht", icon: LayoutDashboard, end: true, module: "dashboard" },
-  { to: "/cockpit", label: "Cockpit", icon: Gauge, adminOnly: true },
-  { to: "/auswertungen", label: "Auswertungen", icon: BarChart3, module: "analytics" },
-  { to: "/email", label: "E-Mail", icon: Mail, module: "email" },
-  { to: "/projekte", label: "Projekte", icon: FolderKanban, group: "projekte", module: "projects" },
-  { to: "/kontakte", label: "Kontakte", icon: Users, module: "contacts" },
-  { to: "/anfragen", label: "Anfragen", icon: Inbox, module: "requests" },
-  { to: "/kalkulation", label: "Kalkulation", icon: Calculator, module: "kalkulation" },
-  { to: "/aufgaben", label: "Aufgaben", icon: ListTodo, module: "tasks" },
-  { to: "/planung", label: "Planung", icon: CalendarRange, module: "plantafel" },
-  { to: "/plantafel", label: "Plantafel", icon: CalendarClock, module: "plantafel" },
-  { to: "/regieberichte", label: "Regieberichte", icon: ClipboardList, module: "regiestunden" },
-  { to: "/stundenauswertung", label: "Stundenauswertung", icon: Timer, module: "time_tracking" },
-  { to: "/meine-stunden", label: "Meine Stunden", icon: Clock },
-  { to: "/buero", label: "Büroorganisation", icon: Building2, module: "buero" },
-  { to: "/buchhaltung", label: "Buchhaltung", icon: Receipt, module: "buchhaltung" },
-  { to: "/dokumente", label: "Dokumente", icon: Files, module: "documents" },
-  { to: "/news", label: "News", icon: Newspaper, module: "news" },
-  { to: "/automationen", label: "Automationen", icon: Zap, module: "automations" },
-  { to: "/delegieren", label: "Delegieren", icon: UserCheck, module: "delegieren" },
-  { to: "/persoenliche-daten", label: "Persönliche Daten", icon: User },
-  { to: "/mitarbeiter", label: "Mitarbeiter", icon: UsersRound, module: "employees" },
-  { to: "/m", label: "Mitarbeiter-App", icon: Smartphone, module: "mitarbeiter_app" },
-  { to: "/einstellungen", label: "Einstellungen", icon: Settings },
+
+  // Vertrieb & Kunden
+  { to: "/anfragen", label: "Anfragen", icon: Inbox, section: "Vertrieb & Kunden", module: "requests" },
+  { to: "/kontakte", label: "Kontakte", icon: Users, section: "Vertrieb & Kunden", module: "contacts" },
+  { to: "/kalkulation", label: "Kalkulation", icon: Calculator, section: "Vertrieb & Kunden", module: "kalkulation" },
+  { to: "/projekte", label: "Projekte", icon: FolderKanban, section: "Vertrieb & Kunden", group: "projekte", module: "projects" },
+
+  // Planung & Ausführung
+  { to: "/planung", label: "Planung", icon: CalendarRange, section: "Planung & Ausführung", module: "plantafel" },
+  { to: "/plantafel", label: "Plantafel", icon: CalendarClock, section: "Planung & Ausführung", module: "plantafel" },
+
+  // Zeit & Leistung (vom Persönlichen zum Aggregierten)
+  { to: "/meine-stunden", label: "Meine Stunden", icon: Clock, section: "Zeit & Leistung" },
+  { to: "/stundenauswertung", label: "Stundenauswertung", icon: Timer, section: "Zeit & Leistung", module: "time_tracking" },
+  { to: "/regieberichte", label: "Regieberichte", icon: ClipboardList, section: "Zeit & Leistung", module: "regiestunden" },
+
+  // Finanzen
+  { to: "/dokumente", label: "Dokumente", icon: Files, section: "Finanzen", module: "documents" },
+  { to: "/buchhaltung", label: "Buchhaltung", icon: Receipt, section: "Finanzen", module: "buchhaltung" },
+
+  // Kommunikation
+  { to: "/email", label: "E-Mail", icon: Mail, section: "Kommunikation", module: "email" },
+  { to: "/marketing", label: "Marketing", icon: Megaphone, section: "Kommunikation", module: "marketing" },
+
+  // Team
+  { to: "/mitarbeiter", label: "Mitarbeiter", icon: UsersRound, section: "Team", module: "employees" },
+  { to: "/m", label: "Mitarbeiter-App", icon: Smartphone, section: "Team", module: "mitarbeiter_app" },
+
+  // Steuerung & Analyse
+  { to: "/cockpit", label: "Leitstand", icon: Gauge, section: "Steuerung & Analyse", adminOnly: true },
+  { to: "/auswertungen", label: "Auswertungen", icon: BarChart3, section: "Steuerung & Analyse", module: "analytics" },
+  { to: "/automationen", label: "Automationen", icon: Zap, section: "Steuerung & Analyse", module: "automations" },
+
+  // System
+  { to: "/einstellungen", label: "Einstellungen", icon: Settings, section: "System" },
+
+  // Ausgeblendet bis echter Inhalt existiert (Routen bleiben erreichbar).
+  { to: "/aufgaben", label: "Aufgaben", icon: ListTodo, module: "tasks", hidden: true },
+  { to: "/buero", label: "Büroorganisation", icon: Building2, module: "buero", hidden: true },
+  { to: "/news", label: "News", icon: Newspaper, module: "news", hidden: true },
+  { to: "/delegieren", label: "Delegieren", icon: UserCheck, module: "delegieren", hidden: true },
+  { to: "/persoenliche-daten", label: "Persönliche Daten", icon: User, hidden: true },
 ];
 
 const PROJ_OPEN_KEY = "b4y-nav-projekte-open";
@@ -177,6 +201,60 @@ export default function Layout({ children }: { children: ReactNode }) {
     <span className="grid h-[18px] w-[18px] shrink-0 place-items-center"><I size={18} /></span>
   );
 
+  // Sichtbare Punkte in Sektions-Blöcke bündeln (Reihenfolge bleibt erhalten).
+  const navSections = visibleNav.reduce<{ label: string | null; items: NavItem[] }[]>((acc, n) => {
+    const label = n.section ?? null;
+    const last = acc[acc.length - 1];
+    if (last && last.label === label) last.items.push(n);
+    else acc.push({ label, items: [n] });
+    return acc;
+  }, []);
+
+  const renderNavItem = (n: NavItem) =>
+    n.group === "projekte" ? (
+      <div key={n.to}>
+        <div className={navItemClass(onProjects)} style={onProjects ? activeStyle : undefined}>
+          <NavLink to={n.to} onClick={() => setMobileOpen(false)} data-tour-id="project-nav"
+            className="flex min-w-0 flex-1 items-center gap-3">
+            <NavIcon I={n.icon} /> <span className="min-w-0 break-words leading-snug">{n.label}</span>
+          </NavLink>
+          <button onClick={() => setProjOpen((o) => !o)} aria-label="Projekttypen ein-/ausklappen"
+            className={`-mr-1 shrink-0 rounded-lg p-1 transition ${onProjects ? "hover:bg-white/15" : "hover:bg-slate-200 dark:hover:bg-white/10"}`}>
+            {projOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+        </div>
+        {projOpen && (
+          <div className="mt-0.5 ml-1 space-y-0.5">
+            {projectTypes.map((t) => {
+              const active = onProjects && activeTyp === t.slug;
+              return (
+                <NavLink key={t.slug} to={`/projekte?typ=${t.slug}`} onClick={() => setMobileOpen(false)}
+                  title={t.label}
+                  className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] leading-snug transition hover:bg-slate-100 dark:hover:bg-white/5 ${
+                    active ? "" : "text-slate-500 dark:text-slate-400"}`}
+                  style={active
+                    ? { color: "var(--accent)", background: "color-mix(in srgb, var(--accent) 14%, transparent)", fontWeight: 500 }
+                    : undefined}>
+                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{t.label}</span>
+                  {projCounts[t.category] ? (
+                    <span className="shrink-0 rounded-full bg-slate-200/80 px-1.5 text-[10px] font-medium tabular-nums text-slate-500 dark:bg-white/10 dark:text-slate-300">
+                      {projCounts[t.category]}
+                    </span>
+                  ) : null}
+                </NavLink>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    ) : (
+      <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setMobileOpen(false)}
+        className={({ isActive }) => navItemClass(isActive)}
+        style={({ isActive }: any) => (isActive ? activeStyle : undefined)}>
+        <NavIcon I={n.icon} /> <span className="min-w-0 break-words leading-snug">{n.label}</span>
+      </NavLink>
+    );
+
   const Side = (
     <div className="flex h-full flex-col">
       <div className="mb-3 flex shrink-0 justify-center px-1">
@@ -188,55 +266,19 @@ export default function Layout({ children }: { children: ReactNode }) {
           <LogoFull height={60} />
         </NavLink>
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto pr-1">
-        {visibleNav.map((n) =>
-          n.group === "projekte" ? (
-            <div key={n.to}>
-              <div className={navItemClass(onProjects)} style={onProjects ? activeStyle : undefined}>
-                <NavLink to={n.to} onClick={() => setMobileOpen(false)} data-tour-id="project-nav"
-                  className="flex min-w-0 flex-1 items-center gap-3">
-                  <NavIcon I={n.icon} /> <span className="min-w-0 break-words leading-snug">{n.label}</span>
-                </NavLink>
-                <button onClick={() => setProjOpen((o) => !o)} aria-label="Projekttypen ein-/ausklappen"
-                  className={`-mr-1 shrink-0 rounded-lg p-1 transition ${onProjects ? "hover:bg-white/15" : "hover:bg-slate-200 dark:hover:bg-white/10"}`}>
-                  {projOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
+      {/* Gruppierte Navigation: Sektions-Überschriften machen die Liste scanbar
+          (statt 24 gleichrangiger Punkte untereinander). */}
+      <nav className="flex-1 overflow-y-auto pr-1">
+        {navSections.map((sec, i) => (
+          <div key={sec.label ?? `start-${i}`} className={i > 0 ? "mt-3" : ""}>
+            {sec.label && (
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                {sec.label}
               </div>
-              {projOpen && (
-                // Keine vertikale Linie, keine Bullet-Punkte → maximaler Textplatz.
-                // Text ganz nach links, kompaktere Schrift, damit auch lange dt. Begriffe
-                // ohne Abschneiden in eine Zeile passen (Ellipsis + Tooltip nur als Notfall).
-                <div className="mt-0.5 ml-1 space-y-0.5">
-                  {projectTypes.map((t) => {
-                    const active = onProjects && activeTyp === t.slug;
-                    return (
-                      <NavLink key={t.slug} to={`/projekte?typ=${t.slug}`} onClick={() => setMobileOpen(false)}
-                        title={t.label}
-                        className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] leading-snug transition hover:bg-slate-100 dark:hover:bg-white/5 ${
-                          active ? "" : "text-slate-500 dark:text-slate-400"}`}
-                        style={active
-                          ? { color: "var(--accent)", background: "color-mix(in srgb, var(--accent) 14%, transparent)", fontWeight: 500 }
-                          : undefined}>
-                        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{t.label}</span>
-                        {projCounts[t.category] ? (
-                          <span className="shrink-0 rounded-full bg-slate-200/80 px-1.5 text-[10px] font-medium tabular-nums text-slate-500 dark:bg-white/10 dark:text-slate-300">
-                            {projCounts[t.category]}
-                          </span>
-                        ) : null}
-                      </NavLink>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setMobileOpen(false)}
-              className={({ isActive }) => navItemClass(isActive)}
-              style={({ isActive }: any) => (isActive ? activeStyle : undefined)}>
-              <NavIcon I={n.icon} /> <span className="min-w-0 break-words leading-snug">{n.label}</span>
-            </NavLink>
-          )
-        )}
+            )}
+            <div className="space-y-0.5">{sec.items.map(renderNavItem)}</div>
+          </div>
+        ))}
       </nav>
       <button onClick={() => nav("/einstellungen")} className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-200 p-2.5 text-left transition hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5">
         <Avatar name={name} url={myPhoto} size={36} />

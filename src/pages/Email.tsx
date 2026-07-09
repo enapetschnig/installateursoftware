@@ -26,6 +26,7 @@ import ComposeDialog, {
   type ComposeInitial,
 } from "../components/email/ComposeDialog";
 import ConnectEmptyState from "../components/email/ConnectEmptyState";
+import KiPostfach from "../components/email/KiPostfach";
 import { useMicrosoftConnection } from "../hooks/useMicrosoftConnection";
 import type { MailFolder, MailDetail } from "../lib/microsoft/mailClient";
 
@@ -99,14 +100,23 @@ export default function Email() {
       </div>
     );
   }
+  // Ohne Microsoft-Konto zeigen wir das KI-Postfach: die per IMAP abgeholten
+  // ECHTEN Firmen-Mails inkl. KI-Einordnung. Senden/Antworten braucht Microsoft –
+  // dafür bleibt der Verbinden-Weg per Ausklapp-Bereich erreichbar.
   if (!connected) {
     return (
       <div className="anim-in">
         <PageHeader
           title="E-Mail"
-          subtitle="Verbinde dein Microsoft-Konto, um Mails zu senden und zu lesen."
+          subtitle="Firmen-Postfach mit KI-Einordnung. Zum Senden und Antworten Microsoft-Konto verbinden."
         />
-        <ConnectEmptyState />
+        <KiPostfach />
+        <details className="glass mt-4 p-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-slate-600 dark:text-slate-300">
+            Microsoft-Konto verbinden (Senden, Antworten, Weiterleiten)
+          </summary>
+          <div className="mt-3"><ConnectEmptyState /></div>
+        </details>
       </div>
     );
   }

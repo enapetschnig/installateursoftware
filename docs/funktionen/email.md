@@ -1,5 +1,5 @@
 # E-Mail (Microsoft 365 / Outlook)
-> E-Mail-Modul mit **echter Microsoft-Graph-Anbindung** (Stand 2026-07-06): Lesen, Beantworten, Weiterleiten und Senden über das verbundene Microsoft-365-Konto. Ohne Verbindung zeigt die Seite einen Connect-Leerzustand (kein Demo-Mock mehr).
+> E-Mail-Modul mit **echter Microsoft-Graph-Anbindung**: Lesen, Beantworten, Weiterleiten und Senden über das verbundene Microsoft-365-Konto. **Ohne Verbindung** zeigt die Seite das **KI-Postfach** – die per IMAP abgeholten echten Firmen-Mails mit KI-Einordnung (Stand 2026-07-09).
 
 ## Für Anwender
 
@@ -8,7 +8,7 @@ Unter **E-Mail** (`/email`) verbindet jeder Benutzer sein eigenes Microsoft-365-
 
 In der **Topbar** zeigt das Brief-Symbol die Zahl der ungelesenen Posteingangs-Mails (nur bei verbundenem Konto und `email`-Recht); ohne Verbindung erklärt das Panel den Zustand und verlinkt zur E-Mail-Seite.
 
-**Wichtige Grenze:** Ohne verbundenes Microsoft-Konto gibt es keine Mail-Funktionen und keine Zähler – es werden keine Fake-Daten angezeigt.
+**Ohne Microsoft-Konto:** Die Seite zeigt das **KI-Postfach** (`src/components/email/KiPostfach.tsx`): die echten, per IMAP abgeholten Mails aus `public.incoming_mails` mit KI-Zusammenfassung, Einordnung (Kundenanfrage/Rechnung/…), Anhängen, Volltextsuche und dem Button „Postfach abrufen". Sprünge ins passende Modul (Anfrage bzw. Buchhaltung) sind verlinkt. **Senden/Antworten/Weiterleiten** braucht weiterhin Microsoft – der Verbinden-Weg ist als Ausklapp-Bereich darunter erreichbar. Es werden **keine Fake-Daten** angezeigt. Siehe [smartes-ki-postfach.md](smartes-ki-postfach.md).
 
 ## Technik
 

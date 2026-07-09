@@ -29,6 +29,18 @@ import { isEmptyHtml } from "./text-blocks";
 import { conditionsFromSnapshot, conditionsToSnapshot } from "./payment-conditions";
 
 /**
+ * Normalisiert eine optionale UUID-Referenz: leere/whitespace-Strings → null.
+ *
+ * Formularfelder liefern für „kein Projekt“ einen LEEREN STRING statt null.
+ * `??` fängt den nicht ab, sodass `project_id: ""` bis in den Insert durchrutschte
+ * und Postgres mit `invalid input syntax for type uuid: ""` (400) abbrach – die
+ * Auftrags-/Rechnungserstellung schlug dann still fehl. Zentral hier abfangen,
+ * damit ALLE Kettenfunktionen (und ihre Aufrufer) sicher sind.
+ */
+const idOrNull = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() ? v.trim() : null;
+
+/**
  * Konditionen-Snapshot vom Vorgängerdokument übernehmen (nicht erneut live vom Kunden).
  * Der Standardaufschlag ist in den kopierten Einzelpreisen bereits enthalten →
  * surchargeApplied=true, damit er im Folgedokument nicht erneut angewendet wird.
@@ -168,14 +180,16 @@ async function deriveFollow(
   prePositionsText: string | null,
 ) {
   const transition = await loadTransitionFor(targetOfferTypeId);
-  let display = fallbackDisplay ?? null;
+  const display = fallbackDisplay ?? null;
   let typeInfo: { slug?: string | null; name?: string | null } | null = null;
   // Bei bewusst gewählter Zielvariante deren Darstellung + Slug/Name (für das
   // automatische Folge-Label) verwenden.
   if (targetOfferTypeId) {
-    const { data } = await supabase.from("offer_types").select("display,slug,name").eq("id", targetOfferTypeId).maybeSingle();
+    // offer_types hat KEINE "display"-Spalte (Darstellung kommt aus fallbackDisplay
+    // bzw. den default_show_*-Feldern der Variante). Früher wurde sie mitselektiert →
+    // PostgREST antwortete mit 400 und typeInfo (slug/name) ging still verloren.
+    const { data } = await supabase.from("offer_types").select("slug,name").eq("id", targetOfferTypeId).maybeSingle();
     if (data) {
-      if ((data as any).display) display = (data as any).display;
       typeInfo = { slug: (data as any).slug, name: (data as any).name };
     }
   }
@@ -281,12 +295,12 @@ export async function createOrderFromOffers(opts: CreateOrderOpts): Promise<{ id
   const follow = await deriveFollow("order", variant, srcOffer.display_settings_snapshot ?? srcOffer.display ?? null, commonPrePositions(opts.offers));
 
   const title = opts.title || (opts.offers.length === 1 ? opts.offers[0].title : null) || null;
-  const contactId = opts.contactId ?? opts.offers[0]?.contact_id ?? null;
+  const contactId = idOrNull(opts.contactId) ?? idOrNull(opts.offers[0]?.contact_id);
 
   const { data: newOrder, error } = await supabase.from("orders").insert({
     order_number: numData as string,
     order_date: new Date().toISOString().slice(0, 10),
-    title, project_id: opts.projectId, contact_id: contactId,
+    title, project_id: idOrNull(opts.projectId), contact_id: contactId,
     status: "beauftragt", invoice_status: "offen",
     net: summary.net, vat: summary.vat, gross: summary.gross,
     vat_mode: vatModeFollow,
@@ -339,8 +353,8 @@ export async function createOrdersPerOffer(opts: CreateOrderOpts): Promise<Chain
   for (const offer of opts.offers) {
     const r = await createOrderFromOffers({
       // je Angebot dessen eigenes Projekt (projektübergreifende Sammelaktion möglich)
-      projectId: offer.project_id ?? opts.projectId,
-      contactId: offer.contact_id ?? opts.contactId ?? null,
+      projectId: (idOrNull(offer.project_id) ?? idOrNull(opts.projectId)) as string,
+      contactId: idOrNull(offer.contact_id) ?? idOrNull(opts.contactId),
       offers: [offer],
       itemFilter: opts.itemFilter,
       title: offer.title ?? null,
@@ -426,8 +440,8 @@ export async function createInvoiceFromOffer(
   const blocked = checkOffersConvertible([offer]);
   if (blocked) return { error: blocked };
 
-  const projectId = opts?.projectId ?? offer.project_id ?? null;
-  const contactId = opts?.contactId ?? offer.contact_id ?? null;
+  const projectId = idOrNull(opts?.projectId) ?? idOrNull(offer.project_id);
+  const contactId = idOrNull(opts?.contactId) ?? idOrNull(offer.contact_id);
 
   // 1) Auftrag aus dem Angebot (nutzt die geprüfte Ketten-Logik inkl. Doppelbeauftragungs-Schutz).
   const order = await createOrderFromOffers({
@@ -485,8 +499,8 @@ export async function createInvoiceFromOrders(opts: CreateInvoiceOpts): Promise<
 
   const follow = await deriveFollow("invoice", variant, srcOrder.display_settings_snapshot ?? null, commonPrePositions(opts.orders));
   const title = opts.orders.length === 1 ? (srcOrder.title || null) : null;
-  const projectId = opts.projectId ?? srcOrder.project_id ?? null;
-  const contactId = opts.contactId ?? srcOrder.contact_id ?? null;
+  const projectId = idOrNull(opts.projectId) ?? idOrNull(srcOrder.project_id);
+  const contactId = idOrNull(opts.contactId) ?? idOrNull(srcOrder.contact_id);
 
   const { data: newInv, error } = await supabase.from("invoices").insert({
     title,
@@ -523,8 +537,8 @@ export async function createInvoicesPerOrder(opts: CreateInvoiceOpts): Promise<C
   const ids: string[] = []; const numbers: string[] = [];
   for (const order of opts.orders) {
     const r = await createInvoiceFromOrders({
-      projectId: opts.projectId ?? order.project_id ?? null,
-      contactId: order.contact_id ?? opts.contactId ?? null,
+      projectId: idOrNull(opts.projectId) ?? idOrNull(order.project_id),
+      contactId: idOrNull(order.contact_id) ?? idOrNull(opts.contactId),
       orders: [order],
       itemFilter: opts.itemFilter,
       qtyFilter: opts.qtyFilter,

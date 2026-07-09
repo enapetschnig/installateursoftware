@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  FolderKanban, FileText, Receipt, CheckCircle2, Plus, Camera, UserPlus,
+  FolderKanban, FileText, Receipt, CheckCircle2, Plus, Megaphone, UserPlus,
   TrendingUp, TrendingDown, Calendar, Clock, Building2, ArrowUpRight, ArrowRight,
   AlertTriangle, CalendarClock, Bell, ListChecks, MapPin, User, Inbox, Mail, Phone,
   Sparkles, type LucideIcon,
@@ -367,10 +367,9 @@ export default function Dashboard() {
             <div className="glass flex flex-col p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-bold">Aufgaben für heute</h2>
-                <Link to="/aufgaben" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Alle anzeigen</Link>
               </div>
               {data.taskList.length === 0 ? (
-                <EmptyState icon={ListChecks} text="Keine offenen Aufgaben für heute" actionTo="/aufgaben" actionLabel="Aufgabe erstellen" />
+                <EmptyState icon={ListChecks} text="Keine offenen Aufgaben für heute" />
               ) : (
                 <ul className="space-y-2">
                   {data.taskList.map((t) => {
@@ -483,7 +482,7 @@ export default function Dashboard() {
               <QA to="/projekte" icon={Plus} label="Neues Projekt" primary />
               <QA to="/angebote" icon={FileText} label="Angebot erstellen" />
               <QA to="/rechnungen" icon={Receipt} label="Rechnung erstellen" />
-              <QA to="/doku" icon={Camera} label="Baustelle dokumentieren" />
+              <QA to="/marketing" icon={Megaphone} label="Beitrag planen" />
               <QA to="/kontakte" icon={UserPlus} label="Kontakt hinzufügen" />
             </div>
           </div>
