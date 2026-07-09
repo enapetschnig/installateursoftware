@@ -113,6 +113,7 @@ export default function DocumentToolbar({
         </span>
       )}
       <TBtn icon={<ArrowLeft size={15} />} label="Zum Projekt" onClick={onJumpProject} disabled={!projectId} />
+      <span className="mx-1 h-6 w-px" style={{ background: "var(--border)" }} />
       <TBtn icon={<RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />} label="Preise aktualisieren" title="Prüft verknüpfte Artikel/Leistungen auf aktuelle Stammpreise und übernimmt Änderungen nur nach Bestätigung." onClick={onRefreshPrices} disabled={readOnly} />
       <TBtn icon={<Clock size={15} />} label="Zeiten einfügen" onClick={onInsertTimes} disabled={readOnly || !projectId} />
       <TBtn icon={<LayoutTemplate size={15} />} label="Vorlagen" onClick={onTemplates} disabled={readOnly} />

@@ -194,7 +194,7 @@ function SortableRow({
     return (
       <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-xl bg-[var(--hover)] px-2.5 py-1.5">
         {handle}
-        <Heading size={15} className="text-violet-500" />
+        <Heading size={15} style={{ color: "var(--accent)" }} />
         <span className="font-mono text-xs text-slate-400">{p.number}</span>
         <input
           className="flex-1 bg-transparent text-sm font-bold outline-none"

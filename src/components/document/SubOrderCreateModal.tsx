@@ -243,7 +243,7 @@ export default function SubOrderCreateModal({
       <PreviewCard title="Vorschau (intern)">
         <div className="flex justify-between"><span>SUB netto</span><b className="tabular-nums text-slate-700 dark:text-slate-200">{eur(subNet)}</b></div>
         <div className="flex justify-between"><span>Kunde netto</span><span className="tabular-nums">{eur(custNet)}</span></div>
-        <div className="flex justify-between"><span>Marge</span><b className={`tabular-nums ${margin >= 0 ? "text-green-600" : "text-rose-500"}`}>{eur(margin)}</b></div>
+        <div className="flex justify-between"><span>Marge</span><b className={`tabular-nums ${margin >= 0 ? "text-emerald-600" : "text-rose-500"}`}>{eur(margin)}</b></div>
         {multi && selOrderCount > 0 && <div className="mt-1 text-[11px] text-slate-400">{mode === "merge" ? `1 SUB aus ${selOrderCount} Auftrag(en)` : `${selOrderCount} SUB (je Quellauftrag)`}</div>}
       </PreviewCard>
       {!subId && <PreviewNote>Bitte einen Subunternehmer auswählen.</PreviewNote>}

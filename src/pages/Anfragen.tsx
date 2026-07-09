@@ -43,6 +43,7 @@ import {
   Badge,
   Modal,
   TableCell,
+  PageHeader,
 } from "../components/ui";
 import {
   listAnfragen,
@@ -672,33 +673,26 @@ export default function Anfragen() {
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Eigener Header-Block: PageHeader unterstützt aktuell nur string-titles,
-          wir brauchen aber ein farbiges Inbox-Icon im Titel. */}
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="inline-flex items-center gap-2 text-2xl font-extrabold tracking-tight">
-            <Inbox size={22} style={{ color: "var(--accent)" }} />
-            Anfragen
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Smartes KI-Postfach: E-Mails, KI-Telefonagent (Fonio) und manuell erfasste Anliegen
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="btn-secondary"
-            onClick={handlePoll}
-            disabled={polling}
-            title="Neue E-Mails aus dem Postfach abrufen und per KI einordnen"
-          >
-            <Mail size={16} className={polling ? "animate-pulse" : ""} />
-            {polling ? "Rufe ab …" : "Postfach abrufen"}
-          </button>
-          <button className="btn-primary" onClick={() => setModalOpen(true)}>
-            <Plus size={18} /> Anfrage erfassen
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={<span className="inline-flex items-center gap-2"><Inbox size={22} style={{ color: "var(--accent)" }} /> Anfragen</span>}
+        subtitle="Smartes KI-Postfach: E-Mails, KI-Telefonagent (Fonio) und manuell erfasste Anliegen"
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-secondary"
+              onClick={handlePoll}
+              disabled={polling}
+              title="Neue E-Mails aus dem Postfach abrufen und per KI einordnen"
+            >
+              <Mail size={16} className={polling ? "animate-pulse" : ""} />
+              {polling ? "Rufe ab …" : "Postfach abrufen"}
+            </button>
+            <button className="btn-primary" onClick={() => setModalOpen(true)}>
+              <Plus size={18} /> Anfrage erfassen
+            </button>
+          </div>
+        }
+      />
 
       <TabBar current={tab} counts={counts} onChange={setTab} />
 

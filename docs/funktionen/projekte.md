@@ -61,3 +61,12 @@ Neuer Sidebar-Bereich: Section-Key + `VALID_SECTIONS` + Render-Block. Neues Proj
 
 **Verknüpfungen**
 [angebote.md](angebote.md) · [auftraege.md](auftraege.md) · [rechnungen.md](rechnungen.md) · [dokumente.md](dokumente.md) · [planung.md](planung.md)
+
+## Aufgeräumte Projektakte (Stand 2026-07-09)
+
+- Die linke Bereichs-Navigation zeigt **keine deaktivierten „in Vorbereitung"-Punkte** mehr
+  (Regiestunden, Zeit & Lohn, Material, Belege, Soll/Ist-Vergleich, Projektabschluss). Die Definitionen und
+  Empty-Handler bleiben im Code, damit die Bereiche später ohne Umbau reaktiviert werden können.
+- **„Notizen" gab es doppelt** (Organisation-Bereich + Schnellnotiz in der rechten Spalte, beide auf demselben Feld).
+  Der Klon in der Seitenleiste ist entfernt; kanonisch ist **Organisation → Notizen**.
+- Der Bereich „Regiestunden" heißt jetzt **„Regieberichte"** (passend zum Modulnamen); der interne Section-Key bleibt unverändert.

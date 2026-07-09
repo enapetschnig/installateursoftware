@@ -547,7 +547,7 @@ export default function SubOrderEditor() {
             <div className="mb-1 text-sm font-bold">Kalkulation (intern)</div>
             <div className="flex justify-between"><span>SUB netto</span><b className="tabular-nums">{eur(builder.summary.net)}</b></div>
             <div className="flex justify-between"><span>Kunde netto</span><span className="tabular-nums">{eur(internalCost)}</span></div>
-            <div className="flex justify-between"><span>Marge</span><b className={`tabular-nums ${margin >= 0 ? "text-green-600" : "text-rose-500"}`}>{eur(margin)}</b></div>
+            <div className="flex justify-between"><span>Marge</span><b className={`tabular-nums ${margin >= 0 ? "text-emerald-600" : "text-rose-500"}`}>{eur(margin)}</b></div>
             <p className="mt-1 text-[11px] text-slate-400">Kundenpreise/Marge sind intern und erscheinen nicht im SUB-PDF.</p>
           </div>
           <div className="mt-4 flex justify-end"><button className="btn-primary" onClick={() => setSettingsOpen(false)}>Fertig</button></div>

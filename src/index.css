@@ -288,6 +288,12 @@ body {
     color: var(--text2);
   }
 
+  /* Zentrale Sekundaertext-Farbe (hell/dunkel/warm) – ersetzt ad-hoc
+     text-slate-400/500 in den zentralen Bausteinen. */
+  .text-muted {
+    color: var(--text2);
+  }
+
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 active:scale-[.97] disabled:opacity-50 disabled:pointer-events-none;
   }
@@ -575,7 +581,10 @@ thead {
   }
 }
 
-@media (max-width: 640px) {
+/* Touch-Komfort geräteabhängig (iPad, Touch-Laptops) statt breitenabhängig:
+   an "pointer: coarse" gebunden → greift auf dem iPad in Hoch- UND Querformat,
+   der Maus-PC (primary pointer = fine) bleibt unverändert. */
+@media (pointer: coarse) {
   /* iOS zoomt beim Fokus auf Felder < 16px – das verhindern wir */
   .input,
   input,
@@ -594,8 +603,12 @@ thead {
   button {
     touch-action: manipulation;
   }
+}
 
-  /* Modals am Handy als Vollflächen-Sheet statt enges Zentrum */
+/* Layout-Anpassungen bis Tablet-Breite (Handy + iPad bis 1024px):
+   breitenbasiert (verfügbarer Platz, nicht Touch). Desktop (> 1024px) unverändert. */
+@media (max-width: 1024px) {
+  /* Modals bis Tablet als Vollflächen-Sheet statt enges Zentrum */
   .modal-sheet {
     max-width: 100% !important;
     width: 100% !important;

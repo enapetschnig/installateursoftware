@@ -139,12 +139,12 @@ export default function Leitstand() {
       </div>
 
       {/* Mitarbeiter-Einteilung heute */}
-      <Panel title="Mitarbeiter-Einteilung heute" icon={UsersRound} to="/plantafel" toLabel="Plantafel">
+      <Panel title="Mitarbeiter-Einteilung heute" icon={UsersRound} to="/einsatzplanung?ansicht=plan" toLabel="Einsatzplanung">
         {nothingPlanned ? (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
             <CalendarClock size={22} className="text-slate-300 dark:text-slate-600" />
             <p className="text-sm text-slate-400">Heute ist niemand eingeteilt</p>
-            <Link to="/plantafel" className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--accent)" }}>
+            <Link to="/einsatzplanung?ansicht=plan" className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--accent)" }}>
               Einsatz planen <ArrowRight size={13} />
             </Link>
           </div>

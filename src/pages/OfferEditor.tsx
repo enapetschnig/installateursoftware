@@ -1134,6 +1134,7 @@ export default function OfferEditor() {
       {settingsOpen && (
         <Modal open onClose={() => setSettingsOpen(false)} title="Angebotseinstellungen" size="xl">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2 mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Grunddaten</div>
             <div className="sm:col-span-2"><label className="label">Angebotstyp</label>
               <select className="input" value={head.offerTypeId} disabled={isClosed}
                 onChange={(e) => { const t = offerTypes.find((x) => x.id === e.target.value); if (t) setTypeChange(t); }}>
@@ -1171,6 +1172,9 @@ export default function OfferEditor() {
               </select></div>
             <SignatureSourcePicker value={head.signatureSource} createdBy={head.createdBy || null}
               onChange={(v) => setHeadF("signatureSource", v)} />
+            <details className="sm:col-span-2 rounded-xl border px-3 py-2" style={{ borderColor: "var(--border)" }} open>
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-400">Texte fürs PDF (Vor-/Nachtext, Einleitung)</summary>
+              <div className="mt-3 space-y-3">
             <div className="sm:col-span-2">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <label className="label mb-0">Dokument-Vortext (erscheint im PDF vor den Positionen)</label>
@@ -1200,6 +1204,8 @@ export default function OfferEditor() {
               <RichTextEditor value={head.notes} onChange={(html) => setHeadF("notes", html)} minHeight={120}
                 placeholder="z.B. Preisgültigkeit, Aufmaß/ÖNORM-Hinweis …" />
             </div>
+              </div>
+            </details>
           </div>
 
           <div className="mt-5 rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>

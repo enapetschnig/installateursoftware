@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { useAuth } from "./lib/auth";
 import { usePermissions } from "./lib/permissions";
@@ -122,6 +122,34 @@ function MitarbeiterApp() {
   );
 }
 
+// Einsatzplanung: EIN Menüpunkt, zwei Ansichten (Plantafel-Board · Terminplanung).
+// Beide bestehenden Seiten bleiben unverändert – hier nur ein schlanker Umschalter.
+// Deep-Links: /einsatzplanung?ansicht=plan|termine. Der Projekt-Link
+// /planung?project=…&new=1 erzwingt die Termin-Ansicht, damit dort der Dialog aufgeht.
+function Einsatzplanung() {
+  const [sp, setSp] = useSearchParams();
+  const view: "plan" | "termine" =
+    sp.get("ansicht") === "plan" ? "plan"
+    : (sp.get("ansicht") === "termine" || sp.get("new") === "1" || sp.get("project")) ? "termine"
+    : "plan";
+  const setView = (v: "plan" | "termine") => {
+    const next = new URLSearchParams(sp);
+    next.set("ansicht", v);
+    setSp(next, { replace: true });
+  };
+  return (
+    <div className="pt-2">
+      <div className="mb-3 flex">
+        <div className="seg">
+          <button className="seg-btn" data-active={view === "plan"} onClick={() => setView("plan")}>Plantafel</button>
+          <button className="seg-btn" data-active={view === "termine"} onClick={() => setView("termine")}>Terminplanung</button>
+        </div>
+      </div>
+      {view === "plan" ? <Plantafel /> : <Planung />}
+    </div>
+  );
+}
+
 export default function App() {
   const { session, loading } = useAuth();
   const location = useLocation();
@@ -180,12 +208,15 @@ export default function App() {
         <Route path="/regieberichte" element={<Guard module="regiestunden"><Regieberichte /></Guard>} />
         <Route path="/regieberichte/:id" element={<Guard module="regiestunden"><RegieberichtDetail /></Guard>} />
         <Route path="/doku" element={<Guard module="documents"><Placeholder title="Baustellendokumentation" note="Fotos, Logbuch, Checklisten, Aufmaß, Unterschrift." /></Guard>} />
-        <Route path="/planung" element={<Guard module="plantafel"><Planung /></Guard>} />
-        {/* Moderne Wochen-/Monats-Plantafel (Einsatzplanung). */}
-        <Route path="/plantafel" element={<Guard module="plantafel"><Plantafel /></Guard>} />
+        {/* Einsatzplanung: EIN Menüpunkt, zwei Ansichten (Plantafel-Board · Terminplanung). */}
+        <Route path="/einsatzplanung" element={<Guard module="plantafel"><Einsatzplanung /></Guard>} />
+        {/* Alte Routen bleiben erhalten: /planung rendert den Umschalter DIREKT, damit
+            Deep-Links wie /planung?project=…&new=1 ungebrochen durch zu <Planung/> laufen. */}
+        <Route path="/planung" element={<Guard module="plantafel"><Einsatzplanung /></Guard>} />
+        <Route path="/plantafel" element={<Navigate to="/einsatzplanung?ansicht=plan" replace />} />
         <Route path="/wartung" element={<Placeholder title="Wartungsverträge" note="Objekte mit wiederkehrenden Wartungen." />} />
         <Route path="/aufgaben" element={<Guard module="tasks"><Placeholder title="Aufgaben" note="Aufgabenverwaltung, projektbezogen." /></Guard>} />
-        <Route path="/buero" element={<Guard module="buero"><Placeholder title="Büro-Organisation" note="Wiederkehrende Büroaufgaben (wöchentlich, monatlich, vertraglich)." /></Guard>} />
+        <Route path="/buero" element={<Guard module="buero"><Placeholder title="Büroorganisation" note="Wiederkehrende Büroaufgaben (wöchentlich, monatlich, vertraglich)." /></Guard>} />
         <Route path="/automationen" element={<Guard module="automations"><Automationen /></Guard>} />
         {/* Zentrale, projektübergreifende Dokumentenübersicht (nicht zu verwechseln mit
             den Dokumenten innerhalb eines Projekts). Eigenes Modul „documents". */}

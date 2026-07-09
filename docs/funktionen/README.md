@@ -48,8 +48,8 @@ Das Aktualisieren dieser Dateien ist **Teil jeder Änderung** (Definition-of-Don
 | Marketing | [marketing.md](marketing.md) | Social-Beiträge planen (KI-Texte, Kalender, Live-Vorschau) + Werbeanzeigen |
 | Dokumente | [dokumente.md](dokumente.md) | Zentrale Dokumentenübersicht, Upload, Dokumentarten |
 | Kalkulation | [kalkulation.md](kalkulation.md) | Gewerke, Artikel, Leistungen, Stundensätze, Einheiten, Texte |
-| Planung | [planung.md](planung.md) | Termine, Ressourcen, Abwesenheiten, Plantafel |
-| Plantafel | [plantafel.md](plantafel.md) | Moderne Wochen-/Monats-Einsatzplanung (Mitarbeiter × Tage, Drag&Drop) |
+| Einsatzplanung | [planung.md](planung.md) | Ein Menüpunkt, zwei Ansichten: Plantafel-Board + Terminplanung |
+| ↳ Plantafel-Ansicht | [plantafel.md](plantafel.md) | Wochen-/Monats-Einsatzplanung (Mitarbeiter × Tage, Drag&Drop) |
 | Zeiterfassung | [zeiterfassung.md](zeiterfassung.md) | Ist-Stunden, Soll/Ist-Saldo, Zeitkonto (ZA), Urlaub, Auswertung |
 | Regieberichte | [regieberichte.md](regieberichte.md) | Arbeitsberichte mit Material, Beteiligten, Fotos, Unterschrift, PDF |
 | Mitarbeiter-App | [mitarbeiter-app.md](mitarbeiter-app.md) | Mobiler Bereich (/m): Fotos, Regieberichte, Stunden |

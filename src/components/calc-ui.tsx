@@ -90,7 +90,7 @@ export function ConfirmDialog({
   return (
     <Modal open={open} onClose={onClose} title={title}>
       <div className="flex gap-3">
-        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${isInfo ? "bg-sky-100 text-sky-600 dark:bg-sky-500/15" : "bg-rose-100 text-rose-600 dark:bg-rose-500/15"}`}>
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${isInfo ? "bg-accent-500/10 text-accent-600 dark:bg-accent-500/15 dark:text-accent-400" : "bg-rose-100 text-rose-600 dark:bg-rose-500/15"}`}>
           {isInfo ? <Info size={20} /> : <AlertTriangle size={20} />}
         </div>
         <div className="text-sm text-slate-600 dark:text-slate-300">{message}</div>

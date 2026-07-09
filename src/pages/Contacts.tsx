@@ -1249,6 +1249,7 @@ function ContactForm({
             </select>
           </div>
 
+          <div className="sm:col-span-2 mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Name</div>
           {isFirma ? (
             <>
               <div className="sm:col-span-2">

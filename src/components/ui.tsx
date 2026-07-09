@@ -38,12 +38,12 @@ export function TableCell({
   return <td className={`px-3 py-2 ${tdClassName}`}>{inner}</td>;
 }
 
-export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+export function PageHeader({ title, subtitle, action }: { title: ReactNode; subtitle?: string; action?: ReactNode }) {
   return (
     <div className="mb-6 flex items-end justify-between gap-4">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -53,7 +53,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
     <div className="glass p-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</div>
       <div className="mt-2 text-3xl font-extrabold">{value}</div>
       {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
     </div>
@@ -77,7 +77,7 @@ export function Empty({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="glass flex flex-col items-center justify-center px-6 py-16 text-center">
       <div className="text-base font-semibold">{title}</div>
-      {hint && <div className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{hint}</div>}
+      {hint && <div className="mt-1 max-w-sm text-sm text-muted">{hint}</div>}
     </div>
   );
 }

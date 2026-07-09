@@ -34,7 +34,7 @@ const LABELS: Record<string, string> = {
   project_appointments: "Projekt-Termine",
   project_meetings: "Baubesprechungen",
   tasks: "Projekt-Aufgaben",
-  time_entries: "Regiestunden",
+  time_entries: "Zeiteinträge",
   planning_events: "Planungs-Termine",
 };
 

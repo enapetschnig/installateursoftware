@@ -522,10 +522,10 @@ export default function Dashboard() {
           <div className="glass p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-bold">Heute</h2>
-              <Link to="/planung" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Planung</Link>
+              <Link to="/planung?ansicht=termine" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Planung</Link>
             </div>
             {data.appts.length === 0 && data.reminders.length === 0 ? (
-              <EmptyState icon={CalendarClock} text="Keine Termine oder Fristen für heute" actionTo="/planung" actionLabel="Termin planen" />
+              <EmptyState icon={CalendarClock} text="Keine Termine oder Fristen für heute" actionTo="/planung?ansicht=termine" actionLabel="Termin planen" />
             ) : (
               <ul className="space-y-2.5">
                 {data.appts.map((a) => (

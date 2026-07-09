@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation, useSearchParams } from "react-router
 import { ReactNode, useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard, BarChart3, Mail, FolderKanban, Users, Calculator, ListTodo,
-  CalendarRange, Building2, Zap, Receipt, User, UsersRound, Settings,
+  Building2, Zap, Receipt, User, UsersRound, Settings,
   Eye, Check, LogOut, Search, Menu, ChevronRight, ChevronDown,
   Palette, X, Files, Newspaper, UserCheck, Inbox,
   CalendarClock, ClipboardList, Timer, Clock, Smartphone, Megaphone,
@@ -48,8 +48,7 @@ const NAV: NavItem[] = [
   { to: "/projekte", label: "Projekte", icon: FolderKanban, section: "Vertrieb & Kunden", group: "projekte", module: "projects" },
 
   // Planung & Ausführung
-  { to: "/planung", label: "Planung", icon: CalendarRange, section: "Planung & Ausführung", module: "plantafel" },
-  { to: "/plantafel", label: "Plantafel", icon: CalendarClock, section: "Planung & Ausführung", module: "plantafel" },
+  { to: "/einsatzplanung", label: "Einsatzplanung", icon: CalendarClock, section: "Planung & Ausführung", module: "plantafel" },
 
   // Zeit & Leistung (vom Persönlichen zum Aggregierten)
   { to: "/meine-stunden", label: "Meine Stunden", icon: Clock, section: "Zeit & Leistung" },

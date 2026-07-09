@@ -295,7 +295,7 @@ function TextCard({ t, isTitle }: { t: TextBlock; isTitle?: boolean }) {
   return (
     <div>
       <div className="flex items-center gap-1.5">
-        {isTitle ? <Heading size={13} className="shrink-0 text-violet-500" /> : <FileText size={13} className="shrink-0 text-slate-400" />}
+        {isTitle ? <Heading size={13} className="shrink-0" style={{ color: "var(--accent)" }} /> : <FileText size={13} className="shrink-0 text-slate-400" />}
         {t.sort_order ? <NumberTag value={t.sort_order} /> : null}
         <span className="truncate text-sm font-semibold">{t.title}</span>
       </div>

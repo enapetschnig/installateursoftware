@@ -93,9 +93,9 @@ function docRoute(kind, id) { return KIND_ROUTE[kind] ? `${KIND_ROUTE[kind]}/${i
 const NAV_TARGETS = {
   dashboard: "/", projects: "/projekte", contacts: "/kontakte", documents: "/dokumente",
   offers: "/dokumente?typ=angebote", orders: "/dokumente?typ=auftraege", invoices: "/dokumente?typ=rechnungen",
-  calendar: "/planung", planning: "/planung", settings: "/einstellungen",
+  calendar: "/einsatzplanung?ansicht=termine", planning: "/einsatzplanung?ansicht=termine", settings: "/einstellungen",
   email: "/email", accounting: "/buchhaltung", marketing: "/marketing",
-  requests: "/anfragen", plantafel: "/plantafel", employees: "/mitarbeiter",
+  requests: "/anfragen", plantafel: "/einsatzplanung?ansicht=plan", employees: "/mitarbeiter",
   calculation: "/kalkulation", reports: "/auswertungen", automations: "/automationen",
   timesheets: "/stundenauswertung", myhours: "/meine-stunden", regie: "/regieberichte",
 };
@@ -103,9 +103,9 @@ const NAV_TARGETS = {
 const NAV_LABELS = {
   dashboard: "Übersicht", projects: "Projekte", contacts: "Kontakte", documents: "Dokumente",
   offers: "Angebote", orders: "Aufträge", invoices: "Rechnungen",
-  calendar: "Planung", planning: "Planung", settings: "Einstellungen",
+  calendar: "Einsatzplanung", planning: "Einsatzplanung", settings: "Einstellungen",
   email: "E-Mail", accounting: "Buchhaltung", marketing: "Marketing",
-  requests: "Anfragen", plantafel: "Plantafel", employees: "Mitarbeiter",
+  requests: "Anfragen", plantafel: "Einsatzplanung (Plantafel)", employees: "Mitarbeiter",
   calculation: "Kalkulation", reports: "Auswertungen", automations: "Automationen",
   timesheets: "Stundenauswertung", myhours: "Meine Stunden", regie: "Regieberichte",
 };

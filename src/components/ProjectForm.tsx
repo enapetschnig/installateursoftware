@@ -159,6 +159,7 @@ export default function ProjectForm({ project, onClose, onSaved }:
       <ErrorBanner message={err} />
       {!loaded ? <div className="py-6 text-center text-sm text-slate-400">Lädt …</div> : (
         <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2" data-tour-id="project-form-modal">
+          <div className="sm:col-span-2 mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Eckdaten</div>
           <div className="sm:col-span-2"><label className="label label-req">Betreff</label>
             <input className="input" value={f.title} onChange={(e) => set("title", e.target.value)} placeholder="z.B. Altbausanierung Beheimgasse" /></div>
           <div><label className="label">Projektnummer</label>
@@ -183,6 +184,7 @@ export default function ProjectForm({ project, onClose, onSaved }:
               {stageOptions.map((s) => <option key={s} value={s}>{s}</option>)}
             </select></div>
 
+          <div className="sm:col-span-2 mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Projektadresse</div>
           <div className="sm:col-span-2" data-tour-id="project-form-address"><label className="label label-req">Straße und Hausnummer</label>
             <AddressAutocomplete value={f.street} zip={f.zip} city={f.city} placeholder="z. B. Schrottgasse 7 – Vorschläge ab 3 Zeichen"
               onChange={(v) => set("street", v)}
@@ -198,6 +200,7 @@ export default function ProjectForm({ project, onClose, onSaved }:
           <div><label className="label">Projektvolumen €</label>
             <input type="number" step="0.01" min="0" className="input" value={f.budget} onChange={(e) => set("budget", e.target.value === "" ? "" : Number(e.target.value))} /></div>
 
+          <div className="sm:col-span-2 mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Termine &amp; Priorität</div>
           <div><label className="label">Baubeginn</label>
             <div className="flex gap-2">
               <input type="date" className="input flex-1" value={f.start_date}

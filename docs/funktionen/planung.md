@@ -33,3 +33,12 @@ Neue Ereignis-/Ressourcentypen als Stammdaten (kein Code). **Drei Termin-Systeme
 
 **Verknüpfungen**
 [projekte.md](projekte.md) · [mitarbeiter.md](mitarbeiter.md)
+
+## Einsatzplanung (Stand 2026-07-09)
+
+„Planung" und „Plantafel" sind zu **einem** Menüpunkt **Einsatzplanung** zusammengefasst – zwei Ansichten statt zwei Seiten:
+
+- Route: **`/einsatzplanung`** mit `?ansicht=plan` (Plantafel-Board) oder `?ansicht=termine` (Terminplanung).
+- Der Umschalter liegt in `src/App.tsx` (`Einsatzplanung`), die beiden Seiten (`Planung.tsx`, `Plantafel.tsx`) sind **unverändert**.
+- Alte Links bleiben gültig: `/plantafel` leitet auf `?ansicht=plan` um; `/planung` rendert den Umschalter direkt,
+  sodass Deep-Links wie `/planung?project=…&new=1` weiterhin in der Termin-Ansicht mit geöffnetem Dialog landen.

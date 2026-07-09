@@ -55,7 +55,7 @@ import {
 import { refreshOrdersInvoiceStatus } from "../lib/invoice-types";
 import { loadEvents, EventWithLinks } from "../lib/planning";
 import { Appointment, fetchAppointments, materializeOccurrences } from "../lib/appointments";
-import { isDraftOrder } from "../lib/order-status";
+import { isDraftOrder, orderStatusTone } from "../lib/order-status";
 import { toast, toastError, toastInfo } from "../lib/toast";
 import { isDeletable, softDeleteDocument, DELETE_CONFIRM_TEXT } from "../lib/document-delete";
 
@@ -81,7 +81,7 @@ const SECTIONS_TOP = [
 ] as const;
 // Leistung & Abrechnung (nach der Dokumente-Gruppe)
 const SECTIONS_LEISTUNG = [
-  { key: "regiestunden",  label: "Regiestunden", icon: Clock },
+  { key: "regiestunden",  label: "Regieberichte", icon: Clock },
   { key: "zeitlohn",      label: "Zeit & Lohn", icon: Banknote },
   { key: "material",      label: "Material", icon: Package },
   { key: "belege",        label: "Belege", icon: Receipt },
@@ -131,13 +131,7 @@ function readStoredSection(projectId?: string): SectionKey {
 /* ──────────────────────────────────────────────────────────────
    Helper: Status-Ton für Aufträge
 ────────────────────────────────────────────────────────────── */
-function orderStatusTone(s: string): "slate" | "blue" | "green" | "amber" | "red" {
-  if (s === "beauftragt" || s === "in_arbeit") return "blue";
-  if (s === "voll_verrechnet") return "green";
-  if (s === "teilw_verrechnet") return "amber";
-  if (s === "storniert") return "red";
-  return "slate";
-}
+// orderStatusTone: zentral aus ../lib/order-status (Import oben) – lokale Kopie entfernt.
 
 /* ──────────────────────────────────────────────────────────────
    Params for createOrderCore
@@ -592,23 +586,12 @@ export default function ProjectDetail() {
               </div>
             )}
 
-            {/* Leistung & Abrechnung: noch nicht gebaut → als „in Vorbereitung" ausgegraut/deaktiviert (kein Funktions-Schein). */}
-            {SECTIONS_LEISTUNG.map((s) => (
-              <button key={s.key} type="button" disabled title="In Vorbereitung – Funktion folgt"
-                className="flex cursor-not-allowed items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-slate-400 opacity-60 dark:text-slate-500">
-                <s.icon size={16} /> <span className="flex-1 text-left">{s.label}</span>
-                <span className="rounded-full bg-slate-200 px-1.5 text-[10px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400">in Vorbereitung</span>
-              </button>
-            ))}
-
-            {/* Abschluss-Bereiche: noch nicht gebaut → als „in Vorbereitung" ausgegraut/deaktiviert. */}
-            {SECTIONS_ABSCHLUSS.map((s) => (
-              <button key={s.key} type="button" disabled title="In Vorbereitung – Funktion folgt"
-                className="flex cursor-not-allowed items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-slate-400 opacity-60 dark:text-slate-500">
-                <s.icon size={16} /> <span className="flex-1 text-left">{s.label}</span>
-                <span className="rounded-full bg-slate-200 px-1.5 text-[10px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400">in Vorbereitung</span>
-              </button>
-            ))}
+            {/* „Leistung & Abrechnung" (Regiestunden/Zeit & Lohn/Material/Belege) und
+                „Abschluss" (Soll/Ist-Vergleich/Projektabschluss) sind noch nicht gebaut und
+                werden daher NICHT mehr als deaktivierte „in Vorbereitung"-Platzhalter angezeigt.
+                Die Definitionen (SECTIONS_LEISTUNG/SECTIONS_ABSCHLUSS), die VALID_SECTIONS-
+                Einträge und die zugehörigen Empty-Handler im Hauptbereich bleiben bewusst
+                erhalten, damit die Bereiche später ohne Umbau reaktiviert werden können. */}
           </div>
         </nav>
 
@@ -647,7 +630,7 @@ export default function ProjectDetail() {
             />
           )}
           {sec === "rechnungen"    && <Rechnungen key={`rng-${docRefresh}`} projectId={p.id} onCreateInvoiceCore={createInvoiceCore} />}
-          {sec === "regiestunden"  && <Empty title="Regiestunden" hint="Regiestunden-Erfassung und Berichte – in Vorbereitung." />}
+          {sec === "regiestunden"  && <Empty title="Regieberichte" hint="Regieberichte je Projekt (Einsatzzeiten, Material, Unterschrift) – in Vorbereitung." />}
           {sec === "zeitlohn"      && <Empty title="Zeit & Lohn" hint="Zeiterfassung und Lohnauswertung je Projekt – in Vorbereitung." />}
           {sec === "material"      && <Empty title="Material" hint="Materialbedarf, Bestellungen, Lagerbestand – in Vorbereitung." />}
           {sec === "belege"        && <Empty title="Belege" hint="Eingangsrechnungen, Lieferscheine und Belege – in Vorbereitung." />}
@@ -676,16 +659,9 @@ export default function ProjectDetail() {
 
         {/* ── Rechte Seitenleiste ── */}
         <aside className="space-y-4">
-          <div className="glass p-4">
-            <h3 className="mb-2 text-sm font-bold">Notizen</h3>
-            <textarea className="input min-h-[90px] text-sm" value={note}
-              onChange={(e) => setNote(e.target.value)} placeholder="Interne Notiz …" />
-            <div className="mt-2 flex justify-end">
-              <button className="btn-outline px-3 py-1.5 text-sm" disabled={noteSaving} onClick={saveNote}>
-                {noteSaving ? "…" : "Speichern"}
-              </button>
-            </div>
-          </div>
+          {/* Die frühere „Notizen"-Schnellnotiz in der rechten Seitenleiste wurde entfernt –
+              sie war ein 1:1-Duplikat der Projektnotiz (gleicher State `note`, gleiche
+              saveNote-Aktion). Kanonischer Platz ist Organisation → Notizen. */}
           <ProjectAppointments projectId={p.id} heroProjektnummer={p.project_number ?? null} />
           <div className="glass p-4">
             <h3 className="mb-2 text-sm font-bold">Projektdaten</h3>
@@ -1430,7 +1406,7 @@ function Auftraege({
             <div className="text-xs text-slate-400">Auftragssumme netto</div>
           </div>
           <div className="rounded-xl border p-3 text-center" style={{ borderColor: "var(--border)" }}>
-            <div className={`text-xl font-bold tabular-nums ${sumOpen > 0 ? "text-amber-600 dark:text-amber-400" : "text-green-600"}`}>
+            <div className={`text-xl font-bold tabular-nums ${sumOpen > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600"}`}>
               {eur(sumOpen)}
             </div>
             <div className="text-xs text-slate-400">Noch offen netto</div>

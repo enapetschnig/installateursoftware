@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { SortHeader } from "../components/SortHeader";
 import { aiAsk, loadAiSettings, aiModuleEnabled } from "../lib/ai";
-import { Badge, Empty, Spinner, Modal } from "../components/ui";
+import { Badge, Empty, Spinner, Modal, PageHeader } from "../components/ui";
 import { ConfirmDialog, ErrorBanner } from "../components/calc-ui";
 import { useAuth } from "../lib/auth";
 import { usePermissions } from "../lib/permissions";
@@ -56,20 +56,23 @@ const QUICK_CHIPS: { key: QuickFilter; label: string }[] = [
 const PAGE_SIZES = [25, 50, 100];
 
 type Col = { key: SortKey; label: string; align?: "right"; cls?: string };
+// Spalten-Hierarchie: Kernspalten (Nummer/Typ/Status/Kunde/Brutto) immer sichtbar;
+// Nebenspalten blenden sich erst bei mehr Breite ein (md=iPad-Portrait, lg=iPad-
+// Landscape, xl=Desktop, 2xl=breit). Rein visuell (CSS) – keine Filter-/Sortierlogik.
 const COLS: Col[] = [
   { key: "doc_number", label: "Nummer" },
   { key: "type_name", label: "Typ" },
-  { key: "variant_name", label: "Variante" },
+  { key: "variant_name", label: "Variante", cls: "hidden xl:table-cell" },
   { key: "status_norm", label: "Status" },
   { key: "customer_name", label: "Kunde" },
-  { key: "project_number", label: "Projekt" },
-  { key: "object_address", label: "Adresse / Objekt" },
-  { key: "title", label: "Betreff" },
-  { key: "doc_date", label: "Datum" },
-  { key: "net", label: "Netto", align: "right" },
+  { key: "project_number", label: "Projekt", cls: "hidden lg:table-cell" },
+  { key: "object_address", label: "Adresse / Objekt", cls: "hidden 2xl:table-cell" },
+  { key: "title", label: "Betreff", cls: "hidden 2xl:table-cell" },
+  { key: "doc_date", label: "Datum", cls: "hidden md:table-cell" },
+  { key: "net", label: "Netto", align: "right", cls: "hidden xl:table-cell" },
   { key: "gross", label: "Brutto", align: "right" },
-  { key: "editor_name", label: "Bearbeiter" },
-  { key: "last_change", label: "Letzte Änderung" },
+  { key: "editor_name", label: "Bearbeiter", cls: "hidden xl:table-cell" },
+  { key: "last_change", label: "Letzte Änderung", cls: "hidden lg:table-cell" },
 ];
 
 export default function Documents() {
@@ -431,14 +434,10 @@ export default function Documents() {
   return (
     <div className="pt-2" onClick={() => menuId && setMenuId(null)}>
       {/* ── Header ── */}
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight">
-            <Files size={24} /> Dokumente
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Zentrale Übersicht aller Dokumente</p>
-        </div>
-        {mayCreateAny && (
+      <PageHeader
+        title={<span className="inline-flex items-center gap-2"><Files size={24} /> Dokumente</span>}
+        subtitle="Zentrale Übersicht aller Dokumente"
+        action={mayCreateAny ? (
           <DocumentCreateMenu
             onCreate={onMenuCreate}
             onCreateGeneric={onMenuGeneric}
@@ -446,8 +445,8 @@ export default function Documents() {
             label="Dokument erstellen"
             buttonClassName="btn-primary"
           />
-        )}
-      </div>
+        ) : undefined}
+      />
 
       <ErrorBanner message={err} />
 
@@ -615,7 +614,7 @@ export default function Documents() {
                       sort={{ key: sortBy, dir: sortDir }}
                       onSort={(k) => toggleSort(k as SortKey)}
                       align={c.align === "right" ? "right" : "left"}
-                      padClass="px-3 py-2.5" className="whitespace-nowrap" />
+                      padClass="px-3 py-2.5" className={`whitespace-nowrap ${c.cls ?? ""}`} />
                   ))}
                   <th className="px-3 py-2.5 text-right">Aktionen</th>
                 </tr>
@@ -633,23 +632,23 @@ export default function Documents() {
                       ) : null}
                     </td>
                     <td className="px-3 py-2.5"><Badge tone="blue">{d.type_name}</Badge></td>
-                    <td className="px-3 py-2.5">{d.variant_name ? <Badge tone="slate">{d.variant_name}</Badge> : <span className="text-slate-400">–</span>}</td>
+                    <td className="hidden xl:table-cell px-3 py-2.5">{d.variant_name ? <Badge tone="slate">{d.variant_name}</Badge> : <span className="text-slate-400">–</span>}</td>
                     <td className="px-3 py-2.5"><Badge tone={statusTone(d.status_norm)}>{statusLabel(d.status_norm)}</Badge></td>
                     <td className="px-3 py-2.5"><div className="max-w-[160px] truncate" title={d.customer_name || undefined}>{d.customer_name || "–"}</div></td>
-                    <td className="px-3 py-2.5" onClick={(e) => { if (d.project_id) { e.stopPropagation(); nav(projectRoute({ id: d.project_id, project_number: d.project_number })); } }}>
+                    <td className="hidden lg:table-cell px-3 py-2.5" onClick={(e) => { if (d.project_id) { e.stopPropagation(); nav(projectRoute({ id: d.project_id, project_number: d.project_number })); } }}>
                       <div className="max-w-[170px] truncate" title={[d.project_number, d.project_title].filter(Boolean).join(" · ") || undefined}>
                         {d.project_number || d.project_title
                           ? <span className="text-[var(--accent)] hover:underline">{d.project_number ? `${d.project_number} · ` : ""}{d.project_title}</span>
                           : <span className="text-slate-400">–</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5"><div className="max-w-[180px] truncate text-xs text-slate-500" title={d.object_address || undefined}>{d.object_address || "–"}</div></td>
-                    <td className="px-3 py-2.5"><div className="max-w-[180px] truncate" title={d.title || undefined}>{d.title || "–"}</div></td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">{dateAt(d.doc_date)}</td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-xs">{d.net != null ? eur(d.net) : "–"}</td>
+                    <td className="hidden 2xl:table-cell px-3 py-2.5"><div className="max-w-[180px] truncate text-xs text-slate-500" title={d.object_address || undefined}>{d.object_address || "–"}</div></td>
+                    <td className="hidden 2xl:table-cell px-3 py-2.5"><div className="max-w-[180px] truncate" title={d.title || undefined}>{d.title || "–"}</div></td>
+                    <td className="hidden md:table-cell whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">{dateAt(d.doc_date)}</td>
+                    <td className="hidden xl:table-cell whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-xs">{d.net != null ? eur(d.net) : "–"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-xs font-semibold">{d.gross != null ? eur(d.gross) : "–"}</td>
-                    <td className="px-3 py-2.5"><div className="max-w-[120px] truncate text-xs text-slate-500" title={d.editor_name || undefined}>{d.editor_name || "–"}</div></td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">{dateTimeAt(d.last_change)}</td>
+                    <td className="hidden xl:table-cell px-3 py-2.5"><div className="max-w-[120px] truncate text-xs text-slate-500" title={d.editor_name || undefined}>{d.editor_name || "–"}</div></td>
+                    <td className="hidden lg:table-cell whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">{dateTimeAt(d.last_change)}</td>
                     <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="relative inline-block">
                         <button className="btn-ghost px-2" onClick={() => setMenuId(menuId === d.id ? null : d.id)} aria-label="Aktionen">

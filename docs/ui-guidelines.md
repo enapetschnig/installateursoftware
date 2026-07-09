@@ -109,3 +109,22 @@ Einfach wie bisher wickeln – der Header klebt automatisch:
 - **Deckende Farbe:** Der Header nutzt `var(--card)` und ist in allen Modi (Hell, Dunkel, Augenschon Hell/Dunkel, alle Akzent-Schemata) deckend.
 - **Gruppierte Tabellen** (z. B. Dokumentarten): Die Spaltenüberschrift (`thead`) bleibt sticky; Gruppen-Zwischenüberschriften (in `tbody`) scrollen normal mit.
 - **Theme-Tokens:** Farben immer über Design-Tokens (`var(--card)`, `var(--border)` …), nie hart kodieren.
+
+## Einheitlichkeit (Stand 2026-07-09)
+
+**Seitenkopf:** Jede Listen-/Modulseite nutzt `PageHeader` aus `src/components/ui.tsx`
+(`title` akzeptiert jetzt `ReactNode`, damit Icon-Titel möglich sind). Kein handgebauter `h1`-Block mehr.
+
+**Sekundärtext:** die Utility **`.text-muted`** (an `var(--text2)` gebunden) statt gemischtem
+`text-slate-400` / `text-slate-500`. Sie ist in allen 4 Themes korrekt (auch warm).
+
+**Farben:** ausschließlich die kanonische Badge-Palette (`slate | blue | green | amber | red`) bzw. `var(--accent)`.
+Off-Palette (violet/sky/green-600) wurde ersetzt.
+
+**Breite Tabellen:** Kernspalten immer sichtbar, Nebenspalten über Breakpoint-Klassen im `cls`-Slot der
+Spaltendefinition ausblenden (`hidden md:table-cell`, `lg:`, `xl:`, `2xl:`). Beispiel: `src/pages/Documents.tsx`
+zeigt auf dem iPad 8 statt 15 Spalten – ohne Datenverlust und ohne horizontales Scrollen der Seite.
+
+**Touch (iPad):** Komfortregeln hängen an **`@media (pointer: coarse)`** statt an der Bildschirmbreite –
+44 px Touch-Ziele und 16 px Eingabefelder gelten damit auch auf dem iPad (768–1024 px), der Desktop mit Maus bleibt unberührt.
+Vollflächen-Sheet-Modals bleiben dem Handy vorbehalten.

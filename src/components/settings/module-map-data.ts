@@ -114,7 +114,7 @@ export const MODULE_MAP_NODES: ModuleNode[] = [
   },
   {
     id: "planung", label: "Planung", group: "betrieb", level: 1,
-    status: "produktiv", rights: "plantafel", route: "/planung",
+    status: "produktiv", rights: "plantafel", route: "/einsatzplanung",
     purpose: "Termine, Ressourcen und Abwesenheiten mit Konfliktprüfung (Wochen-Plantafel & Monat).",
     subfunctions: ["Wochen-Plantafel", "Konfliktprüfung", "Abwesenheiten", "Ressourcen", "iCal-Export", "KI-Wochenanalyse"],
   },
@@ -251,13 +251,13 @@ export const MODULE_MAP_NODES: ModuleNode[] = [
     id: "einstellungen", label: "Einstellungen", group: "einstellungen", level: 1,
     status: "produktiv", route: "/einstellungen",
     purpose: "Konfigurationszentrale – so viel wie möglich ohne Code: Firma, Dokumentarten, Nummernkreise, Design …",
-    subfunctions: ["Firma & Design", "Dokumentarten", "Nummernkreise", "Projekttypen/-status", "Kalender (BUAK)", "KI", "Rechte"],
+    subfunctions: ["Firma & Design", "Dokumentarten", "Nummernkreise", "Projekttypen/-status", "Kalender & Arbeitszeiten", "KI", "Rechte"],
   },
   { id: "s-firma",         label: "Firma & Design",   group: "einstellungen", level: 2, parent: "einstellungen", status: "produktiv", route: "/einstellungen?tab=firma",        purpose: "Firmendaten, Logo, Bank, Design (hell/dunkel, Akzentfarben)." },
   { id: "s-dokumentarten", label: "Dokumentarten",    group: "einstellungen", level: 2, parent: "einstellungen", status: "produktiv", route: "/einstellungen?tab=dokumentarten", purpose: "Dokumentarten/-untertypen & Versionierungs-Regeln je Typ." },
   { id: "s-nummernkreise", label: "Nummernkreise",    group: "einstellungen", level: 2, parent: "einstellungen", status: "produktiv", route: "/einstellungen?tab=nummernkreise", purpose: "Fortlaufende Belegnummern je Dokumentart/Kontaktart." },
   { id: "s-projekttypen",  label: "Projekttypen/-status", group: "einstellungen", level: 2, parent: "einstellungen", status: "produktiv", route: "/einstellungen?tab=projekttypen", purpose: "Projektarten und gültige Status je Typ." },
-  { id: "s-kalender",      label: "Kalender (BUAK)",  group: "einstellungen", level: 2, parent: "einstellungen", status: "produktiv", route: "/einstellungen?tab=buak",         purpose: "Jahreskalender (Wochenarten) & Arbeitszeitmodelle." },
+  { id: "s-kalender",      label: "Kalender & Arbeitszeiten",  group: "einstellungen", level: 2, parent: "einstellungen", status: "produktiv", route: "/einstellungen?tab=buak",         purpose: "Jahreskalender (Wochenarten), Arbeitszeitmodelle & BUAK-Import." },
   { id: "s-ki",            label: "KI-Einstellungen", group: "einstellungen", level: 2, parent: "einstellungen", status: "produktiv", route: "/einstellungen?tab=ki",           purpose: "Konfiguration des KI-Assistenten." },
 ];
 

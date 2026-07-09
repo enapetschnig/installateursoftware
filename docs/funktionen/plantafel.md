@@ -37,3 +37,8 @@
 - Realtime über `supabase.channel('planning_events')` für Mehrbenutzerbetrieb.
 
 Querbezüge: [[planung]] (Termine/Ressourcen/Abwesenheiten), [[projekte]], [[mitarbeiter]], [[zeiterfassung]], [[rechte-rollen]] (`plantafel`).
+
+## Zugang (Stand 2026-07-09)
+
+Die Plantafel ist die Ansicht **`/einsatzplanung?ansicht=plan`** (Menüpunkt **Einsatzplanung**).
+Die alte Route `/plantafel` leitet dorthin um. Details: [planung.md](planung.md).
