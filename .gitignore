@@ -18,3 +18,4 @@ tmp/
 # Playwright-Browser-Smoke: Laufzeit-Artefakte (Screenshots/Traces/Reports)
 /test-results/
 /playwright-report/
+.env*
