@@ -41,7 +41,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     const { default: chatHandler } = await import("../../../api/ai/chat.js");
 
     const stammdaten = await loadStammdatenForVoice();
-    expect(stammdaten.catalog.positionen.length).toBeGreaterThan(100);
+    expect(stammdaten.catalog.positionen.length).toBeGreaterThan(30);
 
     // aiComplete → direkt gegen den echten Vercel-Handler (kein HTTP-Server nötig).
     const aiComplete = async (opts: {

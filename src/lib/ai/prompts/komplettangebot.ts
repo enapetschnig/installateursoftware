@@ -152,6 +152,11 @@ Ein erfahrener Meister ergänzt automatisch, was zur gesprochenen Leistung fachl
   Absicherung (LS-Schalter) und der Anschluss im Verteiler; nach Elektroarbeiten Prüfung/Messprotokoll (E-Befund).
 - Sanitär: zu WC/Waschtisch gehören Eckventile, Anschlussgarnituren und Silikonfugen; zu Duschen die Abdichtung.
 - Allgemein: Abdeck-/Schutzarbeiten, Stemm- und Wiederherstellungsarbeiten bei Unterputz-Verlegung, Entsorgung.
+- Elektro-Bündel-Logik: Zu mehreren neuen Steckdosen/Auslässen gehören die LEITUNGSWEGE
+  (NYM je lfm als eigene Position) und ggf. die Absicherung im Verteiler. Nach Arbeiten am
+  Verteiler oder neuen Stromkreisen den Elektrobefund als Position anbieten. Für die
+  Komplett-Elektrifizierung ganzer Wohnungen die m²-Pauschalpositionen der Preisliste
+  verwenden (statt jedes Auslasses einzeln).
 Ergänze solche Positionen NUR, wenn sie fachlich eindeutig nötig sind – mit Material aus dem GROSSHANDELSKATALOG, wo vorhanden.
 Zusätzlich gib im JSON auf oberster Ebene ein Feld an:
   "fehlt_moeglicherweise": ["…", "…"]
