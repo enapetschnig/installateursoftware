@@ -15,7 +15,7 @@ import {
   makeArticlePosition, makeServicePosition, makeTextPosition, makeTitlePosition,
 } from "../../lib/document-sources";
 import { DocPosition } from "../../lib/document-types";
-import { searchCatalog, catalogHitToDocPosition, hitKey, normalizeCatalogUnit, type CatalogHit } from "../../lib/wholesale";
+import { searchCatalog, catalogHitToDocPosition, hitKey, normalizeCatalogUnit, formatHersteller, type CatalogHit } from "../../lib/wholesale";
 
 type Tab = "items" | "texts";
 
@@ -333,7 +333,7 @@ function CatalogCard({ h, kalk, vatDefault }: { h: CatalogHit; kalk: SidebarData
         <span className="truncate text-sm font-semibold">{h.bezeichnung}</span>
       </div>
       <div className="truncate text-[11px] text-slate-400">
-        {[h.katalog_name, `EK ${eur(h.ek_cent / 100)}`, h.metall ? `zzgl. ${h.metall}-Zuschlag` : null]
+        {[formatHersteller(h.hersteller), h.katalog_name, `EK ${eur(h.ek_cent / 100)}`, h.metall ? `zzgl. ${h.metall}-Zuschlag` : null]
           .filter(Boolean).join(" · ")}
       </div>
       <div className="text-[11px] font-medium text-[var(--accent)]">{eur(vk)} / {normalizeCatalogUnit(h.einheit)}</div>

@@ -17,7 +17,7 @@ import { SidebarData, makeArticlePosition, makeServicePosition } from "../../lib
 import { DocPosition, lineNet } from "../../lib/document-types";
 import { CopyableDoc, loadCopyableDocuments, loadDocumentPositions, copyPositions, mergeCopiedByTitle } from "../../lib/document-copy";
 import { statusLabel } from "../../lib/documents-overview";
-import { searchCatalog, catalogHitToDocPosition, hitKey, normalizeCatalogUnit, type CatalogHit } from "../../lib/wholesale";
+import { searchCatalog, catalogHitToDocPosition, hitKey, normalizeCatalogUnit, formatHersteller, type CatalogHit } from "../../lib/wholesale";
 
 type Mode = "stamm" | "document" | "grosshandel";
 type Tab = "service" | "article";
@@ -184,6 +184,8 @@ function CatalogPicker({ data, vatDefault, onInsert, onClose, insertAfter }: {
                   </div>
                   <div className="truncate text-[11px] text-slate-400">
                     {[
+                      formatHersteller(h.hersteller),
+                      h.hersteller_artnr,
                       mehrereKataloge && h.katalog_name ? h.katalog_name : null,
                       `EK ${eur(h.ek_cent / 100)}`,
                       h.metall ? `zzgl. ${h.metall}-Metallzuschlag` : null,

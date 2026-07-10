@@ -27,6 +27,19 @@ export interface CatalogHit {
   // Händler dürfen sich nicht vermischen; katalog_name = UI-Badge.
   catalog_id: string | null;
   katalog_name: string | null;
+  // Hersteller + Hersteller-Artikelnummer (Migration 0154, aus zusatz/matchcode):
+  // "MERTEN" / "MEG2301-0419" – der Anwender bestellt danach.
+  hersteller: string | null;
+  hersteller_artnr: string | null;
+}
+
+/** "MERTEN" → "Merten" (Datanorm liefert VERSALIEN; Angebote sollen lesbar sein). */
+export function formatHersteller(h: string | null | undefined): string | null {
+  const t = (h ?? "").trim();
+  if (!t) return null;
+  if (t.length <= 3) return t; // ABB, PC …
+  // Je Wortteil kapitalisieren (auch nach Bindestrich): KABEL-LEITUNG → Kabel-Leitung
+  return t.toLowerCase().replace(/(^|[\s-])([a-zäöüß])/g, (_, sep, ch) => sep + ch.toUpperCase());
 }
 
 /** Kollisionsfreier Schlüssel eines Treffers (Katalog + Artikelnummer). */
@@ -208,11 +221,11 @@ export function buildWholesaleBlock(hits: CatalogHit[]): string {
     const ekEur = (h.ek_cent / 100).toFixed(2).replace(".", ",");
     const metall = h.metall ? ` (+${h.metall}-Zuschlag)` : "";
     const lieferant = mehrereKataloge && h.katalog_name ? ` | ${h.katalog_name}` : "";
-    return `${h.artikelnummer} | ${h.bezeichnung} | ${h.einheit ?? "STK"} | EK ${ekEur} €${metall}${lieferant}`;
+    return `${h.artikelnummer} | ${h.hersteller ?? "?"} | ${h.bezeichnung} | ${h.einheit ?? "STK"} | EK ${ekEur} €${metall}${lieferant}`;
   });
   return (
     "GROSSHANDELSKATALOG (echte Einkaufspreise deines Großhändlers, bereits rabattiert – Auszug passend zur Anfrage):\n" +
-    "Artikelnummer | Bezeichnung | Einheit | EK netto je Einheit\n" +
+    "Artikelnummer | Hersteller | Bezeichnung | Einheit | EK netto je Einheit\n" +
     lines.join("\n")
   );
 }
@@ -367,8 +380,11 @@ export function applyWholesalePricing(
 /** Schreibt die komplette Stückliste (n× Art. … Bezeichnung) in die Beschreibung. */
 function annotateStueckliste(p: VoicePositionLike, teile: Array<{ hit: CatalogHit; menge: number }>): void {
   if (teile.length === 1 && teile[0].menge === 1) { annotate(p, teile[0].hit); return; }
-  const zeilen = teile.map((t) =>
-    `${t.menge % 1 === 0 ? t.menge : t.menge.toFixed(2)}× Art. ${t.hit.artikelnummer} ${t.hit.bezeichnung.slice(0, 50)}`);
+  const zeilen = teile.map((t) => {
+    const herst = formatHersteller(t.hit.hersteller);
+    const herstNr = t.hit.hersteller_artnr ? ` ${t.hit.hersteller_artnr}` : "";
+    return `${t.menge % 1 === 0 ? t.menge : t.menge.toFixed(2)}× ${herst ? `${herst}${herstNr} – ` : ""}${t.hit.bezeichnung.slice(0, 50)} (Art. ${t.hit.artikelnummer})`;
+  });
   const metall = teile.some((t) => t.hit.metall);
   const hinweis = `Material lt. Großhandelskatalog: ${zeilen.join(" | ")}` +
     (metall ? " – zzgl. tagesaktueller Metallzuschlag" : "");
@@ -379,7 +395,9 @@ function annotateStueckliste(p: VoicePositionLike, teile: Array<{ hit: CatalogHi
 }
 
 function annotate(p: VoicePositionLike, hit: CatalogHit, suffix = ""): void {
-  const hinweis = `Material: Art. ${hit.artikelnummer} (${hit.bezeichnung.slice(0, 60)}) lt. Großhandelskatalog${suffix}` +
+  const herst = formatHersteller(hit.hersteller);
+  const herstTeil = herst ? `${herst}${hit.hersteller_artnr ? ` ${hit.hersteller_artnr}` : ""} – ` : "";
+  const hinweis = `Material: ${herstTeil}${hit.bezeichnung.slice(0, 60)} (Art. ${hit.artikelnummer}) lt. Großhandelskatalog${suffix}` +
     (hit.metall ? ", zzgl. tagesaktueller Metallzuschlag" : "");
   const besch = String(p.beschreibung ?? "").trim();
   if (!besch.includes(hit.artikelnummer)) {
@@ -441,8 +459,10 @@ export function catalogHitToDocPosition(hit: CatalogHit, opts: CatalogHitToPosit
     aufschlagGesamtProzent: opts.kalk.aufschlagGesamt,
   });
   const lieferant = hit.katalog_name ? ` (${hit.katalog_name})` : "";
+  const herst = formatHersteller(hit.hersteller);
+  const herstTeil = herst ? `${herst}${hit.hersteller_artnr ? ` ${hit.hersteller_artnr}` : ""}, ` : "";
   const beschreibung =
-    `Art. ${hit.artikelnummer} lt. Großhandelskatalog${lieferant}` +
+    `${herstTeil}Art. ${hit.artikelnummer} lt. Großhandelskatalog${lieferant}` +
     (hit.metall ? ", zzgl. tagesaktueller Metallzuschlag" : "");
   return emptyPosition("free", {
     name: hit.bezeichnung,

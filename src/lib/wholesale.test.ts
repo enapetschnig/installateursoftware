@@ -34,6 +34,7 @@ describe("buildWholesaleBlock", () => {
     einheit: "MTR", ek_cent: 46.6, listen_cent: 145.6, rabatt_prozent: 68,
     warengruppe: "10", ean: null, metall: "CU", score: 1,
     catalog_id: "cat-1", katalog_name: "Sonepar Österreich",
+    hersteller: "KABEL-LEITUNG", hersteller_artnr: "NYM-J 3X1,5 RE",
   };
   it("formatiert EK in Euro mit Komma und kennzeichnet Metallzuschlag", () => {
     const block = buildWholesaleBlock([hit]);
@@ -57,7 +58,8 @@ const mkHit = (over: Partial<CatalogHit> = {}): CatalogHit => ({
   artikelnummer: "120159824", bezeichnung: "PVC-Mantelleitungen NYM-J 3X1,5",
   einheit: "MTR", ek_cent: 1000, listen_cent: null, rabatt_prozent: 0,
   warengruppe: null, ean: null, metall: null, score: 1,
-  catalog_id: "cat-1", katalog_name: "Sonepar Österreich", ...over,
+  catalog_id: "cat-1", katalog_name: "Sonepar Österreich",
+  hersteller: "MERTEN", hersteller_artnr: "MEG2301-0419", ...over,
 });
 
 describe("applyWholesalePricing", () => {
@@ -155,8 +157,10 @@ describe("applyWholesalePricing", () => {
     // VK = (9,165 + 34) × 1,2 = 51,798 → 51,80 €
     expect(gewerke[0].positionen[0].vk_netto_einheit).toBe(51.8);
     const b = String(gewerke[0].positionen[0].beschreibung);
-    expect(b).toContain("1× Art. 111");
-    expect(b).toContain("0.50× Art. 333");
+    expect(b).toContain("(Art. 111)");
+    expect(b).toContain("0.50× ");
+    expect(b).toContain("(Art. 333)");
+    expect(b).toContain("Merten MEG2301-0419");
     expect(b).not.toContain("999-fremd");
   });
 
