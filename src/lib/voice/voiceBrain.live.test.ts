@@ -178,6 +178,9 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
       console.log(`Katalog-Positionen: ${mitKatalog.length}`);
     }
 
-    await supabase.auth.signOut();
+    // WICHTIG: scope 'local' – der supabase-js-Default 'global' widerruft ALLE
+    // Sessions des Test-Users, also auch echte Browser-Logins auf anderen Geräten
+    // (Symptom dort: "Nicht angemeldet." bei allen /api/*-Aufrufen).
+    await supabase.auth.signOut({ scope: "local" });
   }, 180_000);
 });

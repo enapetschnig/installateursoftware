@@ -42,7 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error ? error.message : null };
   }
-  async function signOut() { await supabase.auth.signOut(); }
+  // scope 'local': nur DIESES Gerät abmelden. Der supabase-js-Default 'global'
+  // würde alle Sessions des Users widerrufen – beim Parallelbetrieb PC + iPad
+  // fliegt sonst das jeweils andere Gerät mit raus (wirkt eingeloggt, aber alle
+  // /api/*-Aufrufe antworten "Nicht angemeldet.").
+  async function signOut() { await supabase.auth.signOut({ scope: "local" }); }
 
   return <Ctx.Provider value={{ session, profile, loading, signIn, signOut }}>{children}</Ctx.Provider>;
 }
