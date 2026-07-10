@@ -26,7 +26,11 @@ const DOMAIN_PROMPT =
   "Sicherungskasten, Verteilerkasten, Unterputz, Aufputz, Schuko-Steckdose, Doppelsteckdose, Wechselschalter, " +
   "Kreuzschalter, Dimmer, Leerrohr, Kabelkanal, Erdung, Potentialausgleich, Zählerkasten, CEE-Steckdose, Brennstelle, " +
   "Rahmen 1-fach, 2-fach, 3-fach, Abdeckrahmen, Kombination, Serienschalter, Taster, Schalterprogramm, " +
-  "Gira System 55, Berker, Jung, Busch-Jaeger, reinweiß, anthrazit, Unterputzdose, Hohlwanddose. " +
+  "Gira System 55, Berker, Jung, Busch-Jaeger, Merten, reinweiß, anthrazit, Unterputzdose, Hohlwanddose, " +
+  "Photovoltaik, PV-Anlage, Wechselrichter, Stromspeicher, Wallbox, Ladestation, FI Typ B, Lastmanagement, " +
+  "KNX, Loxone, Smart Home, CAT-7, Netzwerkdose, Patchpanel, E-Befund, Anlagenprüfung, Zählpunkt, " +
+  "Netzbetreiber, klassische Nullung, Potentialausgleich, Erdkabel E-YY, Baustromverteiler, Kernbohrung, " +
+  "Rauchwarnmelder, Türsprechanlage, Bewegungsmelder, Jalousiesteuerung, Herdanschlussdose, Überspannungsschutz. " +
   "Sanitär/Heizung: bodengleiche Dusche, Vorwandinstallation, Wand-WC, Waschtisch, Eckventil, Absperrventil, " +
   "Fußbodenheizung, Heizkörper, Zirkulationsleitung, Abflussrohr DN 50, DN 100, Pressfitting, Kupferrohr, " +
   "Verbundrohr, Warmwasserspeicher, Wärmepumpe, Armatur, Unterputz-Armatur, Silikonfuge.";

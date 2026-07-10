@@ -121,6 +121,10 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         // verlangt Stromkreis-Anzahl + Überspannungsschutz-Klärung → der
         // Kalkulator soll NACHFRAGEN statt still anzunehmen.
         "Wir montieren eine neue Unterverteilung im Einfamilienhaus.",
+      8:
+        // Neues Fachwissen (Eventualitäten-Ausbau): Wallbox – erwartet FI Typ B/
+        // A-EV, eigenen Stromkreis, Netzbetreiber-Meldung, Zuleitung nach kW.
+        "Wir montieren eine Wallbox mit 11 kW in der Garage, vom Zählerkasten sind es circa 12 Meter.",
     };
     const transcript = transcripts[SZENARIO] ?? transcripts[1];
     console.log(`\n===== SZENARIO ${SZENARIO} =====`);
@@ -181,7 +185,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     // ── Harte Erwartungen ──
     expect(result.gewerke.length).toBeGreaterThan(0);
     const alle = result.gewerke.flatMap((g) => g.positionen ?? []);
-    expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3, 7: 1 }[SZENARIO] ?? 4);
+    expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3, 7: 1, 8: 2 }[SZENARIO] ?? 4);
     // Jede Position hat eine Menge; Neu-Kalkulationen haben IMMER einen Preis.
     // 0-€-Positionen aus der eigenen Preisliste (Stammdaten-Lücke) sind erlaubt,
     // MÜSSEN aber einen Prüf-Hinweis erzeugen (Plausibilitäts-Wache).

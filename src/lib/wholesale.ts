@@ -108,6 +108,9 @@ const SPOKEN_SYNONYM_QUERIES: Array<{ wenn: RegExp; queries: string[] }> = [
   { wenn: /unterverteil|verteilerkasten|sicherungskasten|z(ä|ae)hlerkasten/i,
     queries: ["kleinverteiler", "verteiler unterputz", "fehlerstromschutzschalter 40a", "leitungsschutzschalter b16"] },
   { wenn: /sat[- ]?steckdose|antennensteckdose|antennendose/i, queries: ["antennendose", "antennensteckdose sat"] },
+  // Wallbox: Zuleitung + Schutzorgane gehören zur Stückliste (11 kW → 5x2,5).
+  { wenn: /wallbox|ladestation|ladesäule|e[- ]?auto/i,
+    queries: ["wallbox", "nym-j 5x2,5", "fehlerstromschutzschalter typ b", "leitungsschutzschalter 16a 3"] },
   // Steckdosen-Auslass = Einsatz + UP-Dose + Rahmen (Komponenten mitsuchen).
   { wenn: /doppelsteckdose/i, queries: ["steckdose 2-fach", "doppelsteckdose"] },
   { wenn: /steckdose/i, queries: ["schuko-steckdose", "steckdose", "gerätedose unterputz", "rahmen 1-fach"] },

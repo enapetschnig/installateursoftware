@@ -166,8 +166,15 @@ Großhandelskatalog** – nicht nur einen Artikel:
 
 - **`company_settings.kalk_fachregeln`** (Migr. 0155): Regeln `{stichwort-Regex, dann, frage?}` –
   pflegbar unter **Einstellungen → Kalkulation → „Fachwissen der KI"** (FachregelnSettings.tsx).
-  Seed: Elektriker-Wissen (Verteilung → FI + LS je Stromkreis + Messprotokoll + Überspannungsschutz
-  anbieten; Herd → Herdanschlussdose + 5x2,5 + 3-pol. LS; Wallbox; Außenbereich IP44 …).
+  Seed: Elektriker-Wissen; am 2026-07-10 per Experten-Workflow auf **25 Regeln** für österreichische
+  Elektrobetriebe ausgebaut (Auslässe/Schalterprogramme, Beleuchtung mit Liefergrenzen-Rückfrage,
+  UP-/AP-Verlegung inkl. Stemmen/Beiputz/Kernbohrung, Verteiler mit Reserve + 2-FI-Regel, Altbau
+  Stoff-/Alu-Leitungen + klassische Nullung → TN-S-Umstellung anbieten, Bad-Schutzbereiche +
+  Potentialausgleich, Erdungsanlage, Rauchwarnmelder OIB-2, Türsprechanlage, Jalousien, Wallbox
+  (Zuleitung als eigene Meter-Position, FI Typ B/A-EV, Netzbetreiber-Meldung), PV inkl.
+  Netzbetreiber-Abwicklung + USt-Hinweis, Speicher, Notstrom vs. Ersatzstrom, Smart Home
+  (System-Rückfrage), Netzwerk/CAT, E-Befund-Pflichtfälle, Zähleranlage/Netzbetreiber,
+  Entsorgung, Anfahrt/Kleinauftrag, Regie bei Fehlersuche/Altbestand …) + **21 Richtwerte**.
   Der Betrieb erweitert die Regeln selbst – kein Code nötig.
 - Prompt: `{{FACHREGELN}}`-Block (höchste Mitdenk-Priorität) + RÜCKFRAGEN-Mechanik: fehlt eine
   preisrelevante Angabe (Stromkreis-Anzahl, Ladeleistung, Längen), füllt die KI das Top-Level-Feld
