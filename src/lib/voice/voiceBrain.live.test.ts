@@ -104,6 +104,12 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         "vor Ort auf Regie. Leitung provisorisch abgedichtet und ein Absperrventil getauscht. " +
         "Anfahrt fünfunddreißig Kilometer. Material: ein Kugelhahn halb Zoll und zwei Meter " +
         "Kupferrohr achtzehner. Trocknungsgerät haben wir dagelassen, drei Tage Miete.",
+      5:
+        // Elektriker-Feinheiten: Rahmen, Kombinationen, Schalterprogramm.
+        "Betrifft: Wohnzimmer Elektrik erneuern. Wir setzen vier Steckdosen Gira System 55 " +
+        "reinweiß, zwei davon zusammen in einem 2-fach Rahmen. Dazu einen Wechselschalter " +
+        "mit Steckdose in einer Kombination beim Eingang. Und über der Kommode noch eine " +
+        "einzelne Steckdose mit eigenem Rahmen.",
     };
     const transcript = transcripts[SZENARIO] ?? transcripts[1];
     console.log(`\n===== SZENARIO ${SZENARIO} =====`);
@@ -146,7 +152,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     // ── Harte Erwartungen ──
     expect(result.gewerke.length).toBeGreaterThan(0);
     const alle = result.gewerke.flatMap((g) => g.positionen ?? []);
-    expect(alle.length).toBeGreaterThanOrEqual(4);
+    expect(alle.length).toBeGreaterThanOrEqual(SZENARIO === 5 ? 3 : 4);
     // Jede Position hat eine Menge; Neu-Kalkulationen haben IMMER einen Preis.
     // 0-€-Positionen aus der eigenen Preisliste (Stammdaten-Lücke) sind erlaubt,
     // MÜSSEN aber einen Prüf-Hinweis erzeugen (Plausibilitäts-Wache).

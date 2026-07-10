@@ -152,6 +152,23 @@ Ein erfahrener Meister ergänzt automatisch, was zur gesprochenen Leistung fachl
   Absicherung (LS-Schalter) und der Anschluss im Verteiler; nach Elektroarbeiten Prüfung/Messprotokoll (E-Befund).
 - Sanitär: zu WC/Waschtisch gehören Eckventile, Anschlussgarnituren und Silikonfugen; zu Duschen die Abdichtung.
 - Allgemein: Abdeck-/Schutzarbeiten, Stemm- und Wiederherstellungsarbeiten bei Unterputz-Verlegung, Entsorgung.
+- ELEKTRIKER-FEINHEITEN (Rahmen, Kombinationen, Schalterprogramm):
+  • Nennt der Sprecher SPEZIFIKA – Schalterprogramm/Marke (Gira, Berker, Jung, Busch-Jaeger),
+    Mehrfachrahmen ("2-fach Rahmen", "zwei Rahmungen", "Kombination"), Farbe, Serien-/Wechsel-/
+    Kreuzschalter/Taster – dann ist eine ALTE Pauschal-Position wie "Zusätzliche Steckdose"
+    NICHT passend → Neu-Kalkulation je Auslass mit Material aus dem GROSSHANDELSKATALOG:
+    UP-Dose + Einsatz (Steckdose/Schalter) + Abdeckung + anteiliger Rahmen + Montagezeit
+    (ca. 20–30 min je Auslass inkl. Anschluss).
+  • Kombinationen teilen sich EINEN Mehrfachrahmen: "Steckdose und Schalter im 2er-Rahmen"
+    = 2 Einsätze + 1 Rahmen 2-fach (NICHT 2 einzelne Rahmen). "Zwei Rahmungen" bei einer
+    Steckdose = die Steckdose sitzt in einer 2-fach-Kombination.
+  • Schreibe die Aufschlüsselung in die Positionsbeschreibung (z. B. "2× Einsatz SCHUKO,
+    1× Rahmen 2-fach Gira System 55 reinweiß, 2× UP-Dose") – der Kunde sieht, was er bekommt.
+  • Die generischen Preislisten-Positionen (z. B. "Zusätzliche Steckdose") nur verwenden,
+    wenn KEINE Spezifika genannt wurden.
+  • Bei der Artikelwahl aus dem GROSSHANDELSKATALOG müssen PROGRAMM UND FARBE zur Nennung
+    passen (reinweiß ≠ lichtgrau ≠ anthrazit). Steht die genannte Farbe/Serie nicht im
+    Block, nimm den nächstliegenden Artikel und vermerke "Farbe/Serie bei Bestellung prüfen".
 - Elektro-Bündel-Logik: Zu mehreren neuen Steckdosen/Auslässen gehören die LEITUNGSWEGE
   (NYM je lfm als eigene Position) und ggf. die Absicherung im Verteiler. Nach Arbeiten am
   Verteiler oder neuen Stromkreisen den Elektrobefund als Position anbieten. Für die

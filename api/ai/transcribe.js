@@ -24,7 +24,9 @@ const DOMAIN_PROMPT =
   "Leistungsverzeichnis, Regie, Pauschalangebot, Nachtrag, Projekt, Kunde, Baustelle, Mitarbeiter, Dokument, Gewerk, Kalkulation. " +
   "Elektro: NYM-J 3x1,5, NYM-J 5x2,5, H07V-U, Aderleitung, FI-Schalter, FI/LS, Leitungsschutzschalter, " +
   "Sicherungskasten, Verteilerkasten, Unterputz, Aufputz, Schuko-Steckdose, Doppelsteckdose, Wechselschalter, " +
-  "Kreuzschalter, Dimmer, Leerrohr, Kabelkanal, Erdung, Potentialausgleich, Zählerkasten, CEE-Steckdose, Brennstelle. " +
+  "Kreuzschalter, Dimmer, Leerrohr, Kabelkanal, Erdung, Potentialausgleich, Zählerkasten, CEE-Steckdose, Brennstelle, " +
+  "Rahmen 1-fach, 2-fach, 3-fach, Abdeckrahmen, Kombination, Serienschalter, Taster, Schalterprogramm, " +
+  "Gira System 55, Berker, Jung, Busch-Jaeger, reinweiß, anthrazit, Unterputzdose, Hohlwanddose. " +
   "Sanitär/Heizung: bodengleiche Dusche, Vorwandinstallation, Wand-WC, Waschtisch, Eckventil, Absperrventil, " +
   "Fußbodenheizung, Heizkörper, Zirkulationsleitung, Abflussrohr DN 50, DN 100, Pressfitting, Kupferrohr, " +
   "Verbundrohr, Warmwasserspeicher, Wärmepumpe, Armatur, Unterputz-Armatur, Silikonfuge.";
