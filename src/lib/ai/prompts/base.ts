@@ -33,6 +33,10 @@ export const AUFSCHLAG_MATERIAL_PLACEHOLDER = '{{AUFSCHLAG_MATERIAL}}'
 export const FIRMA_NAME_PLACEHOLDER = '{{FIRMA_NAME}}'
 /** Platzhalter für handelsübliche Richtwert-Spannen (company_settings.kalk_richtwerte, Migr. 0150). */
 export const RICHTWERTE_PLACEHOLDER = '{{RICHTWERTE}}'
+/** Platzhalter für die aktiven Gewerke des Betriebs (Angebots-Gliederung). */
+export const GEWERKE_PLACEHOLDER = '{{GEWERKE}}'
+/** Platzhalter für die Nebenpositions-Politik (Baubetrieb vs. Fachbetrieb). */
+export const NEBENPOSITIONEN_PLACEHOLDER = '{{NEBENPOSITIONEN}}'
 
 // ──── Kontext-Interface ─────────────────────────────────────────────────────
 
@@ -55,6 +59,17 @@ export interface PromptContext {
    * wird ein neutraler Hinweistext eingesetzt.
    */
   richtwerte?: Array<{ bezeichnung: string; einheit?: string | null; vk_min: number; vk_max: number }>
+  /**
+   * Aktive Gewerke des Betriebs (Name + Positionsnummern-Prefix). Bestimmt die
+   * Angebots-Gliederung: ein Elektriker-Betrieb bekommt ein Elektriker-Angebot,
+   * kein Baubetriebs-Gerüst. Leer/undefined = keine Einschränkung (B4Y-Verhalten).
+   */
+  gewerke?: Array<{ name: string; prefix: string }>
+  /**
+   * Automatische Nebenpositionen (Baustelleneinrichtung/Reinigung): true =
+   * Baubetriebs-Verhalten, false = Fachbetrieb (nichts Ungesprochenes ergänzen).
+   */
+  autoNebenpositionen?: boolean
 }
 
 // ──── buildPrompt ───────────────────────────────────────────────────────────
@@ -86,7 +101,36 @@ export function buildPrompt(basePrompt: string, ctx: PromptContext): string {
           .map((r) => `- ${r.bezeichnung}: ${r.vk_min}–${r.vk_max} € netto${r.einheit ? ` je ${r.einheit}` : ''}`)
           .join('\n')
 
+  // Gewerke-Gliederung: mit konfigurierten Gewerken wird die Struktur des
+  // Betriebs erzwungen; ohne Konfiguration bleibt das generische Verhalten.
+  const gewerkeText =
+    !ctx.gewerke || ctx.gewerke.length === 0
+      ? 'Gliedere in fachlich passende Gewerke (branchenübliche Reihenfolge).'
+      : 'Dieser Betrieb führt AUSSCHLIESSLICH folgende Gewerke – verwende NUR diese als Gliederung ' +
+        '(KEIN Gemeinkosten-/Abbruch-/Reinigungs-Gewerk erfinden, wenn es hier nicht steht):\n' +
+        ctx.gewerke.map((g) => `- ${g.name} (Positionsnummern-Prefix ${g.prefix})`).join('\n') +
+        '\nBei nur einem Gewerk: EINE durchgehende Positionsliste in diesem Gewerk.' +
+        '\nLeistungen, die keinem dieser Gewerke entsprechen (z. B. Reinigung), nur aufnehmen, wenn der ' +
+        'Sprecher sie AUSDRÜCKLICH nennt – dann dem fachlich nächsten Gewerk oben zuordnen.'
+
+  const nebenText =
+    ctx.autoNebenpositionen === false
+      ? 'FACHBETRIEB-MODUS: Füge KEINE Positionen hinzu, die nicht gesprochen wurden – KEINE automatische ' +
+        'Baustelleneinrichtung, KEINE Reinigung, KEINE Anfahrt, KEINE Gemeinkosten. Fachlich zwingendes ' +
+        'Kleinmaterial (Dosen, Klemmen, Rahmen, Befestigung) gehört IN die gesprochenen Positionen ' +
+        '(Neu-Kalkulation), nicht als eigene Zusatzposition. Alles, was du darüber hinaus für nötig hältst, ' +
+        'kommt NUR in "fehlt_moeglicherweise".'
+      : 'Füge IMMER eine Baustelleneinrichtungs-Position im Gewerk Gemeinkosten ein. Wähle die Nummer anhand ' +
+        'der geschätzten Gesamtsumme des Angebots:\n' +
+        '- 01-002 (Kleinbaustellen-Einrichtung) bei Projekten BIS 3.000 € netto\n' +
+        '- 01-001 (Baustelleneinrichtung) bei Projekten ÜBER 3.000 € netto\n' +
+        'Bei jedem Angebot MUSS genau EINE Reinigungsposition im Gewerk Reinigung enthalten sein.'
+
   return basePrompt
+    .split(GEWERKE_PLACEHOLDER)
+    .join(gewerkeText)
+    .split(NEBENPOSITIONEN_PLACEHOLDER)
+    .join(nebenText)
     .split(AUFSCHLAG_GESAMT_PLACEHOLDER)
     .join(String(ctx.aufschlagGesamt))
     .split(AUFSCHLAG_MATERIAL_PLACEHOLDER)

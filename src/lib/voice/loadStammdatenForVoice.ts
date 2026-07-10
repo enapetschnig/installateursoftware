@@ -40,7 +40,14 @@ export interface VoiceStammdaten {
   kalkSettings: KalkSettings;
   /** Handelsübliche Richtwert-Spannen (Migr. 0150) – Prompt-Kalibrierung + Plausibilitäts-Guard. */
   richtwerte: Richtwert[];
+  /** Aktive Gewerke des Betriebs (mit Positionsnummern-Prefix) – bestimmt die
+   *  Angebots-Gliederung der KI. Ein Elektriker bekommt so ein Elektriker-
+   *  Angebot, kein Baubetriebs-Gerüst aus Gemeinkosten/Abbruch/Reinigung. */
+  gewerke: BetriebsGewerk[];
 }
+
+/** Aktives Gewerk des Betriebs für die Prompt-Gliederung. */
+export interface BetriebsGewerk { name: string; prefix: string }
 
 export const EMPTY_VOICE_STAMMDATEN: VoiceStammdaten = {
   services: [],
@@ -48,7 +55,35 @@ export const EMPTY_VOICE_STAMMDATEN: VoiceStammdaten = {
   stundensaetze: {},
   kalkSettings: DEFAULT_KALK_SETTINGS,
   richtwerte: [],
+  gewerke: [],
 };
+
+/**
+ * Leitet die aktiven Gewerke des Betriebs ab: aktive trades, die aktive
+ * Leistungen haben. Der Positionsnummern-Prefix ("05" in "05-160") wird aus
+ * den echten service_numbers des Gewerks gelesen (häufigster Prefix) –
+ * nichts hartcodiert, funktioniert für jede Firma/Nummernlogik.
+ */
+export function buildBetriebsGewerke(services: Service[], trades: Trade[]): BetriebsGewerk[] {
+  const prefixVotes = new Map<string, Map<string, number>>(); // trade_id → prefix → count
+  for (const svc of services) {
+    if (!svc.trade_id) continue;
+    const m = /^([A-Za-z0-9]+)-/.exec((svc.service_number || "").trim());
+    if (!m) continue;
+    const votes = prefixVotes.get(svc.trade_id) ?? new Map<string, number>();
+    votes.set(m[1], (votes.get(m[1]) ?? 0) + 1);
+    prefixVotes.set(svc.trade_id, votes);
+  }
+  const out: BetriebsGewerk[] = [];
+  for (const t of [...trades].sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))) {
+    if (t.active === false) continue;
+    const votes = prefixVotes.get(t.id);
+    if (!votes || votes.size === 0) continue; // keine aktiven Leistungen → kein Angebots-Gewerk
+    const prefix = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    out.push({ name: t.name, prefix });
+  }
+  return out;
+}
 
 /** Validiert das JSONB-Array aus company_settings.kalk_richtwerte (tolerant, kein Throw). */
 export function parseRichtwerte(raw: unknown): Richtwert[] {
@@ -91,7 +126,7 @@ export async function loadStammdatenForVoice(
       supabase
         .from("company_settings")
         .select(
-          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap, kalk_richtwerte",
+          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap, kalk_richtwerte, kalk_auto_nebenpositionen",
         )
         .limit(1)
         .maybeSingle(),
@@ -106,6 +141,7 @@ export async function loadStammdatenForVoice(
       stundensaetze: buildStundensaetzeMap(hourlyRates, trades),
       kalkSettings: kalkSettingsFromCompanyRow(csRow),
       richtwerte: parseRichtwerte(csRow?.kalk_richtwerte),
+      gewerke: buildBetriebsGewerke(services, trades),
     };
   } catch {
     return EMPTY_VOICE_STAMMDATEN;
@@ -143,6 +179,7 @@ export function kalkSettingsFromCompanyRow(
     kalk_aufschlag_material?: number | null;
     kalk_stundensatz_default?: number | null;
     kalk_material_cap?: number | null;
+    kalk_auto_nebenpositionen?: boolean | null;
   } | null,
 ): KalkSettings {
   const num = (v: unknown, fallback: number): number => {
@@ -154,6 +191,8 @@ export function kalkSettingsFromCompanyRow(
     aufschlagMaterial: num(row?.kalk_aufschlag_material, DEFAULT_KALK_SETTINGS.aufschlagMaterial),
     stundensatzDefault: num(row?.kalk_stundensatz_default, DEFAULT_KALK_SETTINGS.stundensatzDefault),
     materialCapPercent: num(row?.kalk_material_cap, DEFAULT_KALK_SETTINGS.materialCapPercent),
+    // null/undefined → true (Baubetriebs-Default, B4Y-kompatibel)
+    autoNebenpositionen: row?.kalk_auto_nebenpositionen !== false,
   };
 }
 

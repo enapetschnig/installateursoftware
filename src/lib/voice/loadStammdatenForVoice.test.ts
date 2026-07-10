@@ -23,6 +23,7 @@ describe("kalkSettingsFromCompanyRow", () => {
       aufschlagMaterial: 35,
       stundensatzDefault: 85,
       materialCapPercent: 40,
+      autoNebenpositionen: true,
     });
   });
 

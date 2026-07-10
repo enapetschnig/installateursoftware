@@ -152,8 +152,12 @@ export function runCalcPipeline(
   result = fixGewerkZuordnung(result)
 
   // 11 + 12: Baustelleneinrichtung (Formel-/Pauschal-Positionen).
-  result = applyBaustelleneinrichtung(result, catalog, stundensaetze)
-  result = recalcBaustelleneinrichtung(result, catalog)
+  // Nur im Baubetriebs-Modus (kalk_auto_nebenpositionen, Migr. 0153) – ein
+  // reiner Fachbetrieb (Elektriker) bekommt KEINE ungefragten Zusatzpositionen.
+  if (settings.autoNebenpositionen !== false) {
+    result = applyBaustelleneinrichtung(result, catalog, stundensaetze)
+    result = recalcBaustelleneinrichtung(result, catalog)
+  }
 
   // 13: Nullpreise reparieren.
   result = fixNullpreise(result, catalog, stundensaetze)
@@ -168,8 +172,10 @@ export function runCalcPipeline(
   // 17: KI-Vorschlag-Badges.
   result = detectKiVorschlag(result, eingabeText)
 
-  // 18: Smart-Reinigung (kann ein neues Gewerk hinzufügen).
-  result = smartReinigung(result, catalog, stundensaetze, { eingabeText })
+  // 18: Smart-Reinigung (kann ein neues Gewerk hinzufügen) – nur Baubetriebs-Modus.
+  if (settings.autoNebenpositionen !== false) {
+    result = smartReinigung(result, catalog, stundensaetze, { eingabeText })
+  }
 
   // 19: Finale Sortierung – Reinigung ans Ende, Positionen pro Gewerk sortiert.
   result = sortGewerkeAndPositionen(result)

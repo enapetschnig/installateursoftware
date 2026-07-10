@@ -127,11 +127,20 @@ describe('KOMPLETT_ANGEBOT_PROMPT – Spezialregeln', () => {
     expect(KOMPLETT_ANGEBOT_PROMPT).toContain('13-100')
   })
 
-  it('enthält Baustelleneinrichtungs-Regel mit Schwellwert 3.000 €', () => {
-    expect(KOMPLETT_ANGEBOT_PROMPT).toContain('BAUSTELLENEINRICHTUNG')
-    expect(KOMPLETT_ANGEBOT_PROMPT).toContain('01-001')
-    expect(KOMPLETT_ANGEBOT_PROMPT).toContain('01-002')
-    expect(KOMPLETT_ANGEBOT_PROMPT).toContain('3.000')
+  it('Nebenpositionen sind betriebsprofilabhängig: Baubetrieb bekommt die 3.000-€-Staffel, Fachbetrieb ein Verbot', () => {
+    // Das Template selbst trägt nur noch den Platzhalter …
+    expect(KOMPLETT_ANGEBOT_PROMPT).toContain('{{NEBENPOSITIONEN}}')
+    const ctx = { firmaName: 'Test', stundensaetze: {}, aufschlagGesamt: 20, aufschlagMaterial: 30 }
+    // … Baubetriebs-Modus (Default) injiziert die alte Baustelleneinrichtungs-Staffel:
+    const bau = buildPrompt(KOMPLETT_ANGEBOT_PROMPT, { ...ctx, autoNebenpositionen: true })
+    expect(bau).toContain('Baustelleneinrichtung')
+    expect(bau).toContain('01-001')
+    expect(bau).toContain('01-002')
+    expect(bau).toContain('3.000')
+    // … Fachbetriebs-Modus (z. B. Elektriker) verbietet ungefragte Nebenpositionen:
+    const fach = buildPrompt(KOMPLETT_ANGEBOT_PROMPT, { ...ctx, autoNebenpositionen: false })
+    expect(fach).toContain('FACHBETRIEB-MODUS')
+    expect(fach).not.toContain('MUSS genau EINE Reinigungsposition')
   })
 })
 

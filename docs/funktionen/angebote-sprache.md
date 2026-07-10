@@ -116,3 +116,29 @@ Hero-Stammdaten wurden einmalig aus der bau4you-`catalog`-Tabelle (`Hero_2026-06
 4. Im Modal: Mikrofon drücken, sprechen ("Wand spachteln 30 m² im Vorzimmer, Hyegasse 3 Wien"), kurz warten.
 5. "Generieren" → Pipeline läuft, Positionen erscheinen im Editor.
 6. Status-Check: ist die VK-Summe plausibel? Wurde Reinigung automatisch hinzugefügt? Stimmt die Gewerk-Reihenfolge?
+
+## Betriebsprofil: Fachbetrieb statt Baubetrieb (Stand 2026-07-10)
+
+Die Pipeline stammte aus einem Baubetriebs-Kontext (Gemeinkosten → … → Reinigung,
+automatische Baustelleneinrichtung + Reinigungsposition). Das ist jetzt **konfigurierbar**:
+
+- **`company_settings.kalk_auto_nebenpositionen`** (Migr. 0153): `null/true` = Baubetriebs-Verhalten;
+  `false` = Fachbetrieb – Prompt (FACHBETRIEB-MODUS via `{{NEBENPOSITIONEN}}`) und Pipeline
+  (`applyBaustelleneinrichtung`, `smartReinigung` werden übersprungen) ergänzen NICHTS Ungesprochenes.
+- **Angebots-Gliederung aus aktiven Gewerken**: `buildBetriebsGewerke()` (loadStammdatenForVoice.ts)
+  leitet aus aktiven `trades` mit aktiven `services` die erlaubten Gewerke + Positionsnummern-Prefixe
+  ab → `{{GEWERKE}}`-Block im Prompt. Ein Elektriker-Betrieb bekommt EIN Gewerk „Elektriker",
+  kein Baubetriebs-Gerüst.
+- **Katalog-Material-Vorrang**: Sobald das Großhandels-Retrieval passende Artikel liefert, ist
+  jede materialbehaftete Position eine Neu-Kalkulation mit `material_artikelnummer` – generische
+  Pauschal-Positionen („Zusätzliche Steckdose") sind dann tabu.
+- **Positions-Granularität**: Jede gesprochene Teilleistung = eigene Position mit echter
+  Menge/Einheit; Sammel-Pauschalen sind verboten (Prompt-Kernregel).
+- **Retrieval-Normalisierung** (wholesale.ts): gesprochene Begriffe → Katalogsprache
+  („3 mal 1,5" → `nym-j 3x1,5`, „Unterverteilung" → `kleinverteiler`, „SAT-Steckdose" →
+  `antennendose`; Querschnitts-Filter verhindert „4x2"-Fehltreffer aus „4 mal 2 Steckdosen").
+
+**Aktuelle Konfiguration dieses Mandanten (Elektriker-Betrieb):** `kalk_auto_nebenpositionen=false`;
+aktive Gewerke nur ELEKTRIKER + ELEKTROZULEITUNG; Bau-Trades und 01-/13-Leistungen deaktiviert
+(reversibel über `active`-Flags). Live-Testfall: `VOICE_LIVE=1 VOICE_SZENARIO=6` (realer Praxisfall
+„Zubau mit Unterverteilung, 4×2 Steckdosen, SAT, 20 m 3x1,5").

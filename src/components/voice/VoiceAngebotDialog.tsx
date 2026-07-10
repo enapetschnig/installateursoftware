@@ -50,7 +50,7 @@ import {
 } from '../../lib/ai/prompts/base'
 import { runCalcPipeline } from '../../lib/calc/pipeline'
 import { logVoiceTranscript } from '../../lib/voice/logVoiceTranscript'
-import type { Richtwert } from '../../lib/voice/loadStammdatenForVoice'
+import type { BetriebsGewerk, Richtwert } from '../../lib/voice/loadStammdatenForVoice'
 import { searchCatalogForTranscript, buildWholesaleBlock, applyWholesalePricing, type CatalogHit } from '../../lib/wholesale'
 import type {
   Catalog,
@@ -82,6 +82,8 @@ export interface VoiceAngebotDialogProps {
   settings?: KalkSettings
   /** Handelsübliche Richtwert-Spannen (Migr. 0150). */
   richtwerte?: Richtwert[]
+  /** Aktive Gewerke des Betriebs (Angebots-Gliederung). */
+  gewerkeProfil?: BetriebsGewerk[]
   // ── Test-Injection-Points ────────────────────────────────────────────────
   /** Override fuer aiComplete (Tests). */
   aiCompleteImpl?: (opts: AiCompleteOpts) => Promise<AiCompleteResult>
@@ -169,6 +171,8 @@ export interface RunVoiceAngebotArgs {
   settings: KalkSettings
   /** Handelsübliche Richtwert-Spannen (Migr. 0150) – Prompt-Kalibrierung + Guard. */
   richtwerte?: Richtwert[]
+  /** Aktive Gewerke des Betriebs – bestimmt die Angebots-Gliederung der KI. */
+  gewerkeProfil?: BetriebsGewerk[]
   onStatus?: (s: VoiceAngebotStatus) => void
 }
 
@@ -252,6 +256,8 @@ export async function runVoiceAngebot(
     aufschlagGesamt: args.settings.aufschlagGesamt,
     aufschlagMaterial: args.settings.aufschlagMaterial,
     richtwerte: args.richtwerte,
+    gewerke: args.gewerkeProfil,
+    autoNebenpositionen: args.settings.autoNebenpositionen,
   }
   const systemPrompt = buildPrompt(KOMPLETT_ANGEBOT_PROMPT, promptCtx)
 
@@ -384,6 +390,7 @@ export function VoiceAngebotDialog({
   stundensaetze,
   settings,
   richtwerte,
+  gewerkeProfil,
   aiCompleteImpl,
   runCalcPipelineImpl,
   extractErgaenzungenHinweiseImpl,
@@ -440,6 +447,7 @@ export function VoiceAngebotDialog({
             stundensaetze: stundensaetze ?? {},
             settings: settings ?? DEFAULT_KALK_SETTINGS,
             richtwerte: richtwerte ?? [],
+            gewerkeProfil: gewerkeProfil ?? [],
             onStatus: setStatus,
           },
           deps,
@@ -460,7 +468,7 @@ export function VoiceAngebotDialog({
         setStatus({ phase: 'error', error: msg })
       }
     },
-    [isBusy, organizationName, catalog, stundensaetze, settings, richtwerte, deps, onComplete],
+    [isBusy, organizationName, catalog, stundensaetze, settings, richtwerte, gewerkeProfil, deps, onComplete],
   )
 
   // Wir nutzen die zentrale b4y `Modal`-Komponente (Portal, Scroll-Lock,

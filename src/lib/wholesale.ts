@@ -85,8 +85,28 @@ function brandTokens(originalSegment: string): Set<string> {
   return brands;
 }
 
+// ── Gesprochene Sprache → Katalog-Terminologie ──────────────────────────
+// Monteure sprechen anders, als Großhändler ihre Artikel benennen. Ohne diese
+// Brücke findet das Retrieval Zufallstreffer ("Leitungslänge" → Verbinder mit
+// Leitungslänge 200mm) statt NYM-Leitung und Kleinverteiler. Branchen-, nicht
+// firmenspezifisch – gilt für jeden Elektro-/Sanitärbetrieb (mandantenneutral).
+const SPOKEN_SYNONYM_QUERIES: Array<{ wenn: RegExp; queries: string[] }> = [
+  { wenn: /unterverteil|verteilerkasten|sicherungskasten|z(ä|ae)hlerkasten/i, queries: ["kleinverteiler", "verteiler unterputz"] },
+  { wenn: /sat[- ]?steckdose|antennensteckdose|antennendose/i, queries: ["antennendose", "antennensteckdose sat"] },
+  { wenn: /steckdose/i, queries: ["steckdose"] },
+  { wenn: /fi[- /]?(schalter|schutz)|fehlerstrom/i, queries: ["fehlerstromschutzschalter", "fi/ls"] },
+  { wenn: /brennstelle|lampenauslass|deckenauslass/i, queries: ["deckenauslass", "anschlussdose"] },
+  { wenn: /leerrohr/i, queries: ["installationsrohr"] },
+];
+
+/** "3 mal 1,5" / "5 mal 2,5" (gesprochen) → Dimensions-Token "3x1,5". */
+function normalizeSpokenDimensions(text: string): string {
+  return text.replace(/(\d+(?:,\d+)?)\s*mal\s*(\d+(?:,\d+)?)/gi, "$1x$2");
+}
+
 /** Zerlegt ein Transkript in Such-Queries (max. `maxQueries`). */
 export function extractSearchQueries(transcript: string, maxQueries = 12): string[] {
+  transcript = normalizeSpokenDimensions(transcript);
   // Dezimal-Kommas schützen (deutsche Dimensionen wie "3x1,5" oder "2,5 mm²"
   // dürfen NICHT an ihrem Komma zerteilt werden), dann an Satz-/Aufzählungs-
   // Grenzen zerlegen und die Kommas wiederherstellen.
@@ -120,7 +140,27 @@ export function extractSearchQueries(transcript: string, maxQueries = 12): strin
     queries.push(q);
     if (queries.length >= maxQueries) break;
   }
-  return queries;
+  // Synonym-Erweiterung: gesprochene Begriffe zusätzlich in Katalogsprache
+  // suchen (z. B. "Unterverteilung" → "kleinverteiler"). Dimensionen wie
+  // "3x1,5" bei Leitung/Kabel gezielt als NYM-Query ansetzen.
+  for (const syn of SPOKEN_SYNONYM_QUERIES) {
+    if (!syn.wenn.test(transcript)) continue;
+    for (const q of syn.queries) {
+      if (!seen.has(q)) { seen.add(q); queries.push(q); }
+    }
+  }
+  // Leitungs-Dimension ("3x1,5"): nur echte Querschnitte ansetzen – "4x2"
+  // aus "4 mal 2 Steckdosen" ist KEINE Leitung. Zweite Zahl muss ein üblicher
+  // Aderquerschnitt sein (0,75/1/1,5/2,5/4/6/10/16/25 mm²).
+  if (/leitung|kabel|nym|ader/i.test(transcript)) {
+    const QUERSCHNITTE = new Set(["0,75", "1", "1,5", "2,5", "4", "6", "10", "16", "25"]);
+    for (const m of transcript.matchAll(/\b(\d{1,2})x(\d{1,2}(?:,\d+)?)\b/gi)) {
+      if (!QUERSCHNITTE.has(m[2])) continue;
+      const q = `nym-j ${m[1]}x${m[2]}`.toLowerCase();
+      if (!seen.has(q)) { seen.add(q); queries.push(q); }
+    }
+  }
+  return queries.slice(0, maxQueries + 8); // Synonyme dürfen das Limit moderat erweitern
 }
 
 /**

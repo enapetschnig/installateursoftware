@@ -110,6 +110,12 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         "reinweiß, zwei davon zusammen in einem 2-fach Rahmen. Dazu einen Wechselschalter " +
         "mit Steckdose in einer Kombination beim Eingang. Und über der Kommode noch eine " +
         "einzelne Steckdose mit eigenem Rahmen.",
+      6:
+        // Der reale Praxisfall (PDF-Feedback): Elektriker-Betrieb, KEIN Baubetrieb –
+        // erwartet: nur Elektriker-Gliederung, kein Gemeinkosten-/Reinigungs-Gewerk,
+        // Material direkt aus dem Großhandelskatalog statt alter Pauschalpositionen.
+        "Erstell mir ein Angebot für einen Zubau mit einer neuen Unterverteilung mit 4 mal 2 Steckdosen, " +
+        "einmal SAT-Steckdose und mit Kabel 1,5 Quadrat, insgesamt Leitungslänge circa 20 Meter, also 3 mal 1,5.",
     };
     const transcript = transcripts[SZENARIO] ?? transcripts[1];
     console.log(`\n===== SZENARIO ${SZENARIO} =====`);
@@ -128,6 +134,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         stundensaetze: stammdaten.stundensaetze,
         settings: stammdaten.kalkSettings,
         richtwerte: stammdaten.richtwerte,
+        gewerkeProfil: stammdaten.gewerke,
       },
       // deps: echte Pipeline, echter Parser – nur aiComplete gegen den Handler verdrahtet
       { aiComplete: aiComplete as never, runCalcPipeline, extractErgaenzungenHinweise, parseJsonResponse },
@@ -153,7 +160,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     // ── Harte Erwartungen ──
     expect(result.gewerke.length).toBeGreaterThan(0);
     const alle = result.gewerke.flatMap((g) => g.positionen ?? []);
-    expect(alle.length).toBeGreaterThanOrEqual(SZENARIO === 5 ? 3 : 4);
+    expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3 }[SZENARIO] ?? 4);
     // Jede Position hat eine Menge; Neu-Kalkulationen haben IMMER einen Preis.
     // 0-€-Positionen aus der eigenen Preisliste (Stammdaten-Lücke) sind erlaubt,
     // MÜSSEN aber einen Prüf-Hinweis erzeugen (Plausibilitäts-Wache).
@@ -173,10 +180,23 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     }
     // Mindestens eine Position referenziert den Großhandelskatalog (echter EK verwendet)
     const mitKatalog = alle.filter((p) => String(p.beschreibung ?? "").includes("Großhandelskatalog"));
-    if (SZENARIO === 1) {
+    if (SZENARIO === 1 || SZENARIO === 6) {
       expect(mitKatalog.length, "keine Position nutzt den Großhandelskatalog").toBeGreaterThan(0);
     } else {
       console.log(`Katalog-Positionen: ${mitKatalog.length}`);
+    }
+
+    // Szenario 6 = Elektriker-Betriebsprofil (PDF-Feedback): EIN Gewerk, kein
+    // Baubetriebs-Gerüst, keine ungefragten Nebenpositionen, keine Sammel-Pauschale.
+    if (SZENARIO === 6) {
+      expect(result.gewerke.length, "Elektriker-Profil: genau EIN Gewerk erwartet").toBe(1);
+      expect(result.gewerke[0].name).toMatch(/elektr/i);
+      for (const p of alle) {
+        expect(String(p.leistungsname ?? ""), "ungefragte Nebenposition").not.toMatch(/baustelleneinrichtung|bauschlussreinigung|endreinigung/i);
+      }
+      // Leitung als Meter-Position (keine Pauschal-Verklumpung der 20 m)
+      expect(alle.some((p) => /^m|lfm/i.test(String(p.einheit ?? "")) && Number(p.menge) >= 15),
+        "Leitungsverlegung fehlt als Meter-Position").toBe(true);
     }
 
     // WICHTIG: scope 'local' – der supabase-js-Default 'global' widerruft ALLE

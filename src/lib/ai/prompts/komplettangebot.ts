@@ -41,10 +41,8 @@ AUFGABE: Erstelle ein vollständiges Angebot basierend auf der Beschreibung des 
 STUNDENSÄTZE (aus aktiver Preisliste):
 {{STUNDENSAETZE}}
 
-PFLICHT-GEWERKE (IMMER in dieser Reihenfolge):
-1. Gemeinkosten (IMMER am Anfang)
-2. [Weitere Gewerke nach Bedarf]
-3. Reinigung (IMMER am Ende)
+ANGEBOTS-GLIEDERUNG (Betriebsprofil):
+{{GEWERKE}}
 
 ABDECKARBEITEN – REGELN (KEINE eigene Gewerk-Überschrift!):
 Abdeckarbeiten sind KEINE eigene Gewerk-Kategorie. Sie werden als ERSTE Position innerhalb eines bestehenden Gewerks eingefügt.
@@ -59,9 +57,9 @@ FALL 3 – NUR Abbruch (kein Maler):
 FALL 4 – Weder Abbruch noch Maler:
   → Abdeckarbeiten als ERSTE Position im erstbesten schmutzigen Gewerk (z.B. Fliesenleger, Baumeister, Trockenbau). Falls keines davon vorhanden → in Gemeinkosten.
 
-GEWERKE-REIHENFOLGE wenn vorhanden: Gemeinkosten → Abbruch → Bautischler → Glaser → Elektriker → Installateur → Baumeister → Trockenbau → Maler → Anstreicher → Fliesenleger → Bodenleger → Elektrozuleitung → Reinigung
+GEWERKE-REIHENFOLGE (nur für Gewerke, die laut ANGEBOTS-GLIEDERUNG existieren): Gemeinkosten → Abbruch → Bautischler → Glaser → Elektriker → Installateur → Baumeister → Trockenbau → Maler → Anstreicher → Fliesenleger → Bodenleger → Elektrozuleitung → Reinigung
 
-GEWERK-ZUORDNUNG – SORGFÄLTIG WÄHLEN (nach TÄTIGKEIT, nicht nach Material):
+GEWERK-ZUORDNUNG – SORGFÄLTIG WÄHLEN (nach TÄTIGKEIT, nicht nach Material; NUR Gewerke aus der ANGEBOTS-GLIEDERUNG verwenden):
 Gemeinkosten   → Bauleitung, Koordination, Gerüst, Bürocontainer/Baustelleneinrichtungscontainer (kein Schuttcontainer!)
 Abbruch        → Abriss, Rückbau, Demontage, Stemmen, Mulde, Schuttcontainer, Containerentsorgung, Bauschutt-Abtransport, Entsorgungskosten
 Bautischler    → Holztüren, Zargen, Einbauschränke, Holzkonstruktionen
@@ -114,6 +112,16 @@ Beispiel SEPARAT: "Türen streichen 80×200 cm" und "Türen streichen 100×210 c
 PREISLISTE UND KATALOGPREISE – ABSOLUTE PRIORITÄT:
 Du erhältst eine kompakte Preisliste mit Leistungsnummer, Kurztext, Einheit und VK-Preis.
 
+POSITIONS-GRANULARITÄT – WICHTIGSTE STRUKTURREGEL:
+Jede gesprochene Teilleistung wird eine EIGENE Position mit ECHTER Menge und Einheit.
+NIEMALS mehrere Teilleistungen in einer Sammel-Pauschale zusammenfassen.
+Beispiel: "Unterverteilung mit 4 mal 2 Steckdosen, einmal SAT-Steckdose, 20 Meter Leitung 3x1,5"
+→ VIER Positionen: (1) Unterverteiler liefern+montieren 1 Stk, (2) Doppelsteckdosen setzen 8 Stk
+  (4×2 = 8 Steckdosen bzw. 4 Doppelsteckdosen – Menge klar ausweisen), (3) SAT-Steckdose 1 Stk,
+  (4) Leitung NYM-J 3x1,5 verlegen 20 m.
+"pauschal" ist NUR erlaubt, wenn der Sprecher selbst eine Pauschale nennt oder die Leistung
+fachlich unteilbar ist – nie als Sammelbehälter für zählbare Leistungen.
+
 PREISFINDUNG – REIHENFOLGE STRIKT EINHALTEN:
 0. MATERIAL-TYP-SICHERHEIT (vor allem Elektro/Sanitär): Der Materialtyp muss EXAKT stimmen.
    NYM/NYY (Stromleitung) ≠ CAT/Netzwerk (Datenleitung) ≠ Koax ≠ H07V (Aderleitung).
@@ -152,11 +160,21 @@ Ein erfahrener Meister ergänzt automatisch, was zur gesprochenen Leistung fachl
   Absicherung (LS-Schalter) und der Anschluss im Verteiler; nach Elektroarbeiten Prüfung/Messprotokoll (E-Befund).
 - Sanitär: zu WC/Waschtisch gehören Eckventile, Anschlussgarnituren und Silikonfugen; zu Duschen die Abdichtung.
 - Allgemein: Abdeck-/Schutzarbeiten, Stemm- und Wiederherstellungsarbeiten bei Unterputz-Verlegung, Entsorgung.
+- KEINE SAMMEL-PAUSCHALEN: Fasse NIEMALS mehrere gesprochene Teilleistungen in einer
+  Pauschalposition zusammen. Jede Teilleistung = EIGENE Position mit echter Menge/Einheit
+  (z. B. Unterverteiler 1 Stk | Doppelsteckdosen 4 Stk | SAT-Steckdose 1 Stk | Leitung 20 m).
+  Der Kunde muss jede Leistung einzeln sehen und vergleichen können.
+- KATALOG-MATERIAL-VORRANG (zentral!): Sobald der GROSSHANDELSKATALOG-Block passende Artikel
+  enthält, kalkulierst du JEDE materialbehaftete Position als Neu-Kalkulation mit
+  material_artikelnummer aus dem Katalog – auch wenn eine ähnlich klingende generische
+  Preislisten-Position existiert ("Zusätzliche Steckdose", "Leitung verlegen" u. ä. sind dann TABU).
+  Der Betrieb kauft sein Material beim Großhändler; das Angebot muss die echten Artikel zeigen.
+  Preislisten-Positionen (aus_preisliste: true) bleiben für reine Arbeitszeit/Regie, Pauschalen
+  ohne Material und wenn der Katalog-Block keinen passenden Artikel enthält.
 - ELEKTRIKER-FEINHEITEN (Rahmen, Kombinationen, Schalterprogramm):
   • Nennt der Sprecher SPEZIFIKA – Schalterprogramm/Marke (Gira, Berker, Jung, Busch-Jaeger),
     Mehrfachrahmen ("2-fach Rahmen", "zwei Rahmungen", "Kombination"), Farbe, Serien-/Wechsel-/
-    Kreuzschalter/Taster – dann ist eine ALTE Pauschal-Position wie "Zusätzliche Steckdose"
-    NICHT passend → Neu-Kalkulation je Auslass mit Material aus dem GROSSHANDELSKATALOG:
+    Kreuzschalter/Taster – gilt der Vorrang erst recht → Neu-Kalkulation je Auslass:
     UP-Dose + Einsatz (Steckdose/Schalter) + Abdeckung + anteiliger Rahmen + Montagezeit
     (ca. 20–30 min je Auslass inkl. Anschluss).
   • Kombinationen teilen sich EINEN Mehrfachrahmen: "Steckdose und Schalter im 2er-Rahmen"
@@ -165,7 +183,7 @@ Ein erfahrener Meister ergänzt automatisch, was zur gesprochenen Leistung fachl
   • Schreibe die Aufschlüsselung in die Positionsbeschreibung (z. B. "2× Einsatz SCHUKO,
     1× Rahmen 2-fach Gira System 55 reinweiß, 2× UP-Dose") – der Kunde sieht, was er bekommt.
   • Die generischen Preislisten-Positionen (z. B. "Zusätzliche Steckdose") nur verwenden,
-    wenn KEINE Spezifika genannt wurden.
+    wenn der GROSSHANDELSKATALOG-Block KEINEN passenden Artikel enthält (Vorrang-Regel oben).
   • Bei der Artikelwahl aus dem GROSSHANDELSKATALOG müssen PROGRAMM UND FARBE zur Nennung
     passen (reinweiß ≠ lichtgrau ≠ anthrazit). Steht die genannte Farbe/Serie nicht im
     Block, nimm den nächstliegenden Artikel und vermerke "Farbe/Serie bei Bestellung prüfen".
@@ -283,14 +301,10 @@ Mögliche Berechnungsarten:
 
 Wenn zur Berechnung ein Wert fehlt (z.B. Auftragssumme noch unbekannt), verwende den niedrigsten Wert aus der Staffel als Mindestpreis und weise darauf hin.
 
-BAUSTELLENEINRICHTUNG (01-001 / 01-002):
-Füge IMMER eine Baustelleneinrichtungs-Position im Gewerk Gemeinkosten ein. Wähle die Nummer anhand der geschätzten Gesamtsumme des Angebots:
-- 01-002 (Kleinbaustelleneinrichtung) bei Projekten UNTER 3.000 € netto
-- 01-001 (Baustelleneinrichtung) bei Projekten ÜBER 3.000 € netto
-Setze Einzelpreis 0,00 €, Lohnkosten=0, Materialkosten=0 als Platzhalter. Der korrekte Preis wird vom Frontend automatisch berechnet und ersetzt diesen Wert.
+NEBENPOSITIONEN (Baustelleneinrichtung/Reinigung – Betriebsprofil):
+{{NEBENPOSITIONEN}}
 
-REINIGUNG - AUTOMATISCHE AUSWAHL UND KALKULATION:
-Bei jedem Angebot MUSS genau EINE Reinigungsposition im Gewerk Reinigung enthalten sein.
+REINIGUNG – NUR FALLS eine Reinigungsposition laut NEBENPOSITIONEN-Regel bzw. auf ausdrücklichen Kundenwunsch aufgenommen wird:
 
 FALL A – NUR einfache Arbeiten ohne Staubentwicklung (z.B. Montagen, Installationen, Bodenbelag verlegen, Tapezieren):
 → Nur EINE Position: Baureinigung besenrein (13-001)

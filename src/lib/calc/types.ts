@@ -141,6 +141,11 @@ export interface KalkSettings {
   materialCapPercent: number
   /** Pro-Gewerk-Override für aufschlagGesamt. */
   aufschlagPerGewerk?: Record<string, number>
+  /** Automatische Nebenpositionen (Baustelleneinrichtung, Smart-Reinigung).
+   *  true = Baubetriebs-Verhalten (B4Y-Default); false = reiner Fachbetrieb
+   *  (z. B. Elektriker): NICHTS wird ungefragt ergänzt.
+   *  Quelle: company_settings.kalk_auto_nebenpositionen (Migr. 0153). */
+  autoNebenpositionen?: boolean
 }
 
 export const DEFAULT_KALK_SETTINGS: KalkSettings = {
@@ -148,6 +153,7 @@ export const DEFAULT_KALK_SETTINGS: KalkSettings = {
   aufschlagMaterial: 30,
   stundensatzDefault: 70,
   materialCapPercent: 30,
+  autoNebenpositionen: true,
 }
 
 /**
