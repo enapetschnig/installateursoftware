@@ -17,9 +17,17 @@ const MAX_BYTES = 24 * 1024 * 1024; // OpenAI-Limit 25 MB – etwas darunter
 const ALLOWED = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/x-m4a", "audio/m4a"];
 
 // Fachbegriffe – verbessern die Erkennung im Bau-/Geschäftskontext (de-AT/de-DE)
+// Fachwortschatz verbessert die Transkription deutlich – gerade Elektro-/
+// Sanitär-Kürzel ("NYM-J 3x1,5", "FI-Schalter") werden sonst verstümmelt.
 const DOMAIN_PROMPT =
   "Geschäftskontext Bau und Handwerk in Österreich/Deutschland. Begriffe: Angebot, Auftrag, Rechnung, " +
-  "Leistungsverzeichnis, Regie, Pauschalangebot, Nachtrag, Projekt, Kunde, Baustelle, Mitarbeiter, Dokument, Gewerk, Kalkulation.";
+  "Leistungsverzeichnis, Regie, Pauschalangebot, Nachtrag, Projekt, Kunde, Baustelle, Mitarbeiter, Dokument, Gewerk, Kalkulation. " +
+  "Elektro: NYM-J 3x1,5, NYM-J 5x2,5, H07V-U, Aderleitung, FI-Schalter, FI/LS, Leitungsschutzschalter, " +
+  "Sicherungskasten, Verteilerkasten, Unterputz, Aufputz, Schuko-Steckdose, Doppelsteckdose, Wechselschalter, " +
+  "Kreuzschalter, Dimmer, Leerrohr, Kabelkanal, Erdung, Potentialausgleich, Zählerkasten, CEE-Steckdose, Brennstelle. " +
+  "Sanitär/Heizung: bodengleiche Dusche, Vorwandinstallation, Wand-WC, Waschtisch, Eckventil, Absperrventil, " +
+  "Fußbodenheizung, Heizkörper, Zirkulationsleitung, Abflussrohr DN 50, DN 100, Pressfitting, Kupferrohr, " +
+  "Verbundrohr, Warmwasserspeicher, Wärmepumpe, Armatur, Unterputz-Armatur, Silikonfuge.";
 
 async function verifyUser(token) {
   if (!token) return null;

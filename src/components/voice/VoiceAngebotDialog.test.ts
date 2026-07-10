@@ -227,8 +227,10 @@ describe('VoiceAngebotDialog / runVoiceAngebot', () => {
       ),
     ).rejects.toThrow()
 
-    // aiComplete wurde aufgerufen, runCalcPipeline aber NICHT (Parse-Fehler davor).
-    expect(aiComplete).toHaveBeenCalledTimes(1)
+    // aiComplete wurde ZWEIMAL aufgerufen (bewusster Einzel-Retry bei
+    // ungültigem JSON, seit 2026-07-10) – runCalcPipeline aber NIE
+    // (beide Antworten unparsebar).
+    expect(aiComplete).toHaveBeenCalledTimes(2)
     expect(runCalc).not.toHaveBeenCalled()
 
     // Vor dem Parse-Fehler hatten wir mindestens Status "ai" gesetzt.

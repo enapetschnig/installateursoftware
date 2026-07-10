@@ -50,7 +50,7 @@ import {
 } from '../../lib/ai/prompts/base'
 import { runCalcPipeline } from '../../lib/calc/pipeline'
 import { logVoiceTranscript } from '../../lib/voice/logVoiceTranscript'
-import { searchCatalogForTranscript, buildWholesaleBlock } from '../../lib/wholesale'
+import { searchCatalogForTranscript, buildWholesaleBlock, applyWholesalePricing, type CatalogHit } from '../../lib/wholesale'
 import type {
   Catalog,
   Gewerk,
@@ -125,6 +125,8 @@ export interface KomplettAngebotResponse {
   betreff?: string | null
   adresse?: string | null
   gewerke: Gewerk[]
+  /** Mitdenken: offene Punkte, die der Chef vor Versand klären sollte. */
+  fehlt_moeglicherweise?: string[] | null
 }
 
 /**
@@ -206,9 +208,10 @@ export async function runVoiceAngebot(
   // (Liste − Kundenrabatt bzw. Nettopreis). Ist kein Katalog importiert,
   // bleibt der Block leer und der Flow verhält sich exakt wie bisher.
   let wholesaleBlock = ''
+  let wholesaleHits: CatalogHit[] = []
   try {
-    const hits = await searchCatalogForTranscript(userMessage)
-    wholesaleBlock = buildWholesaleBlock(hits)
+    wholesaleHits = await searchCatalogForTranscript(userMessage)
+    wholesaleBlock = buildWholesaleBlock(wholesaleHits)
   } catch {
     /* Katalog ist Zusatznutzen – Voice-Angebot darf daran nie scheitern */
   }
@@ -230,8 +233,23 @@ export async function runVoiceAngebot(
     responseFormat: 'json',
   })
 
-  // ── 4. JSON parsen ───────────────────────────────────────────────────────
-  const parsed = deps.parseJsonResponse<KomplettAngebotResponse>(aiResult.text)
+  // ── 4. JSON parsen (mit EINEM Wiederholungsversuch) ─────────────────────
+  // gpt-4o-mini liefert selten abgeschnittenes/ungültiges JSON. Ein einzelner
+  // erneuter Anlauf behebt das fast immer – besser als den Nutzer nach 30 s
+  // Aufnahme mit einem Fehler stehen zu lassen.
+  let parsed: KomplettAngebotResponse
+  try {
+    parsed = deps.parseJsonResponse<KomplettAngebotResponse>(aiResult.text)
+  } catch {
+    const retry = await deps.aiComplete({
+      systemPrompt,
+      userMessage,
+      cachedContext,
+      maxTokens: 8000,
+      responseFormat: 'json',
+    })
+    parsed = deps.parseJsonResponse<KomplettAngebotResponse>(retry.text)
+  }
   const gewerke: Gewerk[] = Array.isArray(parsed?.gewerke) ? parsed.gewerke : []
   if (gewerke.length === 0) {
     throw new Error('Die KI hat keine Gewerke geliefert. Bitte erneut versuchen.')
@@ -239,6 +257,15 @@ export async function runVoiceAngebot(
 
   // ── 5. Calc-Pipeline laufen lassen ───────────────────────────────────────
   args.onStatus?.({ phase: 'pipeline' })
+  // Material-Positionen mit Katalog-Artikel DETERMINISTISCH bepreisen –
+  // das LLM liefert nur Artikelnummer + Zeitschätzung, die Mathematik
+  // (EK × Aufschlag + Minuten × Stundensatz) macht der Code. Läuft VOR der
+  // Pipeline, damit fixNullpreise/Sortierung mit echten Preisen arbeiten.
+  applyWholesalePricing(gewerke, wholesaleHits, {
+    aufschlagMaterialProzent: args.settings.aufschlagMaterial,
+    stundensatzDefault: args.settings.stundensatzDefault,
+  })
+
   const processed = deps.runCalcPipeline(gewerke, {
     eingabeText: userMessage,
     catalog: args.catalog,
@@ -256,11 +283,18 @@ export async function runVoiceAngebot(
   //   - Projektnummer: ueber Projekt-Dropdown im Editor (2026-06-24).
   //   - Adresse: kommt aus dem im Pre-Step-Modal gewaehlten Kunden (2026-06-30).
   // Falls die KI sie trotzdem zurueckgibt, wird sie hier ignoriert.
+  // Mitdenken: KI-Hinweise auf mögliche Lücken in die Meta-Hinweise mergen –
+  // sie landen über mergeVoiceNotes() als interne Notiz am Angebot.
+  const kiHinweise = (Array.isArray(parsed?.fehlt_moeglicherweise) ? parsed.fehlt_moeglicherweise : [])
+    .filter((h): h is string => typeof h === 'string' && h.trim().length > 0)
+    .map((h) => `Prüfen: ${h.trim()}`)
+
+  const alleHinweise = [...hinweise, ...kiHinweise]
   const meta: VoiceAngebotDialogMeta = {
     betrifft:
       (parsed.betreff?.trim() || userFields.betrifft?.trim()) || undefined,
     ergaenzungen: ergaenzungen.length > 0 ? ergaenzungen : undefined,
-    hinweise: hinweise.length > 0 ? hinweise : undefined,
+    hinweise: alleHinweise.length > 0 ? alleHinweise : undefined,
   }
 
   args.onStatus?.({ phase: 'done' })
