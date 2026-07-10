@@ -130,6 +130,36 @@ describe("applyWholesalePricing", () => {
     expect(out[0].positionen[0].vk_netto_einheit).toBe(25.8);
   });
 
+  it("summiert eine Material-Stückliste (mehrere Bauteile, anteilige Mengen) und listet sie in der Beschreibung", () => {
+    const einsatz = mkHit({ artikelnummer: "111", bezeichnung: "SCHUKO-Einsatz reinweiß", ek_cent: 500 });
+    const dose = mkHit({ artikelnummer: "222", bezeichnung: "Gerätedose UP", ek_cent: 50 });
+    const rahmen = mkHit({ artikelnummer: "333", bezeichnung: "Rahmen 2-fach reinweiß", ek_cent: 310 });
+    const gewerke = [{
+      name: "Elektriker", stundensatz: 85,
+      positionen: [{
+        leistungsname: "Steckdose setzen", beschreibung: "" as string | null, einheit: "Stk", menge: 2,
+        vk_netto_einheit: 0, aus_preisliste: false, arbeitszeit_min_einheit: 24,
+        material_stueckliste: [
+          { artikelnummer: "111", menge_pro_einheit: 1 },
+          { artikelnummer: "222", menge_pro_einheit: 1 },
+          { artikelnummer: "333", menge_pro_einheit: 0.5 }, // anteiliger 2-fach-Rahmen
+          { artikelnummer: "999-fremd", menge_pro_einheit: 1 }, // NICHT im Block → ignorieren
+        ],
+      }],
+    }];
+    const n = applyWholesalePricing(gewerke, [einsatz, dose, rahmen], {
+      aufschlagMaterialProzent: 30, stundensatzDefault: 70, aufschlagGesamtProzent: 20,
+    });
+    expect(n).toBe(1);
+    // Material: 5,00 + 0,50 + 1,55 = 7,05 € → ×1,3 = 9,165; Lohn 24 min × 85 = 34,00
+    // VK = (9,165 + 34) × 1,2 = 51,798 → 51,80 €
+    expect(gewerke[0].positionen[0].vk_netto_einheit).toBe(51.8);
+    const b = String(gewerke[0].positionen[0].beschreibung);
+    expect(b).toContain("1× Art. 111");
+    expect(b).toContain("0.50× Art. 333");
+    expect(b).not.toContain("999-fremd");
+  });
+
   it("wendet den Gesamtaufschlag an, wenn übergeben (Kalibrierung wie Prompt-Formel)", () => {
     const gewerke = [{
       stundensatz: 85,

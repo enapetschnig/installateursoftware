@@ -122,7 +122,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
 
     const hits = await searchCatalogForTranscript(transcript);
     console.log(`\nGROSSHANDELS-RETRIEVAL: ${hits.length} Artikel`);
-    for (const h of hits.slice(0, 10)) {
+    for (const h of hits) {
       console.log(`  ${h.artikelnummer} | ${h.bezeichnung.slice(0, 56)} | EK ${(h.ek_cent / 100).toFixed(3)} €/${h.einheit}`);
     }
 
@@ -197,6 +197,9 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
       // Leitung als Meter-Position (keine Pauschal-Verklumpung der 20 m)
       expect(alle.some((p) => /^m|lfm/i.test(String(p.einheit ?? "")) && Number(p.menge) >= 15),
         "Leitungsverlegung fehlt als Meter-Position").toBe(true);
+      // Kern der Anforderung: Bauteile + Preise DIREKT vom Großhändler –
+      // mindestens 3 der 4 Positionen müssen eine Katalog-Stückliste tragen.
+      expect(mitKatalog.length, "zu wenige Positionen mit Großhändler-Stückliste").toBeGreaterThanOrEqual(3);
     }
 
     // WICHTIG: scope 'local' – der supabase-js-Default 'global' widerruft ALLE

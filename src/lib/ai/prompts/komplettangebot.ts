@@ -213,18 +213,30 @@ Regeln für die Neukalkulation (aus_preisliste: false) von Positionen mit Materi
   kalkuliere wie bisher (marktübliche Schätzung) – erfinde KEINE Artikelnummern.
 - Bei der Neukalkulation ist der VK einer UNPASSENDEN Preislisten-Position (anderer
   Materialtyp, anderer Umfang) TABU – niemals als Preisbasis übernehmen!
-- WICHTIG – DU RECHNEST DEN PREIS NICHT SELBST: Für jede Position, deren Material du aus dem
-  GROSSHANDELSKATALOG nimmst, gibst du im JSON drei ZUSATZFELDER an – das System berechnet
-  daraus den exakten Preis (EK × Materialaufschlag + Arbeitszeit × Stundensatz):
-    "material_artikelnummer": "12015982432"   ← exakt aus dem Block kopiert
-    "material_menge_pro_einheit": 1           ← Materialmenge je Abrechnungseinheit (meist 1)
-    "arbeitszeit_min_einheit": 6              ← Montage-/Verlegezeit in MINUTEN je Einheit
+- WICHTIG – DU RECHNEST DEN PREIS NICHT SELBST: Für JEDE Position mit Materialanteil gibst du
+  im JSON die komplette MATERIAL-STÜCKLISTE aus dem Katalog-Block an – das System summiert die
+  echten EKs und berechnet den Preis (Σ EK × Materialaufschlag + Arbeitszeit × Stundensatz):
+    "material_stueckliste": [                  ← ALLE Bauteile der Position, je mit Menge
+      { "artikelnummer": "120346601", "menge_pro_einheit": 1 },
+      { "artikelnummer": "120356382", "menge_pro_einheit": 0.5 }
+    ],
+    "arbeitszeit_min_einheit": 25              ← Montage-/Verlegezeit in MINUTEN je Einheit
+  Artikelnummern EXAKT aus dem Block kopieren – NIE erfinden. menge_pro_einheit ist die
+  Materialmenge je Abrechnungseinheit (anteilige Mengen erlaubt: ein 2-fach-Rahmen für
+  2 Steckdosen = 0.5 je Steckdose).
+  VOLLSTÄNDIGE STÜCKLISTEN – der Betrieb bestellt danach beim Großhändler:
+    • Steckdosen-/Schalter-Auslass: Einsatz + UP-/Gerätedose + (anteiliger) Rahmen
+    • Doppelsteckdose: 2-fach-Einsatz oder 2 Einsätze + 2-fach-Rahmen + 2 Dosen
+    • Unterverteiler: Kleinverteiler + FI-Schutzschalter + LS-Automat JE Stromkreis + Klemmen
+    • Leitung: der Leitungsartikel je m (menge_pro_einheit 1 bei Einheit "m")
+  Fehlt ein benötigtes Bauteil im Katalog-Block, nimm es NICHT in die Stückliste auf,
+  sondern vermerke es im "hinweis" der Position ("EK für <Bauteil> prüfen").
   Setze vk_netto_einheit bei diesen Positionen auf deine grobe Schätzung – sie wird überschrieben.
   Verwende dabei IMMER die Leistungsnummer XX-NEU (z. B. 05-NEU), NIEMALS die Nummer einer
   vorhandenen Preislisten-Position.
   BEISPIEL "25 m NYM-J 3x1,5 verlegen" mit Katalog-Artikel 12015982432:
     leistungsnummer "05-NEU", einheit "m", menge 25, arbeitszeit_min_einheit 6,
-    material_artikelnummer "12015982432", material_menge_pro_einheit 1.
+    material_stueckliste [{ "artikelnummer": "12015982432", "menge_pro_einheit": 1 }].
 
 SYNONYM-TABELLE für Katalog-Suche (IMMER die Preisliste durchsuchen!):
 "abscheren"/"Farbe abscheren"/"alte Farbe entfernen"/"Farbschichten" → Suche 09-0xx Positionen (Maler)
@@ -675,9 +687,33 @@ AUSGABE: Antworte NUR mit einem JSON-Objekt:
           "aus_preisliste": false,
           "unsicher": false,
           "hinweis": ""
+        },
+        {
+          "leistungsnummer": "05-NEU",
+          "leistungsname": "Steckdose Unterputz setzen",
+          "beschreibung": "SCHUKO-Steckdose komplett mit Gerätedose und Rahmen",
+          "menge": 4,
+          "einheit": "Stk",
+          "vk_netto_einheit": 95.00,
+          "gesamtpreis": 380.00,
+          "materialkosten_einheit": 12.00,
+          "materialanteil_prozent": 13,
+          "lohnkosten_minuten": 25,
+          "stundensatz": 90,
+          "lohnkosten_einheit": 37.50,
+          "lohnanteil_prozent": 87,
+          "aus_preisliste": false,
+          "material_stueckliste": [
+            { "artikelnummer": "120127142", "menge_pro_einheit": 1 },
+            { "artikelnummer": "120017727", "menge_pro_einheit": 1 },
+            { "artikelnummer": "120520796", "menge_pro_einheit": 1 }
+          ],
+          "arbeitszeit_min_einheit": 25,
+          "unsicher": false,
+          "hinweis": ""
         }
       ],
-      "zwischensumme": 150.00
+      "zwischensumme": 530.00
     }
   ],
   "netto": 5000.00,

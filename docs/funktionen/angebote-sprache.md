@@ -142,3 +142,22 @@ automatische Baustelleneinrichtung + Reinigungsposition). Das ist jetzt **konfig
 aktive Gewerke nur ELEKTRIKER + ELEKTROZULEITUNG; Bau-Trades und 01-/13-Leistungen deaktiviert
 (reversibel über `active`-Flags). Live-Testfall: `VOICE_LIVE=1 VOICE_SZENARIO=6` (realer Praxisfall
 „Zubau mit Unterverteilung, 4×2 Steckdosen, SAT, 20 m 3x1,5").
+
+## Material-Stücklisten je Position (Stand 2026-07-10, Abend)
+
+Jede materialbehaftete Position trägt jetzt ihre **komplette Stückliste aus dem
+Großhandelskatalog** – nicht nur einen Artikel:
+
+- KI-Schema: `material_stueckliste: [{artikelnummer, menge_pro_einheit}]` je Position
+  (anteilige Mengen erlaubt, z. B. 0.5 Rahmen je Steckdose einer 2er-Kombination);
+  `material_artikelnummer` bleibt als Legacy-Fallback.
+- `applyWholesalePricing` (wholesale.ts) summiert die echten Bauteil-EKs
+  (nur Artikel, die wirklich im Retrieval-Block standen – erfundene Nummern werden
+  ignoriert) und rechnet: `(Σ EK × (1+Materialaufschlag) + Min/60×Satz) × (1+Gesamtaufschlag)`.
+  Die Stückliste steht sichtbar in der Positionsbeschreibung („n× Art. … Bezeichnung").
+- Beispiele aus dem Live-Test (Szenario 6): Unterverteiler = Kombi-Verteiler UP 24 PE
+  + FI 40 A + 4× LS B16; Doppelsteckdose = 2× SCHUKO-Einsatz + 2× Gerätedose + Rahmen;
+  SAT = Antennendose + Gerätedose + Rahmen.
+- Retrieval liefert die Nebenteile mit (Synonym-Erweiterung: Gerätedose, Rahmen,
+  FI/LS, SCHUKO; maxTotal 48). Fehlt ein Bauteil im Block, vermerkt die KI es im
+  Positions-`hinweis` („EK für <Bauteil> prüfen") statt zu raten.

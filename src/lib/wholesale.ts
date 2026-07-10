@@ -91,9 +91,13 @@ function brandTokens(originalSegment: string): Set<string> {
 // Leitungslänge 200mm) statt NYM-Leitung und Kleinverteiler. Branchen-, nicht
 // firmenspezifisch – gilt für jeden Elektro-/Sanitärbetrieb (mandantenneutral).
 const SPOKEN_SYNONYM_QUERIES: Array<{ wenn: RegExp; queries: string[] }> = [
-  { wenn: /unterverteil|verteilerkasten|sicherungskasten|z(ä|ae)hlerkasten/i, queries: ["kleinverteiler", "verteiler unterputz"] },
+  // Verteiler = Kleinverteiler + Schutzorgane: FI und LS gehören zur Stückliste.
+  { wenn: /unterverteil|verteilerkasten|sicherungskasten|z(ä|ae)hlerkasten/i,
+    queries: ["kleinverteiler", "verteiler unterputz", "fehlerstromschutzschalter 40a", "leitungsschutzschalter b16"] },
   { wenn: /sat[- ]?steckdose|antennensteckdose|antennendose/i, queries: ["antennendose", "antennensteckdose sat"] },
-  { wenn: /steckdose/i, queries: ["steckdose"] },
+  // Steckdosen-Auslass = Einsatz + UP-Dose + Rahmen (Komponenten mitsuchen).
+  { wenn: /doppelsteckdose/i, queries: ["steckdose 2-fach", "doppelsteckdose"] },
+  { wenn: /steckdose/i, queries: ["schuko-steckdose", "steckdose", "gerätedose unterputz", "rahmen 1-fach"] },
   { wenn: /fi[- /]?(schalter|schutz)|fehlerstrom/i, queries: ["fehlerstromschutzschalter", "fi/ls"] },
   { wenn: /brennstelle|lampenauslass|deckenauslass/i, queries: ["deckenauslass", "anschlussdose"] },
   { wenn: /leerrohr/i, queries: ["installationsrohr"] },
@@ -173,7 +177,9 @@ export async function searchCatalogForTranscript(
   opts: { perQuery?: number; maxTotal?: number } = {},
 ): Promise<CatalogHit[]> {
   const perQuery = opts.perQuery ?? 4;
-  const maxTotal = opts.maxTotal ?? 36;
+  // 48 statt 36: Stücklisten brauchen auch die Nebenteile (Dosen, Rahmen,
+  // FI/LS) – mit 36 wurden die zuletzt gefundenen Komponenten abgeschnitten.
+  const maxTotal = opts.maxTotal ?? 48;
   const queries = extractSearchQueries(transcript);
   if (queries.length === 0) return [];
 
@@ -249,6 +255,12 @@ export function calcWholesaleVk(i: WholesaleCalcInput): number {
   return round2((materialEuro + lohnEuro) * (1 + (i.aufschlagGesamtProzent ?? 0) / 100));
 }
 
+/** Ein Bauteil der Material-Stückliste einer Position (aus dem Katalog-Block). */
+export interface VoiceMaterialTeil {
+  artikelnummer?: string | null;
+  menge_pro_einheit?: number | null;
+}
+
 interface VoicePositionLike {
   leistungsnummer?: string | null;
   leistungsname?: string | null;
@@ -260,6 +272,10 @@ interface VoicePositionLike {
   stundensatz?: number | null;
   preis_deterministisch?: boolean | null;
   // Von der KI gelieferte Material-Fakten (optional):
+  // BEVORZUGT: komplette Stückliste (mehrere Bauteile je Position – Verteiler =
+  // Kleinverteiler + FI + LS; Steckdose = UP-Dose + Einsatz + Rahmen).
+  material_stueckliste?: VoiceMaterialTeil[] | null;
+  // Legacy/einfach: genau ein Artikel.
   material_artikelnummer?: string | null;
   material_menge_pro_einheit?: number | null;
   arbeitszeit_min_einheit?: number | null;
@@ -267,9 +283,11 @@ interface VoicePositionLike {
 interface VoiceGewerkLike { name?: string; stundensatz?: number; positionen?: VoicePositionLike[] }
 
 /**
- * Überschreibt den VK aller Positionen, die eine `material_artikelnummer`
- * aus dem Großhandels-Block tragen, mit der deterministischen Kalkulation.
- * Positionen aus der eigenen Preisliste (aus_preisliste=true) bleiben unberührt.
+ * Überschreibt den VK aller Positionen, die Material aus dem Großhandels-Block
+ * tragen, mit der deterministischen Kalkulation. Bevorzugt die komplette
+ * `material_stueckliste` (Summe aller Bauteil-EKs), fällt auf die einzelne
+ * `material_artikelnummer` zurück. Positionen aus der eigenen Preisliste
+ * (aus_preisliste=true) bleiben unberührt.
  * Gibt die Anzahl der neu bepreisten Positionen zurück.
  */
 export function applyWholesalePricing(
@@ -290,13 +308,26 @@ export function applyWholesalePricing(
   for (const g of gewerke) {
     for (const p of g.positionen ?? []) {
       if (p.aus_preisliste) continue;
-      const artnr = (p.material_artikelnummer ?? "").trim();
-      const hit = artnr ? byArtnr.get(artnr) : undefined;
-      if (!hit) continue;
+      // Stückliste zusammenstellen: bevorzugt material_stueckliste (mehrere
+      // Bauteile), sonst die einzelne material_artikelnummer. Nur Artikel,
+      // die wirklich im Katalog-Block standen (byArtnr) – keine erfundenen.
+      const teile: Array<{ hit: CatalogHit; menge: number }> = [];
+      for (const t of p.material_stueckliste ?? []) {
+        const nr = String(t?.artikelnummer ?? "").trim();
+        const hit = nr ? byArtnr.get(nr) : undefined;
+        if (!hit) continue;
+        teile.push({ hit, menge: Math.max(0, Number(t?.menge_pro_einheit ?? 1) || 1) });
+      }
+      if (teile.length === 0) {
+        const artnr = (p.material_artikelnummer ?? "").trim();
+        const hit = artnr ? byArtnr.get(artnr) : undefined;
+        if (hit) teile.push({ hit, menge: Math.max(0, Number(p.material_menge_pro_einheit ?? 1) || 1) });
+      }
+      if (teile.length === 0) continue;
       const satz = Number(p.stundensatz ?? g.stundensatz ?? opts.stundensatzDefault) || opts.stundensatzDefault;
+      const materialEkCent = teile.reduce((sum, t) => sum + t.hit.ek_cent * t.menge, 0);
       const vk = calcWholesaleVk({
-        ekCent: hit.ek_cent,
-        mengeProEinheit: Number(p.material_menge_pro_einheit ?? 1) || 1,
+        ekCent: materialEkCent,
         minuten: Number(p.arbeitszeit_min_einheit ?? 0) || 0,
         stundensatz: satz,
         aufschlagMaterialProzent: opts.aufschlagMaterialProzent,
@@ -305,7 +336,7 @@ export function applyWholesalePricing(
       if (vk <= 0) continue;
       p.vk_netto_einheit = vk;
       p.preis_deterministisch = true; // Pipeline: nicht erneut ableiten/anheben
-      annotate(p, hit);
+      annotateStueckliste(p, teile);
       count++;
     }
     // NOTNAGEL: Neu-Kalkulationen, die ohne Preis (≤ 0) aus der KI kommen und
@@ -331,6 +362,20 @@ export function applyWholesalePricing(
     }
   }
   return count;
+}
+
+/** Schreibt die komplette Stückliste (n× Art. … Bezeichnung) in die Beschreibung. */
+function annotateStueckliste(p: VoicePositionLike, teile: Array<{ hit: CatalogHit; menge: number }>): void {
+  if (teile.length === 1 && teile[0].menge === 1) { annotate(p, teile[0].hit); return; }
+  const zeilen = teile.map((t) =>
+    `${t.menge % 1 === 0 ? t.menge : t.menge.toFixed(2)}× Art. ${t.hit.artikelnummer} ${t.hit.bezeichnung.slice(0, 50)}`);
+  const metall = teile.some((t) => t.hit.metall);
+  const hinweis = `Material lt. Großhandelskatalog: ${zeilen.join(" | ")}` +
+    (metall ? " – zzgl. tagesaktueller Metallzuschlag" : "");
+  const besch = String(p.beschreibung ?? "").trim();
+  if (!besch.includes(teile[0].hit.artikelnummer)) {
+    p.beschreibung = besch ? `${besch}\n${hinweis}` : hinweis;
+  }
 }
 
 function annotate(p: VoicePositionLike, hit: CatalogHit, suffix = ""): void {
