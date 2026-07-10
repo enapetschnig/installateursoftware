@@ -349,7 +349,13 @@ export default async function handler(req, res) {
   }
   const oaMessages = [{ role: "system", content: system },
     ...messages.filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").map((m) => ({ role: m.role, content: m.content }))];
-  const model = process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
+  // Modellwahl nach Aufgabe: Das Sprach-Komplettangebot (JSON-Modus) braucht
+  // das stärkere Modell – gpt-4o-mini wählte nachweislich falsche Positions-
+  // Titel/Zuordnungen. Isabella-Chat/Tools bleiben auf dem günstigen Modell.
+  // Überschreibbar per ENV: OPENAI_VOICE_MODEL (Voice) / OPENAI_CHAT_MODEL (Chat).
+  const model = jsonMode
+    ? (process.env.OPENAI_VOICE_MODEL || "gpt-4o")
+    : (process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini");
   const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content || "";
 
   // Request-Body bauen: JSON-Modus (Voice) ohne Tools, Default-Modus (Isabella) mit Tools.

@@ -129,6 +129,10 @@ PREISFINDUNG – REIHENFOLGE STRIKT EINHALTEN:
     mehr pro m² als Standard-Spachtelung und haben keinen Katalog-Eintrag.
 2. EINHEIT PRÜFEN: Die Einheit der Katalog-Position MUSS zur Anfrage passen! Wenn der User z.B. "40 Laufmeter" sagt, aber die Katalog-Position "pauschal" als Einheit hat, ist das KEINE passende Position → behandle sie wie "nicht gefunden" und kalkuliere NEU.
    Kompatible Einheiten: m² ↔ m², lfm ↔ lfm, Stk ↔ Stk, pauschal ↔ pauschal. NICHT kompatibel: pauschal ↔ lfm, pauschal ↔ m², Paar ↔ lfm, etc.
+2a. RAUM/BEREICH PRÜFEN: Die Katalog-Position muss zum RAUM bzw. BEREICH der Anfrage passen!
+   Eine Position "Abbruch bestehende Küche" ist NICHT passend für eine Bad-Demontage,
+   "Dachfenster" nicht für Badfenster usw. → behandle sie wie "nicht gefunden" und
+   kalkuliere NEU mit neutralem Titel (z. B. "Demontage und Entsorgung Bestandsbad").
 2b. UMFANG PRÜFEN: Die Katalog-Position muss auch im UMFANG passen! Positionen, deren Name eine
    KOMPLETT-/GESAMT-Leistung beschreibt ("gesamte Wohnung", "komplett", "Generalsanierung",
    "pro m² Wohnfläche"), sind NIEMALS passend für eine einzelne Teilleistung wie "25 m Kabel

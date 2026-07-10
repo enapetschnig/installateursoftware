@@ -58,6 +58,16 @@ function isMeaningful(word: string): boolean {
   return w.length >= 3 || /\d/.test(w);
 }
 
+/** Großgeschriebene Wörter im Originaltext = vermutlich Marken/Typen (Grohe, Laufen, Gira). */
+function brandTokens(originalSegment: string): Set<string> {
+  const brands = new Set<string>();
+  for (const w of originalSegment.split(/\s+/)) {
+    const clean = w.replace(/[^A-Za-zÄÖÜäöüß0-9-]/g, "");
+    if (/^[A-ZÄÖÜ][a-zäöüß]{2,}$/.test(clean)) brands.add(clean.toLowerCase());
+  }
+  return brands;
+}
+
 /** Zerlegt ein Transkript in Such-Queries (max. `maxQueries`). */
 export function extractSearchQueries(transcript: string, maxQueries = 12): string[] {
   // Dezimal-Kommas schützen (deutsche Dimensionen wie "3x1,5" oder "2,5 mm²"
@@ -77,13 +87,15 @@ export function extractSearchQueries(transcript: string, maxQueries = 12): strin
     if (/^betrifft\s*:/i.test(seg.trim())) continue;
     const words = seg.split(/\s+/).filter(isMeaningful);
     if (words.length === 0) continue;
-    // word_similarity braucht KOMPAKTE Phrasen: max. 3 Wörter, Wörter mit
-    // Ziffern (Dimensionen wie "3x1,5", "40a") werden priorisiert behalten.
+    // word_similarity braucht KOMPAKTE Phrasen: max. 3 Wörter. Priorität:
+    // Dimensionen ("3x1,5", "40a") und Marken/Typen (Grohe, Laufen) vor Rest –
+    // Satzanfangs-Wörter zählen nicht als Marke.
     let pick = words;
     if (pick.length > 3) {
-      const dims = pick.filter((w) => /\d/.test(w));
-      const rest = pick.filter((w) => !/\d/.test(w));
-      pick = [...rest.slice(0, Math.max(1, 3 - dims.length)), ...dims].slice(0, 3);
+      const brands = brandTokens(seg.split(/\s+/).slice(1).join(" "));
+      const prio = pick.filter((w) => /\d/.test(w) || brands.has(w.toLowerCase()));
+      const rest = pick.filter((w) => !prio.includes(w));
+      pick = [...rest.slice(0, Math.max(1, 3 - prio.length)), ...prio].slice(0, 3);
     }
     const q = pick.join(" ").toLowerCase();
     if (q.length < 4 || seen.has(q)) continue;

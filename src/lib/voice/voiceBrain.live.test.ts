@@ -75,11 +75,24 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
 
     // Sichtbar machen, was das Katalog-Retrieval liefert (Qualitätsurteil).
     const { searchCatalogForTranscript } = await import("../wholesale");
-    const transcript =
-      "Betrifft: Elektro- und Sanitärarbeiten Badumbau. " +
-      "Wir verlegen 25 Meter NYM-J 3x1,5 unter Putz, setzen 6 Schuko-Steckdosen unterputz " +
-      "und bauen einen FI-Schutzschalter 40A 30mA in den Verteiler ein. " +
-      "Dazu montieren wir ein Wand-WC mit Vorwandinstallation und einen Waschtisch mit Eckventilen.";
+    // Realistische Praxis-Szenarien eines österreichischen Installateur-/Elektrobetriebs.
+    const SZENARIO = Number(process.env.VOICE_SZENARIO || 1);
+    const transcripts: Record<number, string> = {
+      1:
+        "Betrifft: Elektro- und Sanitärarbeiten Badumbau. " +
+        "Wir verlegen 25 Meter NYM-J 3x1,5 unter Putz, setzen 6 Schuko-Steckdosen unterputz " +
+        "und bauen einen FI-Schutzschalter 40A 30mA in den Verteiler ein. " +
+        "Dazu montieren wir ein Wand-WC mit Vorwandinstallation und einen Waschtisch mit Eckventilen.",
+      2:
+        "Betrifft: Komplettsanierung Badezimmer, zirka acht Quadratmeter, Einfamilienhaus in Hallein. " +
+        "Altes Bad komplett demontieren und entsorgen. Dann eine bodengleiche Dusche mit Glasabtrennung, " +
+        "neunzig mal hundertzwanzig, einbauen, Abdichtung nach Norm. Wand-WC mit Unterputzspülkasten, " +
+        "Waschtisch mit Unterschrank und Spiegelschrank. Rund fünfundzwanzig Quadratmeter Wandfliesen " +
+        "und acht Quadratmeter Bodenfliesen verlegen. Armaturen für Dusche und Waschtisch von Grohe. " +
+        "Der Kunde will noch einen Handtuchheizkörper, den schließen wir ans Warmwasser an.",
+    };
+    const transcript = transcripts[SZENARIO] ?? transcripts[1];
+    console.log(`\n===== SZENARIO ${SZENARIO} =====`);
 
     const hits = await searchCatalogForTranscript(transcript);
     console.log(`\nGROSSHANDELS-RETRIEVAL: ${hits.length} Artikel`);
@@ -127,7 +140,11 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     }
     // Mindestens eine Position referenziert den Großhandelskatalog (echter EK verwendet)
     const mitKatalog = alle.filter((p) => String(p.beschreibung ?? "").includes("Großhandelskatalog"));
-    expect(mitKatalog.length, "keine Position nutzt den Großhandelskatalog").toBeGreaterThan(0);
+    if (SZENARIO === 1) {
+      expect(mitKatalog.length, "keine Position nutzt den Großhandelskatalog").toBeGreaterThan(0);
+    } else {
+      console.log(`Katalog-Positionen: ${mitKatalog.length}`);
+    }
 
     await supabase.auth.signOut();
   }, 180_000);
