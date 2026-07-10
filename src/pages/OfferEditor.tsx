@@ -1356,6 +1356,7 @@ export default function OfferEditor() {
         catalog={voiceStammdaten.catalog}
         stundensaetze={voiceStammdaten.stundensaetze}
         settings={voiceStammdaten.kalkSettings}
+        richtwerte={voiceStammdaten.richtwerte}
       />
 
       {/* Mitdenken: was die KI zum gesprochenen Auftrag noch klären würde.

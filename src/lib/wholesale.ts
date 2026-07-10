@@ -10,6 +10,7 @@
 // die DB-Suche, welche ~40 Artikel die KI zu sehen bekommt.
 // ============================================================
 import { supabase } from "./supabase";
+import { DocPosition, emptyPosition } from "./document-types";
 
 export interface CatalogHit {
   artikelnummer: string;
@@ -22,13 +23,29 @@ export interface CatalogHit {
   ean: string | null;
   metall: string | null;  // CU/AL → Metallzuschlag des Händlers kommt noch dazu
   score: number;
+  // Mehrlieferantenfähig (Migration 0149): gleiche Artikelnummern zweier
+  // Händler dürfen sich nicht vermischen; katalog_name = UI-Badge.
+  catalog_id: string | null;
+  katalog_name: string | null;
 }
 
+/** Kollisionsfreier Schlüssel eines Treffers (Katalog + Artikelnummer). */
+export const hitKey = (h: Pick<CatalogHit, "catalog_id" | "artikelnummer">): string =>
+  `${h.catalog_id ?? ""}:${h.artikelnummer}`;
+
 /** Direkte Katalog-Suche (auch für UI-Suchfelder verwendbar). */
-export async function searchCatalog(query: string, limit = 12): Promise<CatalogHit[]> {
+export async function searchCatalog(
+  query: string,
+  limit = 12,
+  opts: { catalogId?: string | null } = {},
+): Promise<CatalogHit[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  const { data, error } = await supabase.rpc("catalog_search", { p_query: q, p_limit: limit });
+  const { data, error } = await supabase.rpc("catalog_search", {
+    p_query: q,
+    p_limit: limit,
+    p_catalog_id: opts.catalogId ?? null,
+  });
   if (error) return []; // Suche ist Zusatznutzen – nie den Aufrufer crashen
   return (data as CatalogHit[]) ?? [];
 }
@@ -121,14 +138,17 @@ export async function searchCatalogForTranscript(
   if (queries.length === 0) return [];
 
   const results = await Promise.all(queries.map((q) => searchCatalog(q, perQuery)));
-  const byArtnr = new Map<string, CatalogHit>();
+  // Dedup je Katalog+Artikelnummer – zwei Händler mit gleicher Artikelnummer
+  // bleiben getrennte Treffer (Preise dürfen sich nicht überschreiben).
+  const byKey = new Map<string, CatalogHit>();
   for (const hits of results) {
     for (const h of hits) {
-      const prev = byArtnr.get(h.artikelnummer);
-      if (!prev || h.score > prev.score) byArtnr.set(h.artikelnummer, h);
+      const k = hitKey(h);
+      const prev = byKey.get(k);
+      if (!prev || h.score > prev.score) byKey.set(k, h);
     }
   }
-  return [...byArtnr.values()]
+  return [...byKey.values()]
     .sort((a, b) => b.score - a.score)
     .slice(0, maxTotal);
 }
@@ -136,10 +156,13 @@ export async function searchCatalogForTranscript(
 /** Baut den Prompt-Block mit echten Großhandels-EK-Preisen für die Voice-KI. */
 export function buildWholesaleBlock(hits: CatalogHit[]): string {
   if (hits.length === 0) return "";
+  // Lieferantenname nur anzeigen, wenn mehrere Kataloge im Spiel sind.
+  const mehrereKataloge = new Set(hits.map((h) => h.catalog_id ?? "")).size > 1;
   const lines = hits.map((h) => {
     const ekEur = (h.ek_cent / 100).toFixed(2).replace(".", ",");
     const metall = h.metall ? ` (+${h.metall}-Zuschlag)` : "";
-    return `${h.artikelnummer} | ${h.bezeichnung} | ${h.einheit ?? "STK"} | EK ${ekEur} €${metall}`;
+    const lieferant = mehrereKataloge && h.katalog_name ? ` | ${h.katalog_name}` : "";
+    return `${h.artikelnummer} | ${h.bezeichnung} | ${h.einheit ?? "STK"} | EK ${ekEur} €${metall}${lieferant}`;
   });
   return (
     "GROSSHANDELSKATALOG (echte Einkaufspreise deines Großhändlers, bereits rabattiert – Auszug passend zur Anfrage):\n" +
@@ -156,6 +179,34 @@ export function buildWholesaleBlock(hits: CatalogHit[]): string {
 export interface WholesalePricingOpts {
   aufschlagMaterialProzent: number;   // z. B. 30
   stundensatzDefault: number;         // €/h, z. B. 70
+  // Gesamtaufschlag (Gemeinkosten/Gewinn) auf Material+Lohn – identisch zur
+  // Prompt-Kalkulationsformel (Material×1,3 + Lohn)×1,2. Default 0 hält alte
+  // Aufrufer stabil; die Voice-Pipeline übergibt kalkSettings.aufschlagGesamt.
+  aufschlagGesamtProzent?: number;
+}
+
+const round2 = (n: number): number => Math.round((Number(n) || 0) * 100) / 100;
+
+/** Eingaben des deterministischen Preis-Kerns (eine Formel für Voice UND Editor). */
+export interface WholesaleCalcInput {
+  ekCent: number;                    // EK in Cent je 1 Einheit (aus CatalogHit)
+  mengeProEinheit?: number;          // Materialmenge je Abrechnungseinheit (Default 1)
+  minuten?: number;                  // Arbeitszeit je Einheit (Default 0 = reine Materialposition)
+  stundensatz: number;               // €/h
+  aufschlagMaterialProzent: number;
+  aufschlagGesamtProzent?: number;
+}
+
+/**
+ * DER Preis-Kern: VK = (EK×Menge×(1+Materialaufschlag) + Minuten/60×Satz) × (1+Gesamtaufschlag).
+ * Rundung erst auf die Summe (round2) – Cent-identisch für alle Aufrufer.
+ */
+export function calcWholesaleVk(i: WholesaleCalcInput): number {
+  const menge = Number(i.mengeProEinheit ?? 1) || 1;
+  const minuten = Math.max(0, Number(i.minuten ?? 0) || 0);
+  const materialEuro = (i.ekCent / 100) * menge * (1 + i.aufschlagMaterialProzent / 100);
+  const lohnEuro = (minuten / 60) * i.stundensatz;
+  return round2((materialEuro + lohnEuro) * (1 + (i.aufschlagGesamtProzent ?? 0) / 100));
 }
 
 interface VoicePositionLike {
@@ -167,6 +218,7 @@ interface VoicePositionLike {
   vk_netto_einheit?: number | null;
   aus_preisliste?: boolean | null;
   stundensatz?: number | null;
+  preis_deterministisch?: boolean | null;
   // Von der KI gelieferte Material-Fakten (optional):
   material_artikelnummer?: string | null;
   material_menge_pro_einheit?: number | null;
@@ -186,7 +238,14 @@ export function applyWholesalePricing(
   opts: WholesalePricingOpts,
 ): number {
   if (!hits.length) return 0;
-  const byArtnr = new Map(hits.map((h) => [h.artikelnummer, h]));
+  // Bei Artikelnummer-Kollision zweier Kataloge gewinnt der Treffer mit dem
+  // HÖCHSTEN Score (die KI referenziert nur die Artikelnummer; ein naives
+  // new Map(hits.map(...)) wäre last-wins = niedrigster Score).
+  const byArtnr = new Map<string, CatalogHit>();
+  for (const h of hits) {
+    const prev = byArtnr.get(h.artikelnummer);
+    if (!prev || h.score > prev.score) byArtnr.set(h.artikelnummer, h);
+  }
   let count = 0;
   for (const g of gewerke) {
     for (const p of g.positionen ?? []) {
@@ -194,14 +253,18 @@ export function applyWholesalePricing(
       const artnr = (p.material_artikelnummer ?? "").trim();
       const hit = artnr ? byArtnr.get(artnr) : undefined;
       if (!hit) continue;
-      const mengeProEinheit = Number(p.material_menge_pro_einheit ?? 1) || 1;
-      const minuten = Math.max(0, Number(p.arbeitszeit_min_einheit ?? 0) || 0);
       const satz = Number(p.stundensatz ?? g.stundensatz ?? opts.stundensatzDefault) || opts.stundensatzDefault;
-      const materialEuro = (hit.ek_cent / 100) * mengeProEinheit * (1 + opts.aufschlagMaterialProzent / 100);
-      const lohnEuro = (minuten / 60) * satz;
-      const vk = Math.round((materialEuro + lohnEuro) * 100) / 100;
+      const vk = calcWholesaleVk({
+        ekCent: hit.ek_cent,
+        mengeProEinheit: Number(p.material_menge_pro_einheit ?? 1) || 1,
+        minuten: Number(p.arbeitszeit_min_einheit ?? 0) || 0,
+        stundensatz: satz,
+        aufschlagMaterialProzent: opts.aufschlagMaterialProzent,
+        aufschlagGesamtProzent: opts.aufschlagGesamtProzent,
+      });
       if (vk <= 0) continue;
       p.vk_netto_einheit = vk;
+      p.preis_deterministisch = true; // Pipeline: nicht erneut ableiten/anheben
       annotate(p, hit);
       count++;
     }
@@ -212,12 +275,17 @@ export function applyWholesalePricing(
       if (p.aus_preisliste || Number(p.vk_netto_einheit ?? 0) > 0) continue;
       const hit = bestTokenMatch(`${p.leistungsname ?? ""} ${p.beschreibung ?? ""}`, hits);
       if (!hit) continue;
-      const minuten = defaultMinuten(p.einheit);
       const satz = Number(p.stundensatz ?? g.stundensatz ?? opts.stundensatzDefault) || opts.stundensatzDefault;
-      const materialEuro = (hit.ek_cent / 100) * (1 + opts.aufschlagMaterialProzent / 100);
-      const vk = Math.round((materialEuro + (minuten / 60) * satz) * 100) / 100;
+      const vk = calcWholesaleVk({
+        ekCent: hit.ek_cent,
+        minuten: defaultMinuten(p.einheit),
+        stundensatz: satz,
+        aufschlagMaterialProzent: opts.aufschlagMaterialProzent,
+        aufschlagGesamtProzent: opts.aufschlagGesamtProzent,
+      });
       if (vk <= 0) continue;
       p.vk_netto_einheit = vk;
+      p.preis_deterministisch = true; // Pipeline: nicht erneut ableiten/anheben
       annotate(p, hit, " (automatisch nachkalkuliert)");
       count++;
     }
@@ -240,6 +308,70 @@ function defaultMinuten(einheit?: string | null): number {
   if (/^(m|lfm|mtr|meter)/.test(e)) return 6;
   if (/^(stk|st|pce|stück)/.test(e)) return 20;
   return 15;
+}
+
+// ── Katalog-Treffer → Dokument-Position (manueller Picker im Editor) ────────
+// Genutzt von ContentSidebar/MultiInsertModal in ALLEN Dokument-Editoren
+// (Angebot, Auftrag, Rechnung, Nachtrag). Gleicher Preis-Kern wie die
+// Voice-Pipeline → EINE Preiswelt, keine Doppellogik.
+
+/** Datanorm-Einheiten auf App-Einheiten mappen (PCE→Stk, MTR→m …). */
+export function normalizeCatalogUnit(einheit: string | null | undefined): string {
+  const e = (einheit ?? "").trim().toUpperCase();
+  if (!e) return "Stk";
+  if (["PCE", "ST", "STK", "STCK", "C62"].includes(e)) return "Stk";
+  if (["MTR", "M", "LFM"].includes(e)) return "m";
+  if (["MTK", "M2", "QM"].includes(e)) return "m²";
+  if (["PAA", "PR"].includes(e)) return "Paar";
+  if (["SET", "SA"].includes(e)) return "Set";
+  if (["PAK", "PK"].includes(e)) return "Pkg";
+  if (["ROL", "RO"].includes(e)) return "Rolle";
+  if (["KGM", "KG"].includes(e)) return "kg";
+  return einheit as string; // unbekannt → Original beibehalten
+}
+
+export interface CatalogHitToPositionOpts {
+  kalk: { aufschlagMaterial: number; aufschlagGesamt?: number; stundensatzDefault: number };
+  qty?: number;          // Default 1
+  minuten?: number;      // Arbeitszeit je Einheit; Default 0 = reine Materialposition
+  stundensatz?: number;  // überschreibt kalk.stundensatzDefault
+  vatRate?: number;      // MUSS vom Dokument kommen (Reverse Charge §19: 0) – Default 20
+}
+
+/**
+ * Macht aus einem Katalog-Treffer eine fertige Dokument-Position.
+ * unit_price = deterministischer VK (calcWholesaleVk), unit_cost/material_cost = EK.
+ * surcharge_baked=true: der Standardaufschlag ist bereits im VK enthalten –
+ * applySurchargeToPositions darf beim Speichern nicht noch einmal aufschlagen
+ * (gleiche Konvention wie heroToDocPositions für Voice-Positionen).
+ */
+export function catalogHitToDocPosition(hit: CatalogHit, opts: CatalogHitToPositionOpts): DocPosition {
+  const ekEuro = round2(hit.ek_cent / 100);
+  const minuten = Math.max(0, Number(opts.minuten ?? 0) || 0);
+  const vk = calcWholesaleVk({
+    ekCent: hit.ek_cent,
+    minuten,
+    stundensatz: Number(opts.stundensatz ?? opts.kalk.stundensatzDefault) || opts.kalk.stundensatzDefault,
+    aufschlagMaterialProzent: opts.kalk.aufschlagMaterial,
+    aufschlagGesamtProzent: opts.kalk.aufschlagGesamt,
+  });
+  const lieferant = hit.katalog_name ? ` (${hit.katalog_name})` : "";
+  const beschreibung =
+    `Art. ${hit.artikelnummer} lt. Großhandelskatalog${lieferant}` +
+    (hit.metall ? ", zzgl. tagesaktueller Metallzuschlag" : "");
+  return emptyPosition("free", {
+    name: hit.bezeichnung,
+    description: beschreibung,
+    qty: Math.max(0.01, Number(opts.qty ?? 1) || 1),
+    unit: normalizeCatalogUnit(hit.einheit),
+    unit_price: vk,
+    unit_cost: ekEuro,
+    material_cost: ekEuro,
+    labor_minutes: minuten,
+    vat_rate: Number.isFinite(opts.vatRate as number) ? (opts.vatRate as number) : 20,
+    surcharge_baked: true,
+    price_overridden: false,
+  });
 }
 
 /** Bestes Katalog-Match über gemeinsame Fach-Tokens (mind. ein Ziffern-Token wie "3x1,5"). */

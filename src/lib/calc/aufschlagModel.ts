@@ -101,6 +101,11 @@ export function verifyAufschlaege(
 ): Position {
   if (!pos) return pos
 
+  // Deterministisch aus dem Großhandels-EK bepreiste Positionen NIE anheben –
+  // der Gesamtaufschlag steckt bereits im VK (calcWholesaleVk); ein erneutes
+  // vkSoll = (mat×Aufschlag + Lohn)×Aufschlag wäre ein Doppelaufschlag.
+  if (pos.preis_deterministisch) return pos
+
   // Katalog-Spezial-Positionen NIE anfassen
   if (pos.aus_preisliste === true && isSpezialPos(pos)) return pos
 

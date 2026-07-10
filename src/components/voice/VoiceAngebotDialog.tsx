@@ -50,6 +50,7 @@ import {
 } from '../../lib/ai/prompts/base'
 import { runCalcPipeline } from '../../lib/calc/pipeline'
 import { logVoiceTranscript } from '../../lib/voice/logVoiceTranscript'
+import type { Richtwert } from '../../lib/voice/loadStammdatenForVoice'
 import { searchCatalogForTranscript, buildWholesaleBlock, applyWholesalePricing, type CatalogHit } from '../../lib/wholesale'
 import type {
   Catalog,
@@ -79,6 +80,8 @@ export interface VoiceAngebotDialogProps {
   catalog?: Catalog
   stundensaetze?: StundensaetzeMap
   settings?: KalkSettings
+  /** Handelsübliche Richtwert-Spannen (Migr. 0150). */
+  richtwerte?: Richtwert[]
   // ── Test-Injection-Points ────────────────────────────────────────────────
   /** Override fuer aiComplete (Tests). */
   aiCompleteImpl?: (opts: AiCompleteOpts) => Promise<AiCompleteResult>
@@ -164,6 +167,8 @@ export interface RunVoiceAngebotArgs {
   catalog: Catalog
   stundensaetze: StundensaetzeMap
   settings: KalkSettings
+  /** Handelsübliche Richtwert-Spannen (Migr. 0150) – Prompt-Kalibrierung + Guard. */
+  richtwerte?: Richtwert[]
   onStatus?: (s: VoiceAngebotStatus) => void
 }
 
@@ -177,7 +182,7 @@ export interface RunVoiceAngebotResult {
  * in Neu-Kalkulationen. Erfindet KEINE Preise – sie meldet nur Prüf-Hinweise
  * (Mitdenken-Prinzip: aufzeigen statt raten).
  */
-export function plausibilityHints(gewerke: Gewerk[]): string[] {
+export function plausibilityHints(gewerke: Gewerk[], richtwerte: Richtwert[] = []): string[] {
   const hints: string[] = []
   const arbeit = /demontage|montage|einbau|ausbau|installation|austausch|tausch|entsorgung|verlegen|anschließen|abdichten|sanierung/i
   for (const g of gewerke) {
@@ -186,6 +191,24 @@ export function plausibilityHints(gewerke: Gewerk[]): string[] {
       const menge = Number(p.menge ?? 0)
       const einheit = String(p.einheit ?? '').toLowerCase()
       const name = String(p.leistungsname ?? '')
+      // Datengetriebene Richtwert-Prüfung (company_settings.kalk_richtwerte):
+      // Neu-Kalkulationen außerhalb der handelsüblichen Spanne melden –
+      // nur Hinweis, nie Preisänderung. Faktor 0,7/1,3 = Toleranz gegen
+      // legitime Sonderfälle (Altbau, Anfahrt, Materialqualität).
+      if (!p.aus_preisliste && vk > 0) {
+        for (const r of richtwerte) {
+          let re: RegExp
+          try { re = new RegExp(r.stichwort, 'i') } catch { continue }
+          if (!re.test(name)) continue
+          if (vk < r.vk_min * 0.7 || vk > r.vk_max * 1.3) {
+            hints.push(
+              `Prüfen: „${name}“ – ${vk.toFixed(2)} € liegt außerhalb des handelsüblichen Richtwerts ` +
+              `${r.vk_min}–${r.vk_max} € (${r.bezeichnung}).`,
+            )
+          }
+          break // nur der erste passende Richtwert je Position
+        }
+      }
       // Gilt für ALLE Positionen (auch Preisliste): 0-€-Zeilen und
       // Mengen-Ausreißer bei Pauschalen dürfen nie unbemerkt durchrutschen.
       if (vk <= 0) {
@@ -228,6 +251,7 @@ export async function runVoiceAngebot(
     stundensaetze: args.stundensaetze,
     aufschlagGesamt: args.settings.aufschlagGesamt,
     aufschlagMaterial: args.settings.aufschlagMaterial,
+    richtwerte: args.richtwerte,
   }
   const systemPrompt = buildPrompt(KOMPLETT_ANGEBOT_PROMPT, promptCtx)
 
@@ -308,6 +332,9 @@ export async function runVoiceAngebot(
   applyWholesalePricing(gewerke, wholesaleHits, {
     aufschlagMaterialProzent: args.settings.aufschlagMaterial,
     stundensatzDefault: args.settings.stundensatzDefault,
+    // Gleiche Kalibrierung wie die Prompt-Formel (Material×1,3 + Lohn)×1,2 –
+    // ohne Gesamtaufschlag lagen Katalog-Positionen systematisch ~17 % zu tief.
+    aufschlagGesamtProzent: args.settings.aufschlagGesamt,
   })
 
   const processed = deps.runCalcPipeline(gewerke, {
@@ -332,7 +359,7 @@ export async function runVoiceAngebot(
   const kiHinweise = (Array.isArray(parsed?.fehlt_moeglicherweise) ? parsed.fehlt_moeglicherweise : [])
     .filter((h): h is string => typeof h === 'string' && h.trim().length > 0)
     .map((h) => `Prüfen: ${h.trim()}`)
-    .concat(plausibilityHints(processed))
+    .concat(plausibilityHints(processed, args.richtwerte ?? []))
 
   const alleHinweise = [...hinweise, ...kiHinweise]
   const meta: VoiceAngebotDialogMeta = {
@@ -356,6 +383,7 @@ export function VoiceAngebotDialog({
   catalog,
   stundensaetze,
   settings,
+  richtwerte,
   aiCompleteImpl,
   runCalcPipelineImpl,
   extractErgaenzungenHinweiseImpl,
@@ -411,6 +439,7 @@ export function VoiceAngebotDialog({
             catalog: catalog ?? { positionen: [] },
             stundensaetze: stundensaetze ?? {},
             settings: settings ?? DEFAULT_KALK_SETTINGS,
+            richtwerte: richtwerte ?? [],
             onStatus: setStatus,
           },
           deps,
@@ -431,7 +460,7 @@ export function VoiceAngebotDialog({
         setStatus({ phase: 'error', error: msg })
       }
     },
-    [isBusy, organizationName, catalog, stundensaetze, settings, deps, onComplete],
+    [isBusy, organizationName, catalog, stundensaetze, settings, richtwerte, deps, onComplete],
   )
 
   // Wir nutzen die zentrale b4y `Modal`-Komponente (Portal, Scroll-Lock,

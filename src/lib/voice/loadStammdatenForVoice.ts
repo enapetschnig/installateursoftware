@@ -19,6 +19,16 @@ import { DEFAULT_KALK_SETTINGS } from "../calc/types";
 import type { Service, HourlyRate, Trade } from "../calc-types";
 import { isReservedSpecialServiceNumber } from "../service-numbers";
 
+/** Handelsüblicher VK-Richtwert je Leistungskategorie (company_settings.kalk_richtwerte, Migr. 0150). */
+export interface Richtwert {
+  /** Regex (case-insensitive) auf den Positionsnamen, z. B. "steckdose|schalter". */
+  stichwort: string;
+  bezeichnung: string;
+  einheit?: string | null;
+  vk_min: number;
+  vk_max: number;
+}
+
 export interface VoiceStammdaten {
   /** Aktive Stamm-Leistungen (zum Bezug von service_id beim Konvertieren). */
   services: Service[];
@@ -28,6 +38,8 @@ export interface VoiceStammdaten {
   stundensaetze: StundensaetzeMap;
   /** Kalkulations-Parameter aus company_settings (Migr. 0125). */
   kalkSettings: KalkSettings;
+  /** Handelsübliche Richtwert-Spannen (Migr. 0150) – Prompt-Kalibrierung + Plausibilitäts-Guard. */
+  richtwerte: Richtwert[];
 }
 
 export const EMPTY_VOICE_STAMMDATEN: VoiceStammdaten = {
@@ -35,7 +47,30 @@ export const EMPTY_VOICE_STAMMDATEN: VoiceStammdaten = {
   catalog: { positionen: [] },
   stundensaetze: {},
   kalkSettings: DEFAULT_KALK_SETTINGS,
+  richtwerte: [],
 };
+
+/** Validiert das JSONB-Array aus company_settings.kalk_richtwerte (tolerant, kein Throw). */
+export function parseRichtwerte(raw: unknown): Richtwert[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Richtwert[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== "object") continue;
+    const o = r as Record<string, unknown>;
+    const stichwort = typeof o.stichwort === "string" ? o.stichwort.trim() : "";
+    const min = Number(o.vk_min), max = Number(o.vk_max);
+    if (!stichwort || !Number.isFinite(min) || !Number.isFinite(max) || max <= 0) continue;
+    try { new RegExp(stichwort, "i"); } catch { continue; } // kaputte Regex überspringen
+    out.push({
+      stichwort,
+      bezeichnung: typeof o.bezeichnung === "string" ? o.bezeichnung : stichwort,
+      einheit: typeof o.einheit === "string" ? o.einheit : null,
+      vk_min: Math.max(0, min),
+      vk_max: max,
+    });
+  }
+  return out;
+}
 
 /**
  * Lädt aktive Services + HourlyRates + Trades aus Supabase und baut daraus
@@ -56,7 +91,7 @@ export async function loadStammdatenForVoice(
       supabase
         .from("company_settings")
         .select(
-          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap",
+          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap, kalk_richtwerte",
         )
         .limit(1)
         .maybeSingle(),
@@ -64,14 +99,35 @@ export async function loadStammdatenForVoice(
     const services = (svcRes.data as Service[]) ?? [];
     const hourlyRates = (hrRes.data as HourlyRate[]) ?? [];
     const trades = (trRes.data as Trade[]) ?? [];
+    const csRow = (csRes?.data ?? null) as ({ kalk_richtwerte?: unknown } & Parameters<typeof kalkSettingsFromCompanyRow>[0]) | null;
     return {
       services,
       catalog: servicesToCatalog(services, trades),
       stundensaetze: buildStundensaetzeMap(hourlyRates, trades),
-      kalkSettings: kalkSettingsFromCompanyRow(csRes?.data ?? null),
+      kalkSettings: kalkSettingsFromCompanyRow(csRow),
+      richtwerte: parseRichtwerte(csRow?.kalk_richtwerte),
     };
   } catch {
     return EMPTY_VOICE_STAMMDATEN;
+  }
+}
+
+/**
+ * Schlanke Variante für den Katalog-Picker im Dokument-Editor: nur die
+ * Kalkulations-Parameter (ohne Services/Stundensätze). Fehler → Defaults.
+ */
+export async function loadKalkSettings(
+  supabase: typeof defaultSupabase = defaultSupabase,
+): Promise<KalkSettings> {
+  try {
+    const { data } = await supabase
+      .from("company_settings")
+      .select("kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap")
+      .limit(1)
+      .maybeSingle();
+    return kalkSettingsFromCompanyRow(data ?? null);
+  } catch {
+    return DEFAULT_KALK_SETTINGS;
   }
 }
 

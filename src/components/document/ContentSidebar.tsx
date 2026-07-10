@@ -3,11 +3,11 @@
 // Tabs: „Artikel & Leistungen" / „Texte & Titel"
 // Suche, Filter, +Buttons, kompakte Ergebnisliste, Drag&Drop.
 // ============================================================
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import {
   Search, Plus, GripVertical, Package, Wrench, FileText, Heading,
-  RefreshCw, ChevronDown,
+  RefreshCw, ChevronDown, Truck,
 } from "lucide-react";
 import { eur } from "../../lib/format";
 import {
@@ -15,6 +15,7 @@ import {
   makeArticlePosition, makeServicePosition, makeTextPosition, makeTitlePosition,
 } from "../../lib/document-sources";
 import { DocPosition } from "../../lib/document-types";
+import { searchCatalog, catalogHitToDocPosition, hitKey, normalizeCatalogUnit, type CatalogHit } from "../../lib/wholesale";
 
 type Tab = "items" | "texts";
 
@@ -32,6 +33,8 @@ export type SidebarHandlers = {
   // Rechte: Stammdaten dauerhaft anlegen nur mit passender Berechtigung.
   // Einfügen/Variable Positionen/freier Text bleiben für alle möglich.
   canCreate: { article: boolean; service: boolean; text: boolean; title: boolean };
+  /** USt-Satz des Dokuments (Reverse Charge §19 → 0) für Großhandels-Positionen. */
+  vatDefault?: number;
 };
 
 // Eindeutige Drag-ID je Quellelement (kein Konflikt mit Canvas-IDs).
@@ -82,7 +85,7 @@ function DraggableRow({
   );
 }
 
-export default function ContentSidebar({ data, loading, onQuickAdd, onCreate, onInsertVariable, onInsertRegieHour, onInsertRegieMaterial, onReload, canCreate }: SidebarHandlers) {
+export default function ContentSidebar({ data, loading, onQuickAdd, onCreate, onInsertVariable, onInsertRegieHour, onInsertRegieMaterial, onReload, canCreate, vatDefault }: SidebarHandlers) {
   const [tab, setTab] = useState<Tab>("items");
   const [q, setQ] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("");
@@ -90,6 +93,22 @@ export default function ContentSidebar({ data, loading, onQuickAdd, onCreate, on
   const [showFilters, setShowFilters] = useState(false);
 
   const needle = q.trim().toLowerCase();
+
+  // Großhandelskatalog: serverseitige Suche (641k+ Artikel – NIE in den Client
+  // laden). Debounced 300 ms ab 3 Zeichen, Race-Schutz über runId. Kein Katalog
+  // importiert → leere Treffer, Abschnitt degradiert still.
+  const [catalogHits, setCatalogHits] = useState<CatalogHit[]>([]);
+  const catalogRunRef = useRef(0);
+  useEffect(() => {
+    if (tab !== "items" || needle.length < 3) { setCatalogHits([]); return; }
+    const runId = ++catalogRunRef.current;
+    const timer = setTimeout(() => {
+      searchCatalog(needle, 8).then((res) => {
+        if (catalogRunRef.current === runId) setCatalogHits(res);
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [tab, needle]);
 
   const articles = useMemo(() => data.articles.filter((a) => {
     if (filterSupplier && a.supplier !== filterSupplier) return false;
@@ -195,6 +214,17 @@ export default function ContentSidebar({ data, loading, onQuickAdd, onCreate, on
               ))}
               {articles.length === 0 && <Empty />}
             </Section>
+            {needle.length >= 3 && catalogHits.length > 0 && (
+              <Section title="Großhandelskatalog" count={catalogHits.length}>
+                {catalogHits.map((h) => (
+                  <DraggableRow key={hitKey(h)} id={dragId("catalog", hitKey(h))}
+                    build={() => catalogHitToDocPosition(h, { kalk: data.kalk, vatRate: vatDefault })}
+                    onQuickAdd={onQuickAdd}>
+                    <CatalogCard h={h} kalk={data.kalk} vatDefault={vatDefault} />
+                  </DraggableRow>
+                ))}
+              </Section>
+            )}
           </>
         ) : (
           <>
@@ -287,6 +317,26 @@ function ServiceCard({ s, variable }: { s: SidebarService; variable?: boolean })
       {variable
         ? <div className="text-[11px] font-medium text-emerald-600">frei anpassbar – Preis im Dokument</div>
         : <div className="text-[11px] font-medium text-[var(--accent)]">{eur(s._sale)} / {s.unit || "Stk"}</div>}
+    </div>
+  );
+}
+
+// Karte eines Großhandels-Treffers: EK + kalkulierter VK (zentrale Formel) +
+// Metallzuschlags-Hinweis. Tokens statt fixer Farben (Dark/Light/Augenschon).
+function CatalogCard({ h, kalk, vatDefault }: { h: CatalogHit; kalk: SidebarData["kalk"]; vatDefault?: number }) {
+  const vk = catalogHitToDocPosition(h, { kalk, vatRate: vatDefault }).unit_price;
+  return (
+    <div>
+      <div className="flex items-center gap-1.5">
+        <Truck size={13} className="shrink-0 text-amber-500" />
+        <NumberTag value={h.artikelnummer} />
+        <span className="truncate text-sm font-semibold">{h.bezeichnung}</span>
+      </div>
+      <div className="truncate text-[11px] text-slate-400">
+        {[h.katalog_name, `EK ${eur(h.ek_cent / 100)}`, h.metall ? `zzgl. ${h.metall}-Zuschlag` : null]
+          .filter(Boolean).join(" · ")}
+      </div>
+      <div className="text-[11px] font-medium text-[var(--accent)]">{eur(vk)} / {normalizeCatalogUnit(h.einheit)}</div>
     </div>
   );
 }

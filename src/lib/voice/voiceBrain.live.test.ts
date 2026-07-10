@@ -127,6 +127,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         catalog: stammdaten.catalog,
         stundensaetze: stammdaten.stundensaetze,
         settings: stammdaten.kalkSettings,
+        richtwerte: stammdaten.richtwerte,
       },
       // deps: echte Pipeline, echter Parser – nur aiComplete gegen den Handler verdrahtet
       { aiComplete: aiComplete as never, runCalcPipeline, extractErgaenzungenHinweise, parseJsonResponse },

@@ -10,6 +10,9 @@ import { FrozenSnapshot } from "./offer-types";
 import { DocPosition, emptyPosition } from "./document-types";
 import { sortAlphaStrings, sortByNumberThenName } from "./sortOptions";
 import { isReservedSpecialServiceNumber } from "./service-numbers";
+import type { KalkSettings } from "./calc/types";
+import { DEFAULT_KALK_SETTINGS } from "./calc/types";
+import { kalkSettingsFromCompanyRow } from "./voice/loadStammdatenForVoice";
 
 export type SidebarArticle = Article & { _kind: "article" };
 export type SidebarService = Service & {
@@ -43,10 +46,13 @@ export type SidebarData = {
   trades: Trade[];          // vollständige Gewerke (für zentrale Anlegemasken)
   unitCodes: string[];      // zentrale Einheiten (für zentrale Anlegemasken)
   categories: string[];
+  // Kalkulations-Parameter (company_settings.kalk_*, Migr. 0125) – für den
+  // Großhandelskatalog-Picker (EK → VK via zentraler calcWholesaleVk-Formel).
+  kalk: KalkSettings;
 };
 
 export async function loadSidebarData(): Promise<SidebarData> {
-  const [a, s, sc, t, tr, hr, un] = await Promise.all([
+  const [a, s, sc, t, tr, hr, un, cs] = await Promise.all([
     supabase.from("articles").select("*").eq("active", true).order("usage_count", { ascending: false }),
     supabase.from("services").select("*").eq("active", true).order("name"),
     supabase.from("service_components").select("*"),
@@ -54,6 +60,9 @@ export async function loadSidebarData(): Promise<SidebarData> {
     supabase.from("trades").select("*").order("sort_order"),
     supabase.from("hourly_rates").select("*").eq("active", true).order("label"),
     supabase.from("units").select("code").eq("active", true).order("sort_order"),
+    supabase.from("company_settings")
+      .select("kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap")
+      .limit(1).maybeSingle(),
   ]);
 
   const comps = (sc.data as ServiceComponent[]) ?? [];
@@ -113,6 +122,7 @@ export async function loadSidebarData(): Promise<SidebarData> {
     texts: allTexts.filter((x) => x.type === "text"),
     titles: allTexts.filter((x) => x.type === "titel"),
     suppliers, tradeNames, trades, unitCodes, categories,
+    kalk: cs?.error ? DEFAULT_KALK_SETTINGS : kalkSettingsFromCompanyRow(cs?.data ?? null),
   };
 }
 

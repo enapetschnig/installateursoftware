@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Sun, Moon, Monitor, Eye, Check, Palette, Hash, Images, UserRound, FolderTree, Building2, ShieldCheck, Mail, CalendarClock, FileStack, ListChecks, Minimize2, Maximize2, Orbit, Plug } from "lucide-react";
+import { Sun, Moon, Monitor, Eye, Check, Palette, Hash, Images, UserRound, FolderTree, Building2, ShieldCheck, Mail, CalendarClock, FileStack, ListChecks, Minimize2, Maximize2, Orbit, Plug, Truck,
+} from "lucide-react";
 import { useTheme, ACCENT_THEMES, ThemeMode } from "../lib/theme";
 import { useAuth } from "../lib/auth";
 import { usePermissions } from "../lib/permissions";
@@ -22,6 +23,7 @@ import ModuleMap from "../components/settings/ModuleMap";
 import DataReset from "../components/settings/DataReset";
 import IntegrationsTab from "../components/integrations/IntegrationsTab";
 import KalkulationSettings from "../components/settings/KalkulationSettings";
+import CatalogSettings from "../components/settings/CatalogSettings";
 import { extractConnectReason } from "../components/integrations/connect-reason";
 import { toast, toastError } from "../lib/toast";
 import { FileText, Sparkles, RefreshCcw, Calculator, Search } from "lucide-react";
@@ -32,12 +34,12 @@ const MODE_OPTIONS: { key: ThemeMode; label: string; desc: string; icon: any }[]
   { key: "system", label: "System automatisch", desc: "Folgt der Einstellung deines Geräts", icon: Monitor },
 ];
 
-type Tab = "darstellung" | "firma" | "integrationen" | "projekttypen" | "projektstatus" | "nummernkreise" | "medien" | "mailvorlagen" | "dokumentarten" | "angebote" | "kalkulation" | "buak" | "ki" | "modulmap" | "zugriffsrechte" | "datenreset" | "konto";
+type Tab = "darstellung" | "firma" | "integrationen" | "projekttypen" | "projektstatus" | "nummernkreise" | "medien" | "mailvorlagen" | "dokumentarten" | "angebote" | "kalkulation" | "grosshandel" | "buak" | "ki" | "modulmap" | "zugriffsrechte" | "datenreset" | "konto";
 
 // Gültige Reiter-Keys (für URL-Validierung – ein unbekanntes ?tab= darf keinen leeren Inhalt erzeugen).
 const ALL_TABS: Tab[] = [
   "darstellung", "firma", "integrationen", "projekttypen", "projektstatus", "nummernkreise", "medien",
-  "mailvorlagen", "dokumentarten", "angebote", "kalkulation", "buak", "ki", "modulmap", "zugriffsrechte", "datenreset", "konto",
+  "mailvorlagen", "dokumentarten", "angebote", "kalkulation", "grosshandel", "buak", "ki", "modulmap", "zugriffsrechte", "datenreset", "konto",
 ];
 const isValidTab = (v: string | null): v is Tab => !!v && (ALL_TABS as string[]).includes(v);
 
@@ -126,6 +128,7 @@ export default function Settings() {
     { key: "firma",         label: "Firmeneinstellungen",  icon: Building2,     group: "Firma",      desc: "Name, Adresse, UID, Bank, Logo" },
     { key: "nummernkreise", label: "Nummernkreise",        icon: Hash,          group: "Firma",      desc: "Belegnummern für Angebot, Auftrag, Rechnung …" },
     { key: "buak",          label: "Kalender & Arbeitszeiten", icon: CalendarClock, group: "Firma",  desc: "Jahreskalender und Arbeitszeitmodelle" },
+    { key: "grosshandel",   label: "Großhandel & Kataloge", icon: Truck,        group: "Firma",      desc: "Großhändler-Preiskataloge und Preis-Mail-Zuordnung" },
 
     { key: "dokumentarten", label: "Dokumentarten",        icon: FileStack,     group: "Dokumente & Texte", desc: "Welche Dokumenttypen es gibt" },
     { key: "angebote",      label: "Dokumentvarianten",    icon: FileText,      group: "Dokumente & Texte", desc: "Varianten und Vor-/Nachtexte je Dokument" },
@@ -243,6 +246,7 @@ export default function Settings() {
 
       {/* Kalkulation: globale Parameter der Voice-Angebote-Pipeline (Migr. 0125) */}
       {tab === "kalkulation" && <KalkulationSettings canManage={canManage} />}
+      {tab === "grosshandel" && <CatalogSettings canManage={canManage} />}
 
       {/* Kalender & Arbeitszeiten: Jahreskalender (Wochenarten) + Arbeitszeitmodell-Vorlagen */}
       {tab === "buak" && (

@@ -26,6 +26,27 @@ export function fixPositionKosten(pos: Position): Position {
   // Guard: ungültige/gelöschte Position unverändert durchreichen.
   if (!pos || typeof pos !== 'object' || pos.deleted) return pos
 
+  // Deterministisch bepreiste Großhandels-Positionen (applyWholesalePricing):
+  // VK NICHT über die Minuten-Rundung neu ableiten – nur Summen/Prozente
+  // konsistent machen. Sonst driftet der Preis gegenüber dem Editor-Picker
+  // (catalogHitToDocPosition), der dieselbe Formel nutzt.
+  if (pos.preis_deterministisch) {
+    const vk = round2(Number(pos.vk_netto_einheit) || 0)
+    const menge = Number(pos.menge) || 0
+    const mat = Math.min(round2(Number(pos.materialkosten_einheit) || 0), vk)
+    const lohn = round2(vk - mat)
+    const materialProzent = vk > 0 ? round1((mat / vk) * 100) : 0
+    return {
+      ...pos,
+      vk_netto_einheit: vk,
+      materialkosten_einheit: mat,
+      lohnkosten_einheit: lohn,
+      gesamtpreis: menge > 0 ? round2(menge * vk) : round2(Number(pos.gesamtpreis) || 0),
+      materialanteil_prozent: materialProzent,
+      lohnanteil_prozent: vk > 0 ? round1(100 - materialProzent) : 0,
+    }
+  }
+
   const mat = round2(Number(pos.materialkosten_einheit) || 0)
   const stundensatz = Number(pos.stundensatz) || 0
   const menge = Number(pos.menge) || 0

@@ -31,6 +31,8 @@ export const AUFSCHLAG_GESAMT_PLACEHOLDER = '{{AUFSCHLAG_GESAMT}}'
 export const AUFSCHLAG_MATERIAL_PLACEHOLDER = '{{AUFSCHLAG_MATERIAL}}'
 /** Platzhalter für den Firmennamen – ermöglicht Multi-Tenant-Prompts. */
 export const FIRMA_NAME_PLACEHOLDER = '{{FIRMA_NAME}}'
+/** Platzhalter für handelsübliche Richtwert-Spannen (company_settings.kalk_richtwerte, Migr. 0150). */
+export const RICHTWERTE_PLACEHOLDER = '{{RICHTWERTE}}'
 
 // ──── Kontext-Interface ─────────────────────────────────────────────────────
 
@@ -47,6 +49,12 @@ export interface PromptContext {
   aufschlagGesamt: number
   /** Material-Aufschlag in % auf den reinen Material-EK. */
   aufschlagMaterial: number
+  /**
+   * Handelsübliche VK-Richtwert-Spannen des Mandanten (Migr. 0150) – kalibriert
+   * die KI von vornherein auf marktübliche Preise. Optional: ohne Richtwerte
+   * wird ein neutraler Hinweistext eingesetzt.
+   */
+  richtwerte?: Array<{ bezeichnung: string; einheit?: string | null; vk_min: number; vk_max: number }>
 }
 
 // ──── buildPrompt ───────────────────────────────────────────────────────────
@@ -71,6 +79,13 @@ export function buildPrompt(basePrompt: string, ctx: PromptContext): string {
           .map(([gewerk, satz]) => `- ${gewerk}: ${satz} €/Std`)
           .join('\n')
 
+  const richtwerteText =
+    !ctx.richtwerte || ctx.richtwerte.length === 0
+      ? '(keine Richtwerte hinterlegt – kalkuliere nach Formel und Preisliste)'
+      : ctx.richtwerte
+          .map((r) => `- ${r.bezeichnung}: ${r.vk_min}–${r.vk_max} € netto${r.einheit ? ` je ${r.einheit}` : ''}`)
+          .join('\n')
+
   return basePrompt
     .split(AUFSCHLAG_GESAMT_PLACEHOLDER)
     .join(String(ctx.aufschlagGesamt))
@@ -80,6 +95,8 @@ export function buildPrompt(basePrompt: string, ctx: PromptContext): string {
     .join(ctx.firmaName)
     .split(STUNDENSAETZE_PLACEHOLDER)
     .join(stundensaetzeText)
+    .split(RICHTWERTE_PLACEHOLDER)
+    .join(richtwerteText)
 }
 
 // ──── buildCompactCatalog ───────────────────────────────────────────────────

@@ -115,20 +115,71 @@ export function parseDatanorm(text, filename = "") {
   return out;
 }
 
+/** Passt die Absender-Domain (aus senderEmail) zu den sender_domains des Katalogs? */
+function senderMatchesCatalog(cat, senderEmail) {
+  const domain = String(senderEmail || "").split("@")[1]?.toLowerCase() || "";
+  if (!domain) return false;
+  return (cat.sender_domains || []).some((d) => {
+    const dl = String(d || "").toLowerCase().trim();
+    return dl && (domain === dl || domain.endsWith(`.${dl}`));
+  });
+}
+
 /**
- * Wendet geparste Datanorm-Updates auf den (einzigen) Katalog der Organisation an.
+ * Wendet geparste Datanorm-Updates auf den richtigen Katalog der Organisation an.
+ * Katalog-Wahl (mehrlieferantenfähig, Migr. 0151):
+ *   - genau EIN Katalog OHNE sender_domains → direkt anwenden (wie bisher)
+ *   - genau EIN Katalog MIT sender_domains  → Absender MUSS passen (Härtung:
+ *     ein gefälschter Absender mit präparierter Rabattdatei darf die 641k
+ *     EK-Preise nicht überschreiben; Domains pflegen = Schutz aktivieren)
+ *   - mehrere + Absender-Domain  → Katalog mit passender sender_domains-Zuordnung
+ *   - mehrere ohne Zuordnung     → NICHT anwenden (kein stilles Überschreiben
+ *     des falschen Händler-Katalogs) – Grund wird im KI-Postfach protokolliert.
  * Nettopreise werden NUR für existierende Artikel gesetzt (kein Skelett-Insert).
+ * @param {object} [opts] – { senderEmail?: string, catalogId?: string }
  * @returns {{ applied: boolean, stats: object }}
  */
-export async function applyDatanormUpdates(admin, orgId, parsed) {
-  const { data: cat } = await admin
+export async function applyDatanormUpdates(admin, orgId, parsed, opts = {}) {
+  const { data: cats } = await admin
     .from("supplier_catalogs")
-    .select("id,name")
+    .select("id,name,sender_domains")
     .eq("organization_id", orgId)
-    .order("created_at")
-    .limit(1)
-    .maybeSingle();
-  if (!cat) return { applied: false, stats: { grund: "kein Katalog vorhanden" } };
+    .order("created_at");
+  if (!cats || cats.length === 0) {
+    return { applied: false, stats: { grund: "kein Katalog vorhanden – zuerst Vollimport ausführen" } };
+  }
+
+  let cat = null;
+  if (opts.catalogId) {
+    cat = cats.find((c) => c.id === opts.catalogId) || null;
+    if (!cat) return { applied: false, stats: { grund: "angegebener Katalog nicht gefunden" } };
+  } else if (cats.length === 1) {
+    cat = cats[0];
+    if ((cat.sender_domains || []).length > 0 && !senderMatchesCatalog(cat, opts.senderEmail)) {
+      return {
+        applied: false,
+        stats: {
+          grund:
+            `Absender ${opts.senderEmail || "(unbekannt)"} ist für Katalog „${cat.name}“ nicht freigegeben ` +
+            "(Einstellungen → Großhandel & Kataloge → Absender-Domains).",
+        },
+      };
+    }
+  } else {
+    const matches = cats.filter((c) => senderMatchesCatalog(c, opts.senderEmail));
+    if (matches.length === 1) {
+      cat = matches[0];
+    } else {
+      return {
+        applied: false,
+        stats: {
+          grund:
+            `mehrere Kataloge vorhanden, Absender ${opts.senderEmail || "(unbekannt)"} ist keinem eindeutig zugeordnet. ` +
+            "In Einstellungen → Großhandel & Kataloge die Absender-Domain des Händlers hinterlegen.",
+        },
+      };
+    }
+  }
 
   const stats = { katalog: cat.name, artikel: 0, nettopreise: 0, rabatte: 0, metalle: 0 };
 

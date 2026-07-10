@@ -9,16 +9,17 @@
 // Einfügeort: „Einfügen nach Position" (Am Ende ODER gezielt nach einer
 // vorhandenen Position/einem Titel des aktuellen Dokuments) – gilt für BEIDE Modi.
 // ============================================================
-import { useEffect, useMemo, useState } from "react";
-import { Search, Wrench, Package, Plus, Check, Boxes, FileStack, ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Search, Wrench, Package, Plus, Check, Boxes, FileStack, ChevronDown, ChevronRight, Truck } from "lucide-react";
 import { Modal } from "../ui";
 import { eur } from "../../lib/format";
 import { SidebarData, makeArticlePosition, makeServicePosition } from "../../lib/document-sources";
 import { DocPosition, lineNet } from "../../lib/document-types";
 import { CopyableDoc, loadCopyableDocuments, loadDocumentPositions, copyPositions, mergeCopiedByTitle } from "../../lib/document-copy";
 import { statusLabel } from "../../lib/documents-overview";
+import { searchCatalog, catalogHitToDocPosition, hitKey, normalizeCatalogUnit, type CatalogHit } from "../../lib/wholesale";
 
-type Mode = "stamm" | "document";
+type Mode = "stamm" | "document" | "grosshandel";
 type Tab = "service" | "article";
 
 /** Einfügeziel: null/"" = Am Ende; sonst ID der Position, NACH der eingefügt wird. */
@@ -49,7 +50,7 @@ function InsertAfterSelect({ current, value, onChange }: {
 }
 
 export default function MultiInsertModal({
-  data, projectId, currentPositions, onInsert, onClose, initialMode,
+  data, projectId, currentPositions, onInsert, onClose, initialMode, vatDefault,
 }: {
   data: SidebarData;
   projectId?: string | null;
@@ -59,12 +60,15 @@ export default function MultiInsertModal({
   onClose: () => void;
   /** Startmodus (Default „stamm"); der Umschalter im Dialog bleibt immer verfügbar. */
   initialMode?: Mode;
+  /** USt-Satz des Dokuments (Reverse Charge §19 → 0) für Großhandels-Positionen. */
+  vatDefault?: number;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode ?? "stamm");
   // Einfügeziel im Modal gehalten → bleibt beim Moduswechsel erhalten.
   const [afterId, setAfterId] = useState("");
   const current = currentPositions ?? [];
   const doInsert = (positions: DocPosition[]) => onInsert(positions, { afterId: afterId || null });
+  const insertAfter = <InsertAfterSelect current={current} value={afterId} onChange={setAfterId} />;
 
   return (
     <Modal open onClose={onClose} title="Positionen einfügen" size="2xl">
@@ -72,16 +76,158 @@ export default function MultiInsertModal({
       <div className="mb-3 flex gap-1 rounded-xl bg-[var(--hover)] p-1">
         <button className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-semibold ${mode === "stamm" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
           onClick={() => setMode("stamm")}><Boxes size={15} /> Aus Stamm</button>
+        <button className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-semibold ${mode === "grosshandel" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
+          onClick={() => setMode("grosshandel")}><Truck size={15} /> Großhandel</button>
         <button className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-semibold ${mode === "document" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
           onClick={() => setMode("document")}><FileStack size={15} /> Aus Dokument übernehmen</button>
       </div>
 
       {mode === "stamm"
-        ? <StammPicker data={data} onInsert={doInsert} onClose={onClose}
-            insertAfter={<InsertAfterSelect current={current} value={afterId} onChange={setAfterId} />} />
-        : <DocumentPicker projectId={projectId ?? null} onInsert={doInsert} onClose={onClose}
-            insertAfter={<InsertAfterSelect current={current} value={afterId} onChange={setAfterId} />} />}
+        ? <StammPicker data={data} onInsert={doInsert} onClose={onClose} insertAfter={insertAfter} />
+        : mode === "grosshandel"
+        ? <CatalogPicker data={data} vatDefault={vatDefault} onInsert={doInsert} onClose={onClose} insertAfter={insertAfter} />
+        : <DocumentPicker projectId={projectId ?? null} onInsert={doInsert} onClose={onClose} insertAfter={insertAfter} />}
     </Modal>
+  );
+}
+
+// ---- Modus „Großhandel": serverseitige Katalog-Suche (641k+ Artikel) ---------
+// Suche über die zentrale searchCatalog-RPC (org-isoliert, max. 40 Treffer),
+// Bepreisung über catalogHitToDocPosition (EIN Preis-Kern mit der Voice-
+// Pipeline: EK × (1+Materialaufschlag) [+ Montagezeit] × (1+Gesamtaufschlag)).
+function CatalogPicker({ data, vatDefault, onInsert, onClose, insertAfter }: {
+  data: SidebarData; vatDefault?: number;
+  onInsert: (p: DocPosition[]) => void; onClose: () => void; insertAfter?: React.ReactNode;
+}) {
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState<CatalogHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  // Auswahl: Key = hitKey (Katalog+Artikelnummer), Wert = Menge + optionale Montageminuten.
+  const [sel, setSel] = useState<Map<string, { hit: CatalogHit; qty: number; minuten: number }>>(new Map());
+  const runIdRef = useRef(0);
+
+  // Debounced Suche (300 ms) mit Race-Schutz: veraltete Antworten verwerfen.
+  useEffect(() => {
+    const query = q.trim();
+    if (query.length < 2) { setHits([]); setSearched(false); return; }
+    const runId = ++runIdRef.current;
+    const timer = setTimeout(() => {
+      setSearching(true);
+      searchCatalog(query, 20)
+        .then((res) => { if (runIdRef.current === runId) { setHits(res); setSearched(true); } })
+        .finally(() => { if (runIdRef.current === runId) setSearching(false); });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  const toggle = (h: CatalogHit) => setSel((prev) => {
+    const n = new Map(prev);
+    const k = hitKey(h);
+    n.has(k) ? n.delete(k) : n.set(k, { hit: h, qty: 1, minuten: 0 });
+    return n;
+  });
+  const patchSel = (k: string, patch: Partial<{ qty: number; minuten: number }>) =>
+    setSel((prev) => {
+      const n = new Map(prev);
+      const cur = n.get(k);
+      if (cur) n.set(k, { ...cur, ...patch });
+      return n;
+    });
+
+  const mehrereKataloge = useMemo(() => new Set(hits.map((h) => h.catalog_id ?? "")).size > 1, [hits]);
+  const vkPreview = (h: CatalogHit, minuten = 0) =>
+    catalogHitToDocPosition(h, { kalk: data.kalk, minuten, vatRate: vatDefault }).unit_price;
+
+  function insert() {
+    const positions = [...sel.values()].map(({ hit, qty, minuten }) =>
+      catalogHitToDocPosition(hit, { kalk: data.kalk, qty, minuten, vatRate: vatDefault }));
+    if (positions.length > 0) onInsert(positions);
+    onClose();
+  }
+
+  return (
+    <>
+      <div className="relative mb-3">
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input className="input pl-9 text-sm" autoFocus value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="Großhandelskatalog durchsuchen (Bezeichnung, Artikelnummer oder EAN) …" />
+      </div>
+
+      <div className="max-h-[50vh] space-y-1.5 overflow-y-auto">
+        {searching && hits.length === 0 ? (
+          <div className="py-8 text-center text-sm text-slate-400">Katalog wird durchsucht …</div>
+        ) : !searched ? (
+          <div className="py-8 text-center text-sm text-slate-400">
+            Suchbegriff eingeben – z. B. „NYM-J 3x1,5", „Steckdose Gira reinweiß" oder eine Artikelnummer.
+          </div>
+        ) : hits.length === 0 ? (
+          <div className="py-8 text-center text-sm text-slate-400">
+            Keine Treffer. Prüfe die Schreibweise – oder es ist noch kein Großhandelskatalog importiert
+            (Einstellungen → Großhandel &amp; Kataloge).
+          </div>
+        ) : hits.map((h) => {
+          const k = hitKey(h);
+          const entry = sel.get(k);
+          const checked = !!entry;
+          return (
+            <div key={k}
+              className={`rounded-xl border p-2.5 transition ${checked ? "border-brand-400 bg-brand-50/40 dark:bg-brand-500/10" : "hover:border-brand-300"}`}
+              style={{ borderColor: checked ? undefined : "var(--border)" }}>
+              <label className="flex cursor-pointer items-center gap-3">
+                <input type="checkbox" className="h-4 w-4 shrink-0" checked={checked} onChange={() => toggle(h)} />
+                <Truck size={15} className="shrink-0 text-amber-500" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="shrink-0 rounded bg-[var(--hover)] px-1 font-mono text-[10px] text-slate-500">{h.artikelnummer}</span>
+                    <span className="truncate text-sm font-semibold">{h.bezeichnung}</span>
+                  </div>
+                  <div className="truncate text-[11px] text-slate-400">
+                    {[
+                      mehrereKataloge && h.katalog_name ? h.katalog_name : null,
+                      `EK ${eur(h.ek_cent / 100)}`,
+                      h.metall ? `zzgl. ${h.metall}-Metallzuschlag` : null,
+                      `je ${normalizeCatalogUnit(h.einheit)}`,
+                    ].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-sm font-medium text-[var(--accent)]">{eur(vkPreview(h, entry?.minuten ?? 0))}</div>
+                  <div className="text-[10px] text-slate-400">VK kalkuliert</div>
+                </div>
+              </label>
+              {checked && (
+                <div className="mt-2 flex flex-wrap items-center gap-3 pl-7 text-xs text-slate-500">
+                  <label className="flex items-center gap-1.5">
+                    Menge
+                    <input type="number" min={0.01} step={1} className="input w-20 py-1 text-xs" value={entry.qty}
+                      onChange={(e) => patchSel(k, { qty: Math.max(0.01, Number(e.target.value) || 1) })} />
+                  </label>
+                  <label className="flex items-center gap-1.5" title="Montagezeit je Einheit – fließt mit dem Stundensatz in den VK ein">
+                    Montage (min/Einheit)
+                    <input type="number" min={0} step={5} className="input w-20 py-1 text-xs" value={entry.minuten}
+                      onChange={(e) => patchSel(k, { minuten: Math.max(0, Number(e.target.value) || 0) })} />
+                  </label>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-slate-400">{sel.size > 0 ? `${sel.size} ausgewählt` : "Nichts ausgewählt"}</span>
+          {insertAfter}
+        </div>
+        <div className="flex gap-2">
+          <button className="btn-outline" onClick={onClose}>Abbrechen</button>
+          <button className="btn-primary" onClick={insert} disabled={sel.size === 0}>
+            {sel.size === 0 ? <Plus size={16} /> : <Check size={16} />} Ausgewählte einfügen{sel.size > 0 ? ` (${sel.size})` : ""}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 

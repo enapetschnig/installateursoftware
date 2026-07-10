@@ -49,6 +49,10 @@ export interface Position {
 
   // ── Pipeline-Flags ─────────────────────────────────────────────────────
   /** Aus Katalog übernommen vs. neu kalkuliert (bau4you: aus_preisliste). */
+  /** VK wurde deterministisch aus dem Großhandels-EK gerechnet (applyWholesalePricing).
+   *  Die Calc-Pipeline (fixPositionKosten, verifyAufschlaege) darf ihn NICHT
+   *  erneut ableiten/anheben – sonst Doppelaufschlag (siehe wholesale.ts). */
+  preis_deterministisch?: boolean | null
   aus_preisliste?: boolean
   /** KI-Vorschlag-Badge (keine direkte Texterwähnung in der User-Eingabe). */
   isVorschlag?: boolean

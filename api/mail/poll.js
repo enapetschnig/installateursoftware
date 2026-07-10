@@ -431,17 +431,26 @@ export default async function handler(req, res) {
       if (datanormAtts.length > 0) {
         const totals = { artikel: 0, nettopreise: 0, rabatte: 0, metalle: 0 };
         let applied = false;
+        let katalogName = null;
+        let grund = null;
         for (const a of datanormAtts) {
           const parsed = parseDatanorm(decodeDatanorm(a.content), a.filename || "");
-          const res = await applyDatanormUpdates(admin, orgId, parsed);
+          // Absender mitgeben: bei mehreren Katalogen entscheidet die
+          // sender_domains-Zuordnung (Migr. 0151), welcher Katalog gemeint ist.
+          const res = await applyDatanormUpdates(admin, orgId, parsed, {
+            senderEmail: mail.from?.email || null,
+          });
           if (res.applied) {
             applied = true;
+            katalogName = res.stats.katalog || katalogName;
             for (const k of Object.keys(totals)) totals[k] += res.stats[k] || 0;
+          } else {
+            grund = res.stats?.grund || grund;
           }
         }
         const summary = applied
-          ? `Datanorm-Preiswartung angewendet: ${totals.nettopreise} Nettopreise, ${totals.rabatte} Rabattgruppen, ${totals.artikel} Artikel, ${totals.metalle} Metallkurse aktualisiert.`
-          : "Datanorm-Anhang erkannt, aber kein Katalog vorhanden – zuerst Vollimport ausführen.";
+          ? `Datanorm-Preiswartung angewendet (${katalogName || "Katalog"}): ${totals.nettopreise} Nettopreise, ${totals.rabatte} Rabattgruppen, ${totals.artikel} Artikel, ${totals.metalle} Metallkurse aktualisiert.`
+          : `Datanorm-Anhang erkannt, aber NICHT angewendet: ${grund || "unbekannter Grund"}`;
         triage = {
           mail_class: "sonstiges", summary,
           subject: mail.subject || "Datanorm-Preiswartung",

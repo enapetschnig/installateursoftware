@@ -35,6 +35,7 @@ import { loadDocumentVersions } from "../../lib/document-versions";
 import { DocumentBuilder } from "../../hooks/useDocumentBuilder";
 import { DocPosition, emptyPosition } from "../../lib/document-types";
 import { loadSidebarData, SidebarData, makeVariablePosition, makeRegieMaterialPosition } from "../../lib/document-sources";
+import { DEFAULT_KALK_SETTINGS } from "../../lib/calc/types";
 import { usePermissions } from "../../lib/permissions";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
@@ -42,6 +43,7 @@ import { rememberProjectSection } from "../../lib/project-nav";
 
 const EMPTY_DATA: SidebarData = {
   articles: [], services: [], hourlyRates: [], texts: [], titles: [], suppliers: [], tradeNames: {}, trades: [], unitCodes: [], categories: [],
+  kalk: DEFAULT_KALK_SETTINGS,
 };
 
 // „Zum Projekt": fachlich passender Projekt-Sidebar-Bereich je Dokumenttyp
@@ -504,6 +506,7 @@ export default function DocumentWorkspace({
                 onInsertRegieMaterial={readOnly ? undefined : () => setRegieMatOpen(true)}
                 onReload={loadData}
                 canCreate={canCreate}
+                vatDefault={vatDefault}
               />
             </div>
           </div>
@@ -589,6 +592,7 @@ export default function DocumentWorkspace({
         <MultiInsertModal
           data={data}
           projectId={projectId}
+          vatDefault={vatDefault}
           currentPositions={builder.positions}
           onInsert={(positions, target) => {
             if (positions.length === 0) return;
