@@ -26,6 +26,7 @@ import { bearerFromRequest, verifyUser } from "../_lib/security.js";
 import { logSafe } from "../_lib/safe-log.js";
 import { mailConfigured, pollMailbox } from "../_lib/mail-imap.js";
 import { classifyMail } from "../_lib/mail-ai.js";
+import { isDatanormFile, decodeDatanorm, parseDatanorm, applyDatanormUpdates } from "../_lib/datanorm.js";
 
 export const config = { maxDuration: 60 };
 
@@ -419,6 +420,46 @@ export default async function handler(req, res) {
     let triage;
     let mailRowId = existing?.id || null;
     try {
+      // ── Automatische Preiswartung (Datanorm) ─────────────────────
+      // Großhändler senden Preis-/Rabatt-/Delta-Dateien per E-Mail. Solche
+      // Anhänge sind am Dateinamen eindeutig erkennbar – kein KI-Call nötig.
+      // Der Katalog wird direkt aktualisiert; da der EK zur Abfragezeit
+      // berechnet wird, wirken neue Rabatte/Preise sofort überall.
+      const datanormAtts = (mail.rawAttachments || []).filter(
+        (a) => a && Buffer.isBuffer(a.content) && isDatanormFile(a.filename),
+      );
+      if (datanormAtts.length > 0) {
+        const totals = { artikel: 0, nettopreise: 0, rabatte: 0, metalle: 0 };
+        let applied = false;
+        for (const a of datanormAtts) {
+          const parsed = parseDatanorm(decodeDatanorm(a.content), a.filename || "");
+          const res = await applyDatanormUpdates(admin, orgId, parsed);
+          if (res.applied) {
+            applied = true;
+            for (const k of Object.keys(totals)) totals[k] += res.stats[k] || 0;
+          }
+        }
+        const summary = applied
+          ? `Datanorm-Preiswartung angewendet: ${totals.nettopreise} Nettopreise, ${totals.rabatte} Rabattgruppen, ${totals.artikel} Artikel, ${totals.metalle} Metallkurse aktualisiert.`
+          : "Datanorm-Anhang erkannt, aber kein Katalog vorhanden – zuerst Vollimport ausführen.";
+        triage = {
+          mail_class: "sonstiges", summary,
+          subject: mail.subject || "Datanorm-Preiswartung",
+          priority: "niedrig", anfrage_class: "sonstiges",
+          sender_name: mail.from?.name || null, sender_email: mail.from?.email || null,
+          sender_phone: null, address: null, gewerk: null, wunschtermin: null, invoice: {},
+        };
+        mailRowId = await upsertIncomingMail(admin, orgId, mail, triage, existing);
+        const { error: dnErr } = await admin
+          .from("incoming_mails")
+          .update({ status: "verarbeitet", anfrage_id: existing?.anfrage_id || null })
+          .eq("id", mailRowId);
+        if (dnErr) throw new Error(`incoming_mails verarbeitet: ${dnErr.message}`);
+        logSafe({ action: "mail.poll.datanorm", status: "ok", extra: { applied, ...totals } });
+        routed.sonstiges = (routed.sonstiges || 0) + 1;
+        return true; // verarbeitet → als gelesen markieren
+      }
+
       triage = await classifyMail(mail);
       mailRowId = await upsertIncomingMail(admin, orgId, mail, triage, existing);
 

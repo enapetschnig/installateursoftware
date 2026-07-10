@@ -50,6 +50,7 @@ import {
 } from '../../lib/ai/prompts/base'
 import { runCalcPipeline } from '../../lib/calc/pipeline'
 import { logVoiceTranscript } from '../../lib/voice/logVoiceTranscript'
+import { searchCatalogForTranscript, buildWholesaleBlock } from '../../lib/wholesale'
 import type {
   Catalog,
   Gewerk,
@@ -199,7 +200,22 @@ export async function runVoiceAngebot(
   // nutzen. buildFilteredCatalog reduziert per Gewerk-Keyword-Matching auf
   // max. 100 relevante Eintraege (~2-3k Token statt ~25k).
   const catalogBlock = buildFilteredCatalog(args.catalog, userMessage)
-  const cachedContext = `PREISLISTE (Auszug, gefiltert nach erkannten Gewerken):\n${catalogBlock}`
+
+  // Großhandels-Retrieval: aus 600.000+ Katalog-Artikeln holt die DB-Suche
+  // (pg_trgm) die zum Transkript passenden ~36 Artikel mit ECHTEM EK
+  // (Liste − Kundenrabatt bzw. Nettopreis). Ist kein Katalog importiert,
+  // bleibt der Block leer und der Flow verhält sich exakt wie bisher.
+  let wholesaleBlock = ''
+  try {
+    const hits = await searchCatalogForTranscript(userMessage)
+    wholesaleBlock = buildWholesaleBlock(hits)
+  } catch {
+    /* Katalog ist Zusatznutzen – Voice-Angebot darf daran nie scheitern */
+  }
+
+  const cachedContext =
+    `PREISLISTE (Auszug, gefiltert nach erkannten Gewerken):\n${catalogBlock}` +
+    (wholesaleBlock ? `\n\n${wholesaleBlock}` : '')
 
   const aiResult = await deps.aiComplete({
     systemPrompt,

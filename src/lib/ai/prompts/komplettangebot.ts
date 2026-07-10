@@ -128,6 +128,19 @@ PREISFINDUNG – REIHENFOLGE STRIKT EINHALTEN:
 3. WENN GEFUNDEN UND EINHEIT PASST → aus_preisliste: true, EXAKTE Leistungsnummer übernehmen. Der Preis wird AUTOMATISCH vom System aus dem Katalog übernommen – du darfst KEINEN eigenen Preis schätzen, berechnen oder erfinden!
 4. NUR WENN NICHT GEFUNDEN ODER EINHEIT NICHT PASST → aus_preisliste: false, vollständige Neukalkulation mit passender Einheit.
 
+GROSSHANDELSKATALOG (falls ein Block "GROSSHANDELSKATALOG" mitgeliefert wird):
+Das sind ECHTE, bereits rabattierte Einkaufspreise (EK netto) des Großhändlers dieses Betriebs.
+Regeln für die Neukalkulation (aus_preisliste: false) von Positionen mit Materialanteil:
+- Passt ein Artikel aus dem Block zur gesprochenen Anfrage (Typ, Dimension, Ausführung),
+  verwende seinen EK als Materialkosten-Basis: Material = EK × Menge × (1 + {{AUFSCHLAG_MATERIAL}}/100).
+- Schätze KEINE Materialpreise, wenn ein passender Großhandels-Artikel im Block steht.
+- Nenne die verwendete Artikelnummer am Ende der Positionsbeschreibung in Klammern,
+  z. B. "(Material: Art. 12000119216 lt. Großhandelskatalog)".
+- Artikel mit Hinweis "(+CU-Zuschlag)" tragen einen tagesabhängigen Kupferzuschlag –
+  ergänze in der Beschreibung "zzgl. tagesaktueller Metallzuschlag".
+- Der Block ist ein AUSZUG passend zur Anfrage. Steht kein passender Artikel darin,
+  kalkuliere wie bisher (marktübliche Schätzung) – erfinde KEINE Artikelnummern.
+
 SYNONYM-TABELLE für Katalog-Suche (IMMER die Preisliste durchsuchen!):
 "abscheren"/"Farbe abscheren"/"alte Farbe entfernen"/"Farbschichten" → Suche 09-0xx Positionen (Maler)
 "ausmalen"/"streichen"/"anstreichen"/"Wände malen" → Suche 09-2xx Positionen (Maler)

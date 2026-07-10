@@ -46,6 +46,7 @@ IMAP (ungelesene Mails) → `mailparser` → **KI-Klassifizierung** (eine OpenAI
 - **Buchhaltung (umgesetzt)**: Mails mit `mail_class='rechnung'` erzeugen automatisch eine **Eingangsrechnung** (`public.eingangsrechnungen`, idempotent über `incoming_mail_id`); PDF-/Bild-Anhänge werden in den `belege`-Bucket geladen und verknüpft. Details: [buchhaltung.md](buchhaltung.md).
 - **Anhänge**: `api/_lib/mail-imap.js` liefert `rawAttachments` (Buffer, nie ins JSONB); `api/mail/poll.js` `uploadBelege()` lädt PDFs/Bilder org-isoliert in `belege` (`<orgId>/eingangsrechnungen/<id>/...`).
 - **Weitere Quellen**: die Anfrage-Struktur ist quellenneutral (`source`), neue Kanäle analog anbinden.
+- **Datanorm-Preiswartung (umgesetzt)**: Anhänge wie `DATPREIS.*`, `DATANORM.rab`, `Metallbasis.csv` werden VOR der KI-Klassifizierung erkannt und direkt auf den Großhandels-Katalog angewendet ([grosshandel.md](grosshandel.md)).
 
 **Verknüpfungen**
 [email.md](email.md) (separates Microsoft-365-Mailmodul zum manuellen Lesen/Senden), [ki-assistent-isabella.md](ki-assistent-isabella.md), [sicherheit.md](sicherheit.md), [uebersicht.md](uebersicht.md).
