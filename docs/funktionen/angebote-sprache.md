@@ -161,3 +161,21 @@ Großhandelskatalog** – nicht nur einen Artikel:
 - Retrieval liefert die Nebenteile mit (Synonym-Erweiterung: Gerätedose, Rahmen,
   FI/LS, SCHUKO; maxTotal 48). Fehlt ein Bauteil im Block, vermerkt die KI es im
   Positions-`hinweis` („EK für <Bauteil> prüfen") statt zu raten.
+
+## Fachwissen-Regeln + Rückfragen: die KI denkt wie ein Elektriker (Stand 2026-07-10, Nacht)
+
+- **`company_settings.kalk_fachregeln`** (Migr. 0155): Regeln `{stichwort-Regex, dann, frage?}` –
+  pflegbar unter **Einstellungen → Kalkulation → „Fachwissen der KI"** (FachregelnSettings.tsx).
+  Seed: Elektriker-Wissen (Verteilung → FI + LS je Stromkreis + Messprotokoll + Überspannungsschutz
+  anbieten; Herd → Herdanschlussdose + 5x2,5 + 3-pol. LS; Wallbox; Außenbereich IP44 …).
+  Der Betrieb erweitert die Regeln selbst – kein Code nötig.
+- Prompt: `{{FACHREGELN}}`-Block (höchste Mitdenk-Priorität) + RÜCKFRAGEN-Mechanik: fehlt eine
+  preisrelevante Angabe (Stromkreis-Anzahl, Ladeleistung, Längen), füllt die KI das Top-Level-Feld
+  `rueckfragen[]` (max. 3) und kalkuliert trotzdem mit gekennzeichneten Annahmen.
+- **VoiceAngebotDialog**: Kommen Rückfragen, zeigt der Dialog sie VOR der Übernahme
+  (testid `voice-rueckfragen`): Antwort eintippen → „Antworten & neu kalkulieren" (eine Runde,
+  Text wird um `ANTWORTEN AUF RÜCKFRAGEN:` ergänzt) oder „Mit Annahmen übernehmen" (offene Fragen
+  wandern als „Prüfen: Offene Rückfrage – …" in die internen Notizen).
+- Live-Szenario 7 („Wir montieren eine neue Unterverteilung im Einfamilienhaus."): KI fragt
+  „Wie viele Stromkreise?", Antwort „6, Überspannungsschutz ja" → Verteilung mit FI, 6 LS,
+  Überspannungsschutz, Beschriftung, Messprotokoll. Der Test simuliert die Antwortrunde.

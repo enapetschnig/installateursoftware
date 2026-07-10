@@ -44,10 +44,38 @@ export interface VoiceStammdaten {
    *  Angebots-Gliederung der KI. Ein Elektriker bekommt so ein Elektriker-
    *  Angebot, kein Baubetriebs-Gerüst aus Gemeinkosten/Abbruch/Reinigung. */
   gewerke: BetriebsGewerk[];
+  /** Fachwissen-Regeln (Migr. 0155) – Mitdenken + Rückfragen. */
+  fachregeln: Fachregel[];
 }
 
 /** Aktives Gewerk des Betriebs für die Prompt-Gliederung. */
 export interface BetriebsGewerk { name: string; prefix: string }
+
+/** Fachwissen-Regel des Betriebs (company_settings.kalk_fachregeln, Migr. 0155). */
+export interface Fachregel {
+  /** Regex (case-insensitive) auf das Transkript, z. B. "unterverteil|verteiler". */
+  stichwort: string;
+  /** Was fachlich dazugehört (fließt ins Mitdenken der KI). */
+  dann: string;
+  /** Rückfrage, wenn die Info im Transkript fehlt (optional). */
+  frage?: string | null;
+}
+
+/** Validiert das JSONB-Array aus company_settings.kalk_fachregeln (tolerant). */
+export function parseFachregeln(raw: unknown): Fachregel[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Fachregel[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== "object") continue;
+    const o = r as Record<string, unknown>;
+    const stichwort = typeof o.stichwort === "string" ? o.stichwort.trim() : "";
+    const dann = typeof o.dann === "string" ? o.dann.trim() : "";
+    if (!stichwort || !dann) continue;
+    try { new RegExp(stichwort, "i"); } catch { continue; }
+    out.push({ stichwort, dann, frage: typeof o.frage === "string" && o.frage.trim() ? o.frage.trim() : null });
+  }
+  return out;
+}
 
 export const EMPTY_VOICE_STAMMDATEN: VoiceStammdaten = {
   services: [],
@@ -56,6 +84,7 @@ export const EMPTY_VOICE_STAMMDATEN: VoiceStammdaten = {
   kalkSettings: DEFAULT_KALK_SETTINGS,
   richtwerte: [],
   gewerke: [],
+  fachregeln: [],
 };
 
 /**
@@ -126,7 +155,7 @@ export async function loadStammdatenForVoice(
       supabase
         .from("company_settings")
         .select(
-          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap, kalk_richtwerte, kalk_auto_nebenpositionen",
+          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap, kalk_richtwerte, kalk_auto_nebenpositionen, kalk_fachregeln",
         )
         .limit(1)
         .maybeSingle(),
@@ -134,7 +163,7 @@ export async function loadStammdatenForVoice(
     const services = (svcRes.data as Service[]) ?? [];
     const hourlyRates = (hrRes.data as HourlyRate[]) ?? [];
     const trades = (trRes.data as Trade[]) ?? [];
-    const csRow = (csRes?.data ?? null) as ({ kalk_richtwerte?: unknown } & Parameters<typeof kalkSettingsFromCompanyRow>[0]) | null;
+    const csRow = (csRes?.data ?? null) as ({ kalk_richtwerte?: unknown; kalk_fachregeln?: unknown } & Parameters<typeof kalkSettingsFromCompanyRow>[0]) | null;
     return {
       services,
       catalog: servicesToCatalog(services, trades),
@@ -142,6 +171,7 @@ export async function loadStammdatenForVoice(
       kalkSettings: kalkSettingsFromCompanyRow(csRow),
       richtwerte: parseRichtwerte(csRow?.kalk_richtwerte),
       gewerke: buildBetriebsGewerke(services, trades),
+      fachregeln: parseFachregeln(csRow?.kalk_fachregeln),
     };
   } catch {
     return EMPTY_VOICE_STAMMDATEN;

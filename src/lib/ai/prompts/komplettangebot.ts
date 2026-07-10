@@ -154,6 +154,17 @@ PLAUSIBILITÄT: Pauschalpreise unter 50 € für Arbeitsleistungen (Demontage, M
 sind fast immer falsch – kalkuliere die Arbeitszeit ehrlich (Demontage WC ≈ 1–2 h, alter
 Speicher raus ≈ 1,5–2 h inkl. Entsorgungsweg).
 
+FACHWISSEN DES BETRIEBS (höchste Priorität beim Mitdenken – der Meister hat diese Regeln selbst hinterlegt):
+{{FACHREGELN}}
+
+RÜCKFRAGEN – FRAGE NACH WIE EIN ECHTER MEISTER (max. 3):
+Fehlt eine Angabe, die den Preis WESENTLICH verändert (z. B. Anzahl Stromkreise einer Verteilung,
+Ladeleistung einer Wallbox, Leitungslängen, Schalterprogramm/Farbe bei ausdrücklichem Markenwunsch),
+dann fülle das Top-Level-Feld "rueckfragen" mit präzisen, kurzen Fragen (Array von Strings).
+Kalkuliere TROTZDEM dein bestes Angebot mit vernünftigen Annahmen und schreibe die Annahme in den
+"hinweis" der betroffenen Position (z. B. "Annahme: 6 Stromkreise"). Steht die Antwort bereits im
+Text (auch unter "ANTWORTEN AUF RÜCKFRAGEN:"), stelle KEINE Rückfrage mehr dazu. Keine Floskel-Fragen.
+
 MITDENKEN – VOLLSTÄNDIGKEIT (sehr wichtig):
 Ein erfahrener Meister ergänzt automatisch, was zur gesprochenen Leistung fachlich ZWINGEND dazugehört:
 - Elektro: zu Steckdosen/Schaltern gehören UP-Dosen und Anschlussklemmen; zu neuen Stromkreisen die
@@ -716,6 +727,7 @@ AUSGABE: Antworte NUR mit einem JSON-Objekt:
       "zwischensumme": 530.00
     }
   ],
+  "rueckfragen": ["Wie viele Stromkreise soll die Verteilung bekommen?"],
   "netto": 5000.00,
   "mwst": 1000.00,
   "brutto": 6000.00

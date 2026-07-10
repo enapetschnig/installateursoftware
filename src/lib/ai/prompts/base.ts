@@ -37,6 +37,8 @@ export const RICHTWERTE_PLACEHOLDER = '{{RICHTWERTE}}'
 export const GEWERKE_PLACEHOLDER = '{{GEWERKE}}'
 /** Platzhalter für die Nebenpositions-Politik (Baubetrieb vs. Fachbetrieb). */
 export const NEBENPOSITIONEN_PLACEHOLDER = '{{NEBENPOSITIONEN}}'
+/** Platzhalter für die Fachwissen-Regeln des Betriebs (Mitdenken + Rückfragen). */
+export const FACHREGELN_PLACEHOLDER = '{{FACHREGELN}}'
 
 // ──── Kontext-Interface ─────────────────────────────────────────────────────
 
@@ -70,6 +72,8 @@ export interface PromptContext {
    * Baubetriebs-Verhalten, false = Fachbetrieb (nichts Ungesprochenes ergänzen).
    */
   autoNebenpositionen?: boolean
+  /** Fachwissen-Regeln des Betriebs (Migr. 0155): Mitdenken + Rückfragen. */
+  fachregeln?: Array<{ stichwort: string; dann: string; frage?: string | null }>
 }
 
 // ──── buildPrompt ───────────────────────────────────────────────────────────
@@ -126,7 +130,18 @@ export function buildPrompt(basePrompt: string, ctx: PromptContext): string {
         '- 01-001 (Baustelleneinrichtung) bei Projekten ÜBER 3.000 € netto\n' +
         'Bei jedem Angebot MUSS genau EINE Reinigungsposition im Gewerk Reinigung enthalten sein.'
 
+  const fachregelnText =
+    !ctx.fachregeln || ctx.fachregeln.length === 0
+      ? '(keine Fachregeln hinterlegt)'
+      : ctx.fachregeln
+          .map((f) =>
+            `- Wenn "${f.stichwort}" vorkommt: ${f.dann}` +
+            (f.frage ? `\n  RÜCKFRAGE falls unklar: ${f.frage}` : ''))
+          .join('\n')
+
   return basePrompt
+    .split(FACHREGELN_PLACEHOLDER)
+    .join(fachregelnText)
     .split(GEWERKE_PLACEHOLDER)
     .join(gewerkeText)
     .split(NEBENPOSITIONEN_PLACEHOLDER)

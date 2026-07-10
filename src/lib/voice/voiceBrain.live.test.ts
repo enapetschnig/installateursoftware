@@ -116,6 +116,11 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         // Material direkt aus dem Großhandelskatalog statt alter Pauschalpositionen.
         "Erstell mir ein Angebot für einen Zubau mit einer neuen Unterverteilung mit 4 mal 2 Steckdosen, " +
         "einmal SAT-Steckdose und mit Kabel 1,5 Quadrat, insgesamt Leitungslänge circa 20 Meter, also 3 mal 1,5.",
+      7:
+        // Bewusst vage (Rückfragen-Mechanik): Die Fachregel "unterverteil…"
+        // verlangt Stromkreis-Anzahl + Überspannungsschutz-Klärung → der
+        // Kalkulator soll NACHFRAGEN statt still anzunehmen.
+        "Wir montieren eine neue Unterverteilung im Einfamilienhaus.",
     };
     const transcript = transcripts[SZENARIO] ?? transcripts[1];
     console.log(`\n===== SZENARIO ${SZENARIO} =====`);
@@ -126,19 +131,35 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
       console.log(`  ${h.artikelnummer} | ${h.bezeichnung.slice(0, 56)} | EK ${(h.ek_cent / 100).toFixed(3)} €/${h.einheit}`);
     }
 
-    const result = await runVoiceAngebot(
-      {
-        text: transcript,
+    // Rückfragen-Runde wie in der App: fragt der Kalkulator nach (Fachregeln,
+    // z. B. Stromkreis-Anzahl), antworten wir einmal standardisiert und
+    // kalkulieren neu – genau der Dialog-Flow.
+    const runOnce = (text: string) =>
+      runVoiceAngebot(
+        {
+          text,
         organizationName: "Bad.Werk GmbH",
         catalog: stammdaten.catalog,
         stundensaetze: stammdaten.stundensaetze,
         settings: stammdaten.kalkSettings,
         richtwerte: stammdaten.richtwerte,
         gewerkeProfil: stammdaten.gewerke,
-      },
-      // deps: echte Pipeline, echter Parser – nur aiComplete gegen den Handler verdrahtet
-      { aiComplete: aiComplete as never, runCalcPipeline, extractErgaenzungenHinweise, parseJsonResponse },
-    );
+        fachregeln: stammdaten.fachregeln,
+        },
+        // deps: echte Pipeline, echter Parser – nur aiComplete gegen den Handler verdrahtet
+        { aiComplete: aiComplete as never, runCalcPipeline, extractErgaenzungenHinweise, parseJsonResponse },
+      );
+
+    let result = await runOnce(transcript);
+    if (result.meta.rueckfragen?.length) {
+      console.log("\nRÜCKFRAGEN DES KALKULATORS:\n  " + result.meta.rueckfragen.join("\n  "));
+      // Antwortet NUR auf das Gefragte – keine neuen Leistungen einschleusen
+      // (sonst erfindet die KI Positionen, die nie beauftragt wurden).
+      const antwort =
+        "6 Stromkreise, Überspannungsschutz ja. Ansonsten Standard-Ausführung, " +
+        "keine zusätzlichen Leistungen gewünscht.";
+      result = await runOnce(`${transcript}\n\nANTWORTEN AUF RÜCKFRAGEN:\n${antwort}`);
+    }
 
     // ── Ergebnis sichtbar machen (Qualitätsurteil) ──
     let sum = 0;
@@ -160,7 +181,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     // ── Harte Erwartungen ──
     expect(result.gewerke.length).toBeGreaterThan(0);
     const alle = result.gewerke.flatMap((g) => g.positionen ?? []);
-    expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3 }[SZENARIO] ?? 4);
+    expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3, 7: 1 }[SZENARIO] ?? 4);
     // Jede Position hat eine Menge; Neu-Kalkulationen haben IMMER einen Preis.
     // 0-€-Positionen aus der eigenen Preisliste (Stammdaten-Lücke) sind erlaubt,
     // MÜSSEN aber einen Prüf-Hinweis erzeugen (Plausibilitäts-Wache).

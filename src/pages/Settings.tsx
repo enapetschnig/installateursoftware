@@ -24,6 +24,7 @@ import DataReset from "../components/settings/DataReset";
 import IntegrationsTab from "../components/integrations/IntegrationsTab";
 import KalkulationSettings from "../components/settings/KalkulationSettings";
 import CatalogSettings from "../components/settings/CatalogSettings";
+import FachregelnSettings from "../components/settings/FachregelnSettings";
 import { extractConnectReason } from "../components/integrations/connect-reason";
 import { toast, toastError } from "../lib/toast";
 import { FileText, Sparkles, RefreshCcw, Calculator, Search } from "lucide-react";
@@ -245,7 +246,12 @@ export default function Settings() {
       {tab === "angebote" && <OfferTypesManager canManage={canEdit("settings.document_types")} />}
 
       {/* Kalkulation: globale Parameter der Voice-Angebote-Pipeline (Migr. 0125) */}
-      {tab === "kalkulation" && <KalkulationSettings canManage={canManage} />}
+      {tab === "kalkulation" && (
+        <>
+          <KalkulationSettings canManage={canManage} />
+          <FachregelnSettings canManage={canManage} />
+        </>
+      )}
       {tab === "grosshandel" && <CatalogSettings canManage={canManage} />}
 
       {/* Kalender & Arbeitszeiten: Jahreskalender (Wochenarten) + Arbeitszeitmodell-Vorlagen */}

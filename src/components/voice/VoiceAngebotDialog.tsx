@@ -30,7 +30,7 @@
 //  ist via erneutem Senden moeglich.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Modal } from '../ui'
 
@@ -50,7 +50,7 @@ import {
 } from '../../lib/ai/prompts/base'
 import { runCalcPipeline } from '../../lib/calc/pipeline'
 import { logVoiceTranscript } from '../../lib/voice/logVoiceTranscript'
-import type { BetriebsGewerk, Richtwert } from '../../lib/voice/loadStammdatenForVoice'
+import type { BetriebsGewerk, Fachregel, Richtwert } from '../../lib/voice/loadStammdatenForVoice'
 import { searchCatalogForTranscript, buildWholesaleBlock, applyWholesalePricing, type CatalogHit } from '../../lib/wholesale'
 import type {
   Catalog,
@@ -68,6 +68,8 @@ export interface VoiceAngebotDialogMeta {
   ergaenzungen?: string[]
   /** Hinweise aus dem Roh-Text (separat extrahiert). */
   hinweise?: string[]
+  /** Rückfragen der KI (preisrelevante Lücken) – der Dialog zeigt sie VOR der Übernahme. */
+  rueckfragen?: string[]
 }
 
 export interface VoiceAngebotDialogProps {
@@ -84,6 +86,8 @@ export interface VoiceAngebotDialogProps {
   richtwerte?: Richtwert[]
   /** Aktive Gewerke des Betriebs (Angebots-Gliederung). */
   gewerkeProfil?: BetriebsGewerk[]
+  /** Fachwissen-Regeln (Migr. 0155) – Mitdenken + Rückfragen. */
+  fachregeln?: Fachregel[]
   // ── Test-Injection-Points ────────────────────────────────────────────────
   /** Override fuer aiComplete (Tests). */
   aiCompleteImpl?: (opts: AiCompleteOpts) => Promise<AiCompleteResult>
@@ -137,6 +141,8 @@ export interface KomplettAngebotResponse {
   gewerke: Gewerk[]
   /** Mitdenken: offene Punkte, die der Chef vor Versand klären sollte. */
   fehlt_moeglicherweise?: string[] | null
+  /** Rückfragen des Kalkulators (Fachregeln, Migr. 0155) – preisrelevante Lücken. */
+  rueckfragen?: string[] | null
 }
 
 /**
@@ -173,6 +179,8 @@ export interface RunVoiceAngebotArgs {
   richtwerte?: Richtwert[]
   /** Aktive Gewerke des Betriebs – bestimmt die Angebots-Gliederung der KI. */
   gewerkeProfil?: BetriebsGewerk[]
+  /** Fachwissen-Regeln des Betriebs (Migr. 0155) – Mitdenken + Rückfragen. */
+  fachregeln?: Fachregel[]
   onStatus?: (s: VoiceAngebotStatus) => void
 }
 
@@ -258,6 +266,7 @@ export async function runVoiceAngebot(
     richtwerte: args.richtwerte,
     gewerke: args.gewerkeProfil,
     autoNebenpositionen: args.settings.autoNebenpositionen,
+    fachregeln: args.fachregeln,
   }
   const systemPrompt = buildPrompt(KOMPLETT_ANGEBOT_PROMPT, promptCtx)
 
@@ -368,11 +377,15 @@ export async function runVoiceAngebot(
     .concat(plausibilityHints(processed, args.richtwerte ?? []))
 
   const alleHinweise = [...hinweise, ...kiHinweise]
+  const rueckfragen = (Array.isArray(parsed?.rueckfragen) ? parsed.rueckfragen : [])
+    .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+    .slice(0, 3)
   const meta: VoiceAngebotDialogMeta = {
     betrifft:
       (parsed.betreff?.trim() || userFields.betrifft?.trim()) || undefined,
     ergaenzungen: ergaenzungen.length > 0 ? ergaenzungen : undefined,
     hinweise: alleHinweise.length > 0 ? alleHinweise : undefined,
+    rueckfragen: rueckfragen.length > 0 ? rueckfragen : undefined,
   }
 
   args.onStatus?.({ phase: 'done' })
@@ -391,16 +404,27 @@ export function VoiceAngebotDialog({
   settings,
   richtwerte,
   gewerkeProfil,
+  fachregeln,
   aiCompleteImpl,
   runCalcPipelineImpl,
   extractErgaenzungenHinweiseImpl,
   parseJsonResponseImpl,
 }: VoiceAngebotDialogProps) {
   const [status, setStatus] = useState<VoiceAngebotStatus>({ phase: 'idle' })
+  // Rückfragen-Runde: Ergebnis zwischenparken, Fragen zeigen, Antwort einholen,
+  // einmal neu kalkulieren (answeredRef verhindert Endlos-Frage-Schleifen).
+  const [pendingFragen, setPendingFragen] = useState<{ result: RunVoiceAngebotResult; text: string } | null>(null)
+  const [antwortText, setAntwortText] = useState('')
+  const answeredRef = useRef(false)
 
   // Status zuruecksetzen, sobald das Modal geoeffnet wird.
   useEffect(() => {
-    if (open) setStatus({ phase: 'idle' })
+    if (open) {
+      setStatus({ phase: 'idle' })
+      setPendingFragen(null)
+      setAntwortText('')
+      answeredRef.current = false
+    }
   }, [open])
 
   // Body-Scroll sperren waehrend Modal offen.
@@ -448,6 +472,7 @@ export function VoiceAngebotDialog({
             settings: settings ?? DEFAULT_KALK_SETTINGS,
             richtwerte: richtwerte ?? [],
             gewerkeProfil: gewerkeProfil ?? [],
+            fachregeln: fachregeln ?? [],
             onStatus: setStatus,
           },
           deps,
@@ -457,6 +482,22 @@ export function VoiceAngebotDialog({
         // organization_id + created_by kommen aus den DB-Defaults
         // (current_org_id() / auth.uid()).
         void logVoiceTranscript({ transcript: text, producedOffer: true })
+        const fragen = result.meta.rueckfragen ?? []
+        if (fragen.length > 0 && !answeredRef.current) {
+          // Der Kalkulator hat preisrelevante Rückfragen → erst klären,
+          // dann (einmal) neu kalkulieren. Kein stilles Annehmen.
+          setPendingFragen({ result, text })
+          setStatus({ phase: 'idle' })
+          return
+        }
+        // Nach der Antwortrunde verbleibende Rückfragen wandern als Hinweis
+        // in die internen Notizen ("Vor dem Versand prüfen"-Modal).
+        if (fragen.length > 0) {
+          result.meta.hinweise = [
+            ...(result.meta.hinweise ?? []),
+            ...fragen.map((f) => `Prüfen: Offene Rückfrage – ${f}`),
+          ]
+        }
         onComplete(result.gewerke, result.meta)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
@@ -468,7 +509,7 @@ export function VoiceAngebotDialog({
         setStatus({ phase: 'error', error: msg })
       }
     },
-    [isBusy, organizationName, catalog, stundensaetze, settings, richtwerte, gewerkeProfil, deps, onComplete],
+    [isBusy, organizationName, catalog, stundensaetze, settings, richtwerte, gewerkeProfil, fachregeln, deps, onComplete],
   )
 
   // Wir nutzen die zentrale b4y `Modal`-Komponente (Portal, Scroll-Lock,
@@ -477,7 +518,59 @@ export function VoiceAngebotDialog({
   return (
     <Modal open={open} onClose={isBusy ? () => {} : onClose} title="Angebot per Sprache erstellen" size="xl">
       <div data-testid="voice-angebot-dialog">
-        {/* Body */}
+        {/* Rückfragen-Runde: Der Kalkulator fragt nach wie ein echter Meister,
+            BEVOR das Angebot übernommen wird. Antwort per Text (oder erneut
+            per Sprache über das Eingabefeld) → einmalige Neu-Kalkulation. */}
+        {pendingFragen ? (
+          <div data-testid="voice-rueckfragen">
+            <p className="text-sm font-semibold">Kurze Rückfragen zur Kalkulation:</p>
+            <ul className="mt-2 space-y-1.5">
+              {(pendingFragen.result.meta.rueckfragen ?? []).map((f, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <span className="mt-0.5 shrink-0" style={{ color: 'var(--accent)' }}>?</span>
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+            <textarea
+              className="input mt-3 min-h-[80px] text-sm"
+              placeholder="Antworten eintippen – z. B. „6 Stromkreise, Überspannungsschutz ja, Gira reinweiß“"
+              value={antwortText}
+              onChange={(e) => setAntwortText(e.target.value)}
+              data-testid="voice-rueckfragen-antwort"
+            />
+            <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <button
+                className="btn-outline"
+                onClick={() => {
+                  // Ohne Antworten übernehmen: offene Fragen als Prüf-Hinweise mitgeben.
+                  const r = pendingFragen.result
+                  r.meta.hinweise = [
+                    ...(r.meta.hinweise ?? []),
+                    ...(r.meta.rueckfragen ?? []).map((f) => `Prüfen: Offene Rückfrage – ${f}`),
+                  ]
+                  setPendingFragen(null)
+                  onComplete(r.gewerke, r.meta)
+                }}
+              >
+                Mit Annahmen übernehmen
+              </button>
+              <button
+                className="btn-primary"
+                disabled={!antwortText.trim() || isBusy}
+                onClick={() => {
+                  answeredRef.current = true
+                  const text = `${pendingFragen.text}\n\nANTWORTEN AUF RÜCKFRAGEN:\n${antwortText.trim()}`
+                  setPendingFragen(null)
+                  setAntwortText('')
+                  void handleSubmit(text)
+                }}
+              >
+                Antworten &amp; neu kalkulieren
+              </button>
+            </div>
+          </div>
+        ) : (
         <SpeechInput
           enableBullets
           disabled={isBusy}
@@ -487,6 +580,7 @@ export function VoiceAngebotDialog({
             void handleSubmit(text)
           }}
         />
+        )}
 
         {/* Statusleiste – b4y-Tokens fuer Tone-Farben */}
         <div
