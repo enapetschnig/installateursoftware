@@ -77,7 +77,14 @@ test("Angebot per Sprache: Dashboard → Prestep → Dialog → Positionen im Ed
 
   // 5) Warten bis die KI fertig ist und Positionen im Editor stehen
   await expect(page.getByTestId("voice-angebot-dialog")).toBeHidden({ timeout: 200_000 });
-  await page.waitForTimeout(1500);
+
+  // 5b) Mitdenken: das "Vor dem Versand prüfen"-Fenster zeigt die offenen
+  // Punkte aus fehlt_moeglicherweise – bestätigen und weiter.
+  await expect(page.getByText("Vor dem Versand prüfen")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Platz für zusätzlichen FI prüfen/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Verstanden" }).click();
+  console.log("✓ Prüf-Hinweise-Fenster angezeigt und bestätigt");
+  await page.waitForTimeout(800);
 
   // Positionsname steht in einem <input> (textContent sieht das nicht) …
   await expect(page.locator('input[value*="NYM-J" i], textarea:has-text("NYM-J")').first(), "NYM-Position fehlt im Editor")

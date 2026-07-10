@@ -94,7 +94,8 @@ export interface VoiceAngebotDialogProps {
 
 export type VoiceAngebotStatus =
   | { phase: 'idle' }
-  | { phase: 'ai' }
+  | { phase: 'wholesale' }
+  | { phase: 'ai'; wholesaleHits?: number }
   | { phase: 'pipeline' }
   | { phase: 'done' }
   | { phase: 'error'; error: string }
@@ -103,10 +104,14 @@ function statusLabel(s: VoiceAngebotStatus): string {
   switch (s.phase) {
     case 'idle':
       return 'Bereit'
+    case 'wholesale':
+      return 'Durchsuche Großhandelskatalog …'
     case 'ai':
-      return 'KI generiert das Angebot...'
+      return s.wholesaleHits
+        ? `KI kalkuliert das Angebot (${s.wholesaleHits} Katalog-Artikel mit echten Einkaufspreisen gefunden) …`
+        : 'KI kalkuliert das Angebot …'
     case 'pipeline':
-      return 'Pipeline rechnet...'
+      return 'Positionen werden geprüft und kalkuliert …'
     case 'done':
       return 'Fertig'
     case 'error':
@@ -167,6 +172,43 @@ export interface RunVoiceAngebotResult {
   meta: VoiceAngebotDialogMeta
 }
 
+/**
+ * Plausibilitäts-Wache: erkennt offensichtlich unglaubwürdige Preise/Mengen
+ * in Neu-Kalkulationen. Erfindet KEINE Preise – sie meldet nur Prüf-Hinweise
+ * (Mitdenken-Prinzip: aufzeigen statt raten).
+ */
+export function plausibilityHints(gewerke: Gewerk[]): string[] {
+  const hints: string[] = []
+  const arbeit = /demontage|montage|einbau|ausbau|installation|austausch|tausch|entsorgung|verlegen|anschließen|abdichten|sanierung/i
+  for (const g of gewerke) {
+    for (const p of g.positionen ?? []) {
+      const vk = Number(p.vk_netto_einheit ?? 0)
+      const menge = Number(p.menge ?? 0)
+      const einheit = String(p.einheit ?? '').toLowerCase()
+      const name = String(p.leistungsname ?? '')
+      // Gilt für ALLE Positionen (auch Preisliste): 0-€-Zeilen und
+      // Mengen-Ausreißer bei Pauschalen dürfen nie unbemerkt durchrutschen.
+      if (vk <= 0) {
+        hints.push(`Prüfen: „${name}“ hat keinen Preis (0 €) – Stammdaten-VK fehlt oder Position entfernen.`)
+      }
+      if (/pausch|psch/.test(einheit) && menge > 1) {
+        hints.push(`Prüfen: „${name}“ – Menge ${menge} bei Einheit „pauschal“ wirkt falsch (Menge 1?).`)
+      }
+      if (p.aus_preisliste) continue
+      if (arbeit.test(name) && /pausch|psch/.test(einheit) && vk > 0 && vk < 50) {
+        hints.push(`Prüfen: „${name}“ wirkt mit ${vk.toFixed(2)} € pauschal unplausibel niedrig kalkuliert.`)
+      }
+      if (vk > 5000 && /^(m|lfm|m²|m2|mtr)/.test(einheit)) {
+        hints.push(`Prüfen: „${name}“ – ${vk.toFixed(2)} € je ${p.einheit} wirkt sehr hoch (Zahlendreher?).`)
+      }
+      if (menge > 500 && /st(k|ück)?/.test(einheit)) {
+        hints.push(`Prüfen: „${name}“ – Menge ${menge} Stück wirkt sehr hoch (Verhörer?).`)
+      }
+    }
+  }
+  return hints
+}
+
 export async function runVoiceAngebot(
   args: RunVoiceAngebotArgs,
   deps: RunVoiceAngebotDeps,
@@ -190,11 +232,11 @@ export async function runVoiceAngebot(
   const systemPrompt = buildPrompt(KOMPLETT_ANGEBOT_PROMPT, promptCtx)
 
   // ── 3. KI-Call ───────────────────────────────────────────────────────────
-  args.onStatus?.({ phase: 'ai' })
   const userMessage = (cleanedText || args.text).trim()
   if (!userMessage) {
     throw new Error('Kein Text zum Senden vorhanden.')
   }
+  args.onStatus?.({ phase: 'wholesale' })
 
   // Preisliste in den Prompt injizieren: der KOMPLETT_ANGEBOT_PROMPT verweist
   // explizit auf die "kompakte Preisliste" (Synonym-Matching, aus_preisliste-
@@ -215,6 +257,8 @@ export async function runVoiceAngebot(
   } catch {
     /* Katalog ist Zusatznutzen – Voice-Angebot darf daran nie scheitern */
   }
+
+  args.onStatus?.({ phase: 'ai', wholesaleHits: wholesaleHits.length })
 
   const cachedContext =
     `PREISLISTE (Auszug, gefiltert nach erkannten Gewerken):\n${catalogBlock}` +
@@ -288,6 +332,7 @@ export async function runVoiceAngebot(
   const kiHinweise = (Array.isArray(parsed?.fehlt_moeglicherweise) ? parsed.fehlt_moeglicherweise : [])
     .filter((h): h is string => typeof h === 'string' && h.trim().length > 0)
     .map((h) => `Prüfen: ${h.trim()}`)
+    .concat(plausibilityHints(processed))
 
   const alleHinweise = [...hinweise, ...kiHinweise]
   const meta: VoiceAngebotDialogMeta = {

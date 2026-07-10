@@ -143,6 +143,9 @@ export default function OfferEditor() {
   // Phase 5: KI-Voice-Dialog + Single-Position-Dialog (Stub). Sichtbar laut
   // User-Constraint nur bei leeren Entwuerfen bzw. arbeitbaren Entwuerfen.
   const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
+  // Mitdenken-Hinweise der Voice-KI ("Prüfen: …") – nach dem Erzeugen sichtbar
+  // anzeigen statt sie nur still in den internen Notizen zu versenken.
+  const [voiceHints, setVoiceHints] = useState<string[] | null>(null);
   const [addPositionDialogOpen, setAddPositionDialogOpen] = useState(false);
   const [voiceStammdaten, setVoiceStammdaten] = useState<VoiceStammdaten>(EMPTY_VOICE_STAMMDATEN);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "dirty" | "error">("saved");
@@ -1010,6 +1013,9 @@ export default function OfferEditor() {
     }));
     setVoiceDialogOpen(false);
     toast(`Angebot mit ${docPositions.length} Position(en) erzeugt.`);
+    // Prüf-Hinweise prominent zeigen (zusätzlich stehen sie in den Notizen).
+    const pruefen = (meta.hinweise ?? []).filter((h) => h.trim().length > 0);
+    if (pruefen.length > 0) setVoiceHints(pruefen);
   }
 
   /**
@@ -1351,6 +1357,29 @@ export default function OfferEditor() {
         stundensaetze={voiceStammdaten.stundensaetze}
         settings={voiceStammdaten.kalkSettings}
       />
+
+      {/* Mitdenken: was die KI zum gesprochenen Auftrag noch klären würde.
+          Die Punkte stehen auch in den internen Notizen – hier nur die
+          sichtbare Erinnerung direkt nach dem Erzeugen. */}
+      <Modal open={!!voiceHints} onClose={() => setVoiceHints(null)} title="Vor dem Versand prüfen" size="md">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Die KI hat das Angebot erstellt und dabei folgende offene Punkte erkannt:
+        </p>
+        <ul className="mt-3 space-y-2">
+          {(voiceHints ?? []).map((h, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm">
+              <span className="mt-0.5 shrink-0" style={{ color: "var(--accent)" }}>•</span>
+              <span>{h.replace(/^Prüfen:\s*/i, "")}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-slate-400">
+          Diese Punkte stehen auch in den internen Notizen des Angebots.
+        </p>
+        <div className="mt-4 flex justify-end">
+          <button className="btn-primary" onClick={() => setVoiceHints(null)}>Verstanden</button>
+        </div>
+      </Modal>
 
       {/* "+ KI Leistung": Einzelposition per Sprache/Text. Nutzt dieselben
           eager geladenen Stammdaten wie das Voice-Komplettangebot; neue

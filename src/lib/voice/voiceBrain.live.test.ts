@@ -90,6 +90,20 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         "Waschtisch mit Unterschrank und Spiegelschrank. Rund fünfundzwanzig Quadratmeter Wandfliesen " +
         "und acht Quadratmeter Bodenfliesen verlegen. Armaturen für Dusche und Waschtisch von Grohe. " +
         "Der Kunde will noch einen Handtuchheizkörper, den schließen wir ans Warmwasser an.",
+      3:
+        // Umgangssprache + Korrektur mitten im Satz – so reden Monteure wirklich.
+        "Ja servus, also beim Huber in der Bahnstraße hauen wir das alte Klo raus und " +
+        "hängen ein neues Wand-WC hin. Dann brauch ma noch, warte, zehn Meter, na doch " +
+        "fünfzehn Meter Kupferrohr, achtzehner, für die neue Warmwasserleitung. Und der " +
+        "Boiler, also der Warmwasserspeicher, der alte 80-Liter, kommt raus und ein neuer " +
+        "hundertfünfzig Liter kommt rein. Ach ja, und zwei Eckventile tauschen wir a noch.",
+      4:
+        // Regie-/Notdienstfall: keine fixen Positionen, Stunden + Material.
+        "Betrifft: Notdienst Wasserschaden Keller, Familie Leitner, Salzburg. " +
+        "Wasserleitung im Keller geplatzt, wir waren am Samstag zwei Monteure vier Stunden " +
+        "vor Ort auf Regie. Leitung provisorisch abgedichtet und ein Absperrventil getauscht. " +
+        "Anfahrt fünfunddreißig Kilometer. Material: ein Kugelhahn halb Zoll und zwei Meter " +
+        "Kupferrohr achtzehner. Trocknungsgerät haben wir dagelassen, drei Tage Miete.",
     };
     const transcript = transcripts[SZENARIO] ?? transcripts[1];
     console.log(`\n===== SZENARIO ${SZENARIO} =====`);
@@ -133,10 +147,22 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     expect(result.gewerke.length).toBeGreaterThan(0);
     const alle = result.gewerke.flatMap((g) => g.positionen ?? []);
     expect(alle.length).toBeGreaterThanOrEqual(4);
-    // Jede Position hat Menge + Preis > 0
+    // Jede Position hat eine Menge; Neu-Kalkulationen haben IMMER einen Preis.
+    // 0-€-Positionen aus der eigenen Preisliste (Stammdaten-Lücke) sind erlaubt,
+    // MÜSSEN aber einen Prüf-Hinweis erzeugen (Plausibilitäts-Wache).
+    const hinweise = result.meta.hinweise ?? [];
+    if (hinweise.length) console.log("\nPRÜF-HINWEISE:\n  " + hinweise.join("\n  "));
     for (const p of alle) {
       expect(Number(p.menge ?? 0), `Menge fehlt: ${p.leistungsname}`).toBeGreaterThan(0);
-      expect(Number(p.vk_netto_einheit ?? 0), `Preis fehlt: ${p.leistungsname}`).toBeGreaterThan(0);
+      const vk = Number(p.vk_netto_einheit ?? 0);
+      if (!p.aus_preisliste) {
+        expect(vk, `Preis fehlt (Neu-Kalkulation): ${p.leistungsname}`).toBeGreaterThan(0);
+      } else if (vk <= 0) {
+        expect(
+          hinweise.some((h) => h.includes(String(p.leistungsname ?? ""))),
+          `0-€-Preislisten-Position ohne Prüf-Hinweis: ${p.leistungsname}`,
+        ).toBe(true);
+      }
     }
     // Mindestens eine Position referenziert den Großhandelskatalog (echter EK verwendet)
     const mitKatalog = alle.filter((p) => String(p.beschreibung ?? "").includes("Großhandelskatalog"));

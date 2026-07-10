@@ -142,6 +142,10 @@ PREISFINDUNG – REIHENFOLGE STRIKT EINHALTEN:
 3. WENN GEFUNDEN UND EINHEIT PASST → aus_preisliste: true, EXAKTE Leistungsnummer übernehmen. Der Preis wird AUTOMATISCH vom System aus dem Katalog übernommen – du darfst KEINEN eigenen Preis schätzen, berechnen oder erfinden!
 4. NUR WENN NICHT GEFUNDEN ODER EINHEIT NICHT PASST → aus_preisliste: false, vollständige Neukalkulation mit passender Einheit.
 
+PLAUSIBILITÄT: Pauschalpreise unter 50 € für Arbeitsleistungen (Demontage, Montage, Einbau)
+sind fast immer falsch – kalkuliere die Arbeitszeit ehrlich (Demontage WC ≈ 1–2 h, alter
+Speicher raus ≈ 1,5–2 h inkl. Entsorgungsweg).
+
 MITDENKEN – VOLLSTÄNDIGKEIT (sehr wichtig):
 Ein erfahrener Meister ergänzt automatisch, was zur gesprochenen Leistung fachlich ZWINGEND dazugehört:
 - Elektro: zu Steckdosen/Schaltern gehören UP-Dosen und Anschlussklemmen; zu neuen Stromkreisen die
