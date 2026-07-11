@@ -125,6 +125,15 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         // Neues Fachwissen (Eventualitäten-Ausbau): Wallbox – erwartet FI Typ B/
         // A-EV, eigenen Stromkreis, Netzbetreiber-Meldung, Zuleitung nach kW.
         "Wir montieren eine Wallbox mit 11 kW in der Garage, vom Zählerkasten sind es circa 12 Meter.",
+      9:
+        // Der reale App-Fall (User-Feedback): explizit diktierte Komponenten
+        // mit Marken (Hager-Automaten, Gira-Schaltermaterial) MÜSSEN einzeln
+        // aufgeschlüsselte Positionen werden – keine zwei Sammelklumpen.
+        "Erstelle mir eine Elektroinstallation für einen Zubau. Da brauchen wir eine neue " +
+        "Unterverteilung mit alles Hager Automaten, also einmal FI mit 40 Ampere und 30 Milliampere, " +
+        "fünf Leitungsschutzschalter wieder von Hager mit 1 plus N. Und wir brauchen Schaltermaterial, " +
+        "nehmen wir alles von Gira, also wir brauchen einmal Schalter und Steckdose mit zweifach Rahmen, " +
+        "dann haben wir zweimal zwei Steckdosen mit Rahmen und Steckdose jeweils dabei und eine SAT-Dose.",
     };
     const transcript = transcripts[SZENARIO] ?? transcripts[1];
     console.log(`\n===== SZENARIO ${SZENARIO} =====`);
@@ -185,7 +194,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     // ── Harte Erwartungen ──
     expect(result.gewerke.length).toBeGreaterThan(0);
     const alle = result.gewerke.flatMap((g) => g.positionen ?? []);
-    expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3, 7: 1, 8: 2 }[SZENARIO] ?? 4);
+    expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3, 7: 1, 8: 2, 9: 6 }[SZENARIO] ?? 4);
     // Jede Position hat eine Menge; Neu-Kalkulationen haben IMMER einen Preis.
     // 0-€-Positionen aus der eigenen Preisliste (Stammdaten-Lücke) sind erlaubt,
     // MÜSSEN aber einen Prüf-Hinweis erzeugen (Plausibilitäts-Wache).
@@ -209,6 +218,16 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
       expect(mitKatalog.length, "keine Position nutzt den Großhandelskatalog").toBeGreaterThan(0);
     } else {
       console.log(`Katalog-Positionen: ${mitKatalog.length}`);
+    }
+
+    // Szenario 9 = Einzelaufschlüsselung + Markentreue (App-Feedback):
+    // Hager-Schutzorgane und Gira-Schaltermaterial müssen als eigene
+    // Positionen mit Artikeln der RICHTIGEN Marke erscheinen.
+    if (SZENARIO === 9) {
+      const dump = JSON.stringify(result.gewerke).toLowerCase();
+      expect(dump, "Hager-Artikel fehlen").toContain("hager");
+      expect(dump, "Gira-Artikel fehlen").toContain("gira");
+      expect(mitKatalog.length, "zu wenige Positionen mit Katalog-Material").toBeGreaterThanOrEqual(4);
     }
 
     // Szenario 6 = Elektriker-Betriebsprofil (PDF-Feedback): EIN Gewerk, kein

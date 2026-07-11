@@ -50,7 +50,7 @@ export const hitKey = (h: Pick<CatalogHit, "catalog_id" | "artikelnummer">): str
 export async function searchCatalog(
   query: string,
   limit = 12,
-  opts: { catalogId?: string | null } = {},
+  opts: { catalogId?: string | null; hersteller?: string | null } = {},
 ): Promise<CatalogHit[]> {
   const q = query.trim();
   if (q.length < 2) return [];
@@ -58,6 +58,7 @@ export async function searchCatalog(
     p_query: q,
     p_limit: limit,
     p_catalog_id: opts.catalogId ?? null,
+    p_hersteller: opts.hersteller ?? null,
   });
   if (error) return []; // Suche ist Zusatznutzen – nie den Aufrufer crashen
   return (data as CatalogHit[]) ?? [];
@@ -119,9 +120,35 @@ const SPOKEN_SYNONYM_QUERIES: Array<{ wenn: RegExp; queries: string[] }> = [
   { wenn: /leerrohr/i, queries: ["installationsrohr"] },
 ];
 
-/** "3 mal 1,5" / "5 mal 2,5" (gesprochen) → Dimensions-Token "3x1,5". */
+/** "3 mal 1,5" → "3x1,5"; "1 plus N" → "1+N" (gesprochene Dimensionen/Polzahlen). */
 function normalizeSpokenDimensions(text: string): string {
-  return text.replace(/(\d+(?:,\d+)?)\s*mal\s*(\d+(?:,\d+)?)/gi, "$1x$2");
+  return text
+    .replace(/(\d+(?:,\d+)?)\s*mal\s*(\d+(?:,\d+)?)/gi, "$1x$2")
+    .replace(/(\d)\s*plus\s*n\b/gi, "$1+N");
+}
+
+// Marken, die Elektriker diktieren – für markentreues Retrieval
+// ("Hager Automaten" → Suche "hager leitungsschutzschalter", nicht irgendeinen LS).
+const ELEKTRO_MARKEN = /\b(hager|gira|berker|jung|busch[- ]?jaeger|merten|abb|eaton|schneider|schrack|legrand|siemens|niko|elso)\b/gi;
+
+// Komponente im Transkript → Katalog-Suchwörter für die MARKENGEFILTERTE Suche
+// (p_hersteller, Migr. 0156). Zwei Query-Varianten je Komponente, weil die
+// Hersteller unterschiedlich benennen (Hager "LS-Schalter"/"FI-Schalter",
+// Schneider "Leitungsschutzschalter", Gira "SCHUKO … System 55").
+const MARKEN_KOMPONENTEN: Array<{ wenn: RegExp; queries: string[] }> = [
+  { wenn: /\bfi\b|fehlerstrom/i, queries: ["fi-schalter 40a", "fehlerstromschutzschalter"] },
+  { wenn: /1\+n/i, queries: ["ls-schalter 1+n", "leitungsschutzschalter 1+n"] },
+  { wenn: /leitungsschutz|\bls\b|automat|sicherung/i, queries: ["ls-schalter", "leitungsschutzschalter"] },
+  { wenn: /steckdose/i, queries: ["schuko steckdose", "steckdose reinweiß"] },
+  { wenn: /schalter(?!programm)(?<!ls-)(?<!fi-)|taster|dimmer/i, queries: ["wechselschalter", "wippschalter"] },
+  { wenn: /rahmen/i, queries: ["abdeckrahmen 2f", "rahmen 2-fach"] },
+  { wenn: /sat|antennen/i, queries: ["antennensteckdose", "antennendose"] },
+  { wenn: /verteil/i, queries: ["kleinverteiler", "verteiler unterputz"] },
+];
+
+/** Marken im Transkript erkennen (für markengefiltertes Retrieval). */
+export function detectMarken(transcript: string): string[] {
+  return [...new Set([...transcript.matchAll(ELEKTRO_MARKEN)].map((m) => m[1].toLowerCase()))];
 }
 
 /** Zerlegt ein Transkript in Such-Queries (max. `maxQueries`). */
@@ -193,13 +220,31 @@ export async function searchCatalogForTranscript(
   opts: { perQuery?: number; maxTotal?: number } = {},
 ): Promise<CatalogHit[]> {
   const perQuery = opts.perQuery ?? 4;
-  // 48 statt 36: Stücklisten brauchen auch die Nebenteile (Dosen, Rahmen,
-  // FI/LS) – mit 36 wurden die zuletzt gefundenen Komponenten abgeschnitten.
-  const maxTotal = opts.maxTotal ?? 48;
+  // 60: Stücklisten brauchen Nebenteile (Dosen, Rahmen, FI/LS) UND die
+  // markengefilterten Treffer – zu kleine Caps schneiden Komponenten ab.
+  const maxTotal = opts.maxTotal ?? 60;
   const queries = extractSearchQueries(transcript);
   if (queries.length === 0) return [];
 
-  const results = await Promise.all(queries.map((q) => searchCatalog(q, perQuery)));
+  // MARKENTREUE: "alles Hager Automaten", "Schaltermaterial von Gira" →
+  // je (Marke × genannter Komponente) eine HERSTELLERGEFILTERTE Suche
+  // (Migr. 0156). Die Marke steht oft nur im zusatz-Feld; eine Text-Query
+  // "hager ls-schalter" würde markenfremde Artikel gleich hoch ranken.
+  const marken = detectMarken(transcript);
+  const brandSearches: Array<Promise<CatalogHit[]>> = [];
+  for (const marke of marken) {
+    for (const komp of MARKEN_KOMPONENTEN) {
+      if (!komp.wenn.test(transcript)) continue;
+      for (const q of komp.queries) {
+        brandSearches.push(searchCatalog(q, 3, { hersteller: marke }));
+      }
+    }
+  }
+
+  const results = await Promise.all([
+    ...queries.map((q) => searchCatalog(q, perQuery)),
+    ...brandSearches,
+  ]);
   // Dedup je Katalog+Artikelnummer – zwei Händler mit gleicher Artikelnummer
   // bleiben getrennte Treffer (Preise dürfen sich nicht überschreiben).
   const byKey = new Map<string, CatalogHit>();

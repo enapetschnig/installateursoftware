@@ -186,3 +186,24 @@ Großhandelskatalog** – nicht nur einen Artikel:
 - Live-Szenario 7 („Wir montieren eine neue Unterverteilung im Einfamilienhaus."): KI fragt
   „Wie viele Stromkreise?", Antwort „6, Überspannungsschutz ja" → Verteilung mit FI, 6 LS,
   Überspannungsschutz, Beschriftung, Messprotokoll. Der Test simuliert die Antwortrunde.
+
+## Einzelaufschlüsselung + Markentreue (Stand 2026-07-11)
+
+Anwender-Feedback: explizit diktierte Komponenten („einmal FI, fünf LS von Hager,
+Schaltermaterial von Gira…") wurden in zwei Sammelpositionen geklumpt.
+
+- **EINZELAUFSCHLÜSSELUNG-Regel** (Prompt-Kernregel mit 6-Positionen-Beispiel):
+  Jedes mit Menge/Marke aufgezählte Bauteil = eigene Position (FI 1 Stk, LS 5 Stk,
+  Kombination 1 Stk, …). Verteiler-Stückliste enthält FI/LS nur noch, wenn sie
+  NICHT einzeln aufgezählt wurden (Widerspruch im Stücklisten-Baumuster aufgelöst).
+- **MARKENTREUE**: Migration 0156 gibt `catalog_search` einen `p_hersteller`-Filter
+  (zusatz ILIKE 'MARKE%'), weil die Marke oft nur im zusatz-Feld steht und die
+  Trigram-Suche sie nicht gewichtet (Hager „LS-Schalter" ≠ Schneider
+  „Leitungsschutzschalter"). `searchCatalogForTranscript` erkennt Marken
+  (`detectMarken`) und feuert je (Marke × genannter Komponente) markengefilterte
+  Suchen (MARKEN_KOMPONENTEN, „1+N"-Variante); maxTotal 60. Prompt-Regel: nur
+  Artikel mit passender Hersteller-Spalte wählen, sonst „EK für <Marke> prüfen".
+- Live-Szenario 9 (exaktes Anwender-Diktat) fixiert den Vertrag: ≥6 Positionen,
+  Hager UND Gira im Ergebnis, ≥4 Positionen mit Katalog-Material. Ergebnis:
+  Hager Kleinverteiler Volta + Hager FI CDA + 5× Hager LS + Gira Wippschalter/
+  Abdeckrahmen 2f Standard55/SCHUKO + SAT-Dose – 1.785 € netto.

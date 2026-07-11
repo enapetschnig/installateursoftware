@@ -122,6 +122,31 @@ Beispiel: "Unterverteilung mit 4 mal 2 Steckdosen, einmal SAT-Steckdose, 20 Mete
 "pauschal" ist NUR erlaubt, wenn der Sprecher selbst eine Pauschale nennt oder die Leistung
 fachlich unteilbar ist – nie als Sammelbehälter für zählbare Leistungen.
 
+EINZELAUFSCHLÜSSELUNG EXPLIZIT GENANNTER BAUTEILE – ZWINGEND:
+Zählt der Sprecher Bauteile mit Menge und/oder Marke auf ("einmal FI 40A/30mA",
+"fünf Leitungsschutzschalter von Hager 1+N", "zweimal zwei Steckdosen mit Rahmen"),
+dann wird JEDES aufgezählte Bauteil eine EIGENE Position (Menge = genannte Zahl,
+Stückliste = genau dieser Katalog-Artikel + zugehöriges Kleinmaterial + Montagezeit).
+NIE mehrere aufgezählte Bauteile in einer Position wie "Unterverteilung mit Automaten"
+oder "Schaltermaterial installieren" bündeln – der Kunde will jede Komponente mit
+ihrem Preis sehen.
+Beispiel: "Neue Unterverteilung mit alles Hager Automaten, einmal FI 40A/30mA, fünf
+LS Hager 1+N; Schaltermaterial von Gira: einmal Schalter+Steckdose im 2-fach-Rahmen,
+zweimal 2 Steckdosen mit Rahmen, eine SAT-Dose" → SECHS Positionen:
+  (1) Unterverteiler liefern, montieren und verdrahten – 1 Stk (Stückliste: Verteilerschrank + Verdrahtungsmaterial)
+  (2) FI-Schutzschalter Hager 40A/30mA einbauen – 1 Stk
+  (3) Leitungsschutzschalter Hager 1+N einbauen – 5 Stk
+  (4) Kombination Schalter + Steckdose Gira im 2-fach-Rahmen setzen – 1 Stk
+  (5) Steckdosen-Kombination 2-fach Gira mit Rahmen setzen – 2 Stk
+  (6) SAT-Dose setzen – 1 Stk
+
+MARKENTREUE BEI DER ARTIKELWAHL – ZWINGEND:
+Nennt der Sprecher eine MARKE (Hager, Gira, Berker, Jung, ABB …), wähle aus dem
+GROSSHANDELSKATALOG-Block NUR Artikel, deren Hersteller-Spalte zu dieser Marke passt.
+Steht kein passender Marken-Artikel im Block: Position trotzdem anlegen, Zeit ehrlich
+kalkulieren und in "hinweis" vermerken "EK für <Marke> <Bauteil> prüfen" – NIEMALS
+still einen anderen Hersteller einsetzen.
+
 PREISFINDUNG – REIHENFOLGE STRIKT EINHALTEN:
 0. MATERIAL-TYP-SICHERHEIT (vor allem Elektro/Sanitär): Der Materialtyp muss EXAKT stimmen.
    NYM/NYY (Stromleitung) ≠ CAT/Netzwerk (Datenleitung) ≠ Koax ≠ H07V (Aderleitung).
@@ -238,7 +263,9 @@ Regeln für die Neukalkulation (aus_preisliste: false) von Positionen mit Materi
   VOLLSTÄNDIGE STÜCKLISTEN – der Betrieb bestellt danach beim Großhändler:
     • Steckdosen-/Schalter-Auslass: Einsatz + UP-/Gerätedose + (anteiliger) Rahmen
     • Doppelsteckdose: 2-fach-Einsatz oder 2 Einsätze + 2-fach-Rahmen + 2 Dosen
-    • Unterverteiler: Kleinverteiler + FI-Schutzschalter + LS-Automat JE Stromkreis + Klemmen
+    • Unterverteiler: Verteilerschrank + Verdrahtungsmaterial. FI/LS gehören NUR dann in
+      diese Stückliste, wenn sie NICHT einzeln aufgezählt wurden – aufgezählte Schutzorgane
+      sind EIGENE Positionen (EINZELAUFSCHLÜSSELUNG-Regel)!
     • Leitung: der Leitungsartikel je m (menge_pro_einheit 1 bei Einheit "m")
   Fehlt ein benötigtes Bauteil im Katalog-Block, nimm es NICHT in die Stückliste auf,
   sondern vermerke es im "hinweis" der Position ("EK für <Bauteil> prüfen").

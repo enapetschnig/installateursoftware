@@ -26,7 +26,8 @@ const DOMAIN_PROMPT =
   "Sicherungskasten, Verteilerkasten, Unterputz, Aufputz, Schuko-Steckdose, Doppelsteckdose, Wechselschalter, " +
   "Kreuzschalter, Dimmer, Leerrohr, Kabelkanal, Erdung, Potentialausgleich, Zählerkasten, CEE-Steckdose, Brennstelle, " +
   "Rahmen 1-fach, 2-fach, 3-fach, Abdeckrahmen, Kombination, Serienschalter, Taster, Schalterprogramm, " +
-  "Gira System 55, Berker, Jung, Busch-Jaeger, Merten, reinweiß, anthrazit, Unterputzdose, Hohlwanddose, " +
+  "Gira System 55, Berker, Jung, Busch-Jaeger, Merten, Hager, Schrack, Legrand, Siemens, ABB, Eaton, " +
+  "LS 1+N, B16, reinweiß, anthrazit, Unterputzdose, Hohlwanddose, " +
   "Photovoltaik, PV-Anlage, Wechselrichter, Stromspeicher, Wallbox, Ladestation, FI Typ B, Lastmanagement, " +
   "KNX, Loxone, Smart Home, CAT-7, Netzwerkdose, Patchpanel, E-Befund, Anlagenprüfung, Zählpunkt, " +
   "Netzbetreiber, klassische Nullung, Potentialausgleich, Erdkabel E-YY, Baustromverteiler, Kernbohrung, " +
