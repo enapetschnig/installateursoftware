@@ -377,10 +377,20 @@ export default async function handler(req, res) {
       };
 
   try {
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Zuverlässigkeit: OpenAI antwortet gelegentlich mit 429/5xx-Hicksern.
+    // EIN Wiederholungsversuch mit kurzem Backoff behebt das fast immer –
+    // besser, als dem Anwender nach 30 s Diktat einen Fehler zu zeigen.
+    let r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(oaBody),
     });
+    if (!r.ok && (r.status === 429 || r.status >= 500)) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(oaBody),
+      });
+    }
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       const msg = data?.error?.message || `OpenAI-Fehler (HTTP ${r.status}).`;

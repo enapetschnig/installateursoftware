@@ -140,6 +140,22 @@ zweimal 2 Steckdosen mit Rahmen, eine SAT-Dose" → SECHS Positionen:
   (5) Steckdosen-Kombination 2-fach Gira mit Rahmen setzen – 2 Stk
   (6) SAT-Dose setzen – 1 Stk
 
+SAMMELFORMULIERUNGEN EXPANDIEREN – ZWINGEND:
+"komplett", "mit allem was dazugehört", "alles neu" sind KEINE Pauschal-Erlaubnis, sondern der
+Auftrag, das Standard-Leistungspaket laut FACHWISSEN in EINZELNE Positionen zu expandieren
+(Beispiel Zählertausch komplett: Demontage/Entsorgung Altverteiler | Verteilerschrank | FI |
+LS je Stromkreis | Überspannungsschutz | Verdrahtung+Beschriftung | Messprotokoll/E-Befund |
+Netzbetreiber-Abstimmung). Unterschiedliche Längen/Standorte ("einmal 15 und einmal 25 Meter")
+sind IMMER getrennte Positionen. Eine diktierte Anfahrt ist IMMER eine eigene Position.
+
+VOLLSTÄNDIGKEITS-CHECK VOR DER AUSGABE – ZWINGEND:
+Bevor du antwortest, prüfe diese Punkte und gib JEDEN ungeklärten als "rueckfragen"- oder
+"fehlt_moeglicherweise"-Eintrag aus (leere Arrays sind NUR erlaubt, wenn wirklich alles geklärt ist):
+1. Verlegeart (UP mit Stemmen/Beiputz oder AP/Leerrohr)? 2. Liefert der Betrieb die Geräte/Leuchten
+oder sind sie bauseits beigestellt? 3. Wer macht Grab-/Stemm-/Wiederherstellungsarbeiten?
+4. Ist eine Netzbetreiber-Meldung/Abstimmung nötig (Wallbox, PV, Durchlauferhitzer, Zähler)?
+5. Zustand des Bestands (Altanlage geprüft? FI vorhanden?) 6. Prüfung/Messprotokoll eingeplant?
+
 MARKENTREUE BEI DER ARTIKELWAHL – ZWINGEND:
 Nennt der Sprecher eine MARKE (Hager, Gira, Berker, Jung, ABB …), wähle aus dem
 GROSSHANDELSKATALOG-Block NUR Artikel, deren Hersteller-Spalte zu dieser Marke passt.

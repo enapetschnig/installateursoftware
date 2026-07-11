@@ -24,6 +24,7 @@ describe("kalkSettingsFromCompanyRow", () => {
       stundensatzDefault: 85,
       materialCapPercent: 40,
       autoNebenpositionen: true,
+      angebotsformat: "inkl_montage",
     });
   });
 

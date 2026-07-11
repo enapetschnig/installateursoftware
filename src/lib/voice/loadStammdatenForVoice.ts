@@ -59,6 +59,10 @@ export interface Fachregel {
   dann: string;
   /** Rückfrage, wenn die Info im Transkript fehlt (optional). */
   frage?: string | null;
+  /** Pflicht-Muster: Regex, das im fertigen Angebot (Positionen+Hinweise)
+   *  vorkommen MUSS, wenn die Regel greift – sonst erzeugt der Guard einen
+   *  Prüf-Hinweis (deterministisch, unabhängig vom LLM). */
+  pflicht_muster?: string | null;
 }
 
 /** Validiert das JSONB-Array aus company_settings.kalk_fachregeln (tolerant). */
@@ -72,7 +76,13 @@ export function parseFachregeln(raw: unknown): Fachregel[] {
     const dann = typeof o.dann === "string" ? o.dann.trim() : "";
     if (!stichwort || !dann) continue;
     try { new RegExp(stichwort, "i"); } catch { continue; }
-    out.push({ stichwort, dann, frage: typeof o.frage === "string" && o.frage.trim() ? o.frage.trim() : null });
+    const pflicht = typeof o.pflicht_muster === "string" ? o.pflicht_muster.trim() : "";
+    if (pflicht) { try { new RegExp(pflicht, "i"); } catch { continue; } }
+    out.push({
+      stichwort, dann,
+      frage: typeof o.frage === "string" && o.frage.trim() ? o.frage.trim() : null,
+      pflicht_muster: pflicht || null,
+    });
   }
   return out;
 }
@@ -155,7 +165,7 @@ export async function loadStammdatenForVoice(
       supabase
         .from("company_settings")
         .select(
-          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap, kalk_richtwerte, kalk_auto_nebenpositionen, kalk_fachregeln",
+          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap, kalk_richtwerte, kalk_auto_nebenpositionen, kalk_fachregeln, kalk_angebotsformat",
         )
         .limit(1)
         .maybeSingle(),
@@ -210,6 +220,7 @@ export function kalkSettingsFromCompanyRow(
     kalk_stundensatz_default?: number | null;
     kalk_material_cap?: number | null;
     kalk_auto_nebenpositionen?: boolean | null;
+    kalk_angebotsformat?: string | null;
   } | null,
 ): KalkSettings {
   const num = (v: unknown, fallback: number): number => {
@@ -223,6 +234,7 @@ export function kalkSettingsFromCompanyRow(
     materialCapPercent: num(row?.kalk_material_cap, DEFAULT_KALK_SETTINGS.materialCapPercent),
     // null/undefined → true (Baubetriebs-Default, B4Y-kompatibel)
     autoNebenpositionen: row?.kalk_auto_nebenpositionen !== false,
+    angebotsformat: row?.kalk_angebotsformat === "material_lohn_getrennt" ? "material_lohn_getrennt" : "inkl_montage",
   };
 }
 

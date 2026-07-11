@@ -135,8 +135,11 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
         "nehmen wir alles von Gira, also wir brauchen einmal Schalter und Steckdose mit zweifach Rahmen, " +
         "dann haben wir zweimal zwei Steckdosen mit Rahmen und Steckdose jeweils dabei und eine SAT-Dose.",
     };
-    const transcript = transcripts[SZENARIO] ?? transcripts[1];
-    console.log(`\n===== SZENARIO ${SZENARIO} =====`);
+    // VOICE_TRANSCRIPT: freies Diktat für Eval-Kampagnen – Szenario-spezifische
+    // Verträge werden dann übersprungen (nur generische Qualitäts-Checks).
+    const customTranscript = (process.env.VOICE_TRANSCRIPT || "").trim();
+    const transcript = customTranscript || transcripts[SZENARIO] || transcripts[1];
+    console.log(`\n===== SZENARIO ${customTranscript ? "CUSTOM" : SZENARIO} =====`);
 
     const hits = await searchCatalogForTranscript(transcript);
     console.log(`\nGROSSHANDELS-RETRIEVAL: ${hits.length} Artikel`);
@@ -164,6 +167,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
       );
 
     let result = await runOnce(transcript);
+    const ersteRueckfragen = result.meta.rueckfragen ?? [];
     if (result.meta.rueckfragen?.length) {
       console.log("\nRÜCKFRAGEN DES KALKULATORS:\n  " + result.meta.rueckfragen.join("\n  "));
       // Antwortet NUR auf das Gefragte – keine neuen Leistungen einschleusen
@@ -191,10 +195,27 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     }
     console.log(`\nSUMME NETTO: ${sum.toFixed(2)} €`);
 
+    // Maschinenlesbare Ausgabe für die Eval-Judges (eine Zeile).
+    console.log("EVAL_JSON:" + JSON.stringify({
+      transcript,
+      rueckfragenErsteRunde: ersteRueckfragen,
+      hinweise: result.meta.hinweise ?? [],
+      gewerke: result.gewerke.map((g) => ({
+        name: g.name,
+        positionen: (g.positionen ?? []).map((p) => ({
+          nr: p.leistungsnummer, name: p.leistungsname, beschreibung: p.beschreibung,
+          menge: p.menge, einheit: p.einheit, vk: p.vk_netto_einheit,
+          aus_preisliste: p.aus_preisliste,
+        })),
+      })),
+    }));
+
     // ── Harte Erwartungen ──
     expect(result.gewerke.length).toBeGreaterThan(0);
     const alle = result.gewerke.flatMap((g) => g.positionen ?? []);
-    expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3, 7: 1, 8: 2, 9: 6 }[SZENARIO] ?? 4);
+    if (!customTranscript) {
+      expect(alle.length).toBeGreaterThanOrEqual({ 5: 3, 6: 3, 7: 1, 8: 2, 9: 6 }[SZENARIO] ?? 4);
+    }
     // Jede Position hat eine Menge; Neu-Kalkulationen haben IMMER einen Preis.
     // 0-€-Positionen aus der eigenen Preisliste (Stammdaten-Lücke) sind erlaubt,
     // MÜSSEN aber einen Prüf-Hinweis erzeugen (Plausibilitäts-Wache).
@@ -214,7 +235,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     }
     // Mindestens eine Position referenziert den Großhandelskatalog (echter EK verwendet)
     const mitKatalog = alle.filter((p) => String(p.beschreibung ?? "").includes("Großhandelskatalog"));
-    if (SZENARIO === 1 || SZENARIO === 6) {
+    if (!customTranscript && (SZENARIO === 1 || SZENARIO === 6)) {
       expect(mitKatalog.length, "keine Position nutzt den Großhandelskatalog").toBeGreaterThan(0);
     } else {
       console.log(`Katalog-Positionen: ${mitKatalog.length}`);
@@ -223,7 +244,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
     // Szenario 9 = Einzelaufschlüsselung + Markentreue (App-Feedback):
     // Hager-Schutzorgane und Gira-Schaltermaterial müssen als eigene
     // Positionen mit Artikeln der RICHTIGEN Marke erscheinen.
-    if (SZENARIO === 9) {
+    if (!customTranscript && SZENARIO === 9) {
       const dump = JSON.stringify(result.gewerke).toLowerCase();
       expect(dump, "Hager-Artikel fehlen").toContain("hager");
       expect(dump, "Gira-Artikel fehlen").toContain("gira");
@@ -232,7 +253,7 @@ describe.skipIf(!LIVE)("Sprach-Angebot live (echte KI + echter Katalog)", () => 
 
     // Szenario 6 = Elektriker-Betriebsprofil (PDF-Feedback): EIN Gewerk, kein
     // Baubetriebs-Gerüst, keine ungefragten Nebenpositionen, keine Sammel-Pauschale.
-    if (SZENARIO === 6) {
+    if (!customTranscript && SZENARIO === 6) {
       expect(result.gewerke.length, "Elektriker-Profil: genau EIN Gewerk erwartet").toBe(1);
       expect(result.gewerke[0].name).toMatch(/elektr/i);
       for (const p of alle) {

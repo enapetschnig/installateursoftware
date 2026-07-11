@@ -29,6 +29,7 @@ interface KalkForm {
   aufschlagMaterial: string;
   stundensatzDefault: string;
   materialCap: string;
+  angebotsformat: string;
 }
 
 const EMPTY_FORM: KalkForm = {
@@ -36,6 +37,7 @@ const EMPTY_FORM: KalkForm = {
   aufschlagMaterial: String(DEFAULT_KALK_SETTINGS.aufschlagMaterial),
   stundensatzDefault: String(DEFAULT_KALK_SETTINGS.stundensatzDefault),
   materialCap: String(DEFAULT_KALK_SETTINGS.materialCapPercent),
+  angebotsformat: "inkl_montage",
 };
 
 /** Parst ein Prozent-/Betrags-Feld: Komma erlaubt, muss >= 0 sein. */
@@ -57,7 +59,7 @@ export default function KalkulationSettings({ canManage }: { canManage: boolean 
       const { data } = await supabase
         .from("company_settings")
         .select(
-          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap",
+          "kalk_aufschlag_gesamt, kalk_aufschlag_material, kalk_stundensatz_default, kalk_material_cap, kalk_angebotsformat",
         )
         .limit(1)
         .maybeSingle();
@@ -68,6 +70,7 @@ export default function KalkulationSettings({ canManage }: { canManage: boolean 
           aufschlagMaterial: String(data.kalk_aufschlag_material ?? DEFAULT_KALK_SETTINGS.aufschlagMaterial),
           stundensatzDefault: String(data.kalk_stundensatz_default ?? DEFAULT_KALK_SETTINGS.stundensatzDefault),
           materialCap: String(data.kalk_material_cap ?? DEFAULT_KALK_SETTINGS.materialCapPercent),
+          angebotsformat: data.kalk_angebotsformat === "material_lohn_getrennt" ? "material_lohn_getrennt" : "inkl_montage",
         });
       }
       setLoading(false);
@@ -98,6 +101,7 @@ export default function KalkulationSettings({ canManage }: { canManage: boolean 
         kalk_aufschlag_material: material,
         kalk_stundensatz_default: satz,
         kalk_material_cap: cap,
+        kalk_angebotsformat: form.angebotsformat,
       })
       .gte("id", 0); // RLS begrenzt auf die eigene Org-Row; Filter nur pro forma noetig
     setSaving(false);
@@ -192,6 +196,25 @@ export default function KalkulationSettings({ canManage }: { canManage: boolean 
               </p>
             </div>
           ))}
+
+          {/* Angebotsformat (Migr. 0157): wie die KI das Angebot aufbaut */}
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="kalk-angebotsformat">Angebotsformat (Sprach-Angebot)</label>
+            <select
+              id="kalk-angebotsformat"
+              className="input"
+              value={form.angebotsformat}
+              onChange={(e) => setF("angebotsformat", e.target.value)}
+              disabled={!canManage || saving}
+            >
+              <option value="material_lohn_getrennt">Material und Arbeitszeit getrennt (Elektriker-Stil)</option>
+              <option value="inkl_montage">Leistungspositionen inkl. Material und Montage</option>
+            </select>
+            <p className="mt-1 text-xs" style={{ color: "var(--text2)" }}>
+              „Getrennt“: jede Material-Komponente als eigene Position mit Katalog-Kurztext und
+              Stückpreis, die Arbeitszeit gesammelt als Stunden-Position (diktierte Stunden haben Vorrang).
+            </p>
+          </div>
         </div>
 
         <div className="mt-5 flex items-center justify-between gap-3">

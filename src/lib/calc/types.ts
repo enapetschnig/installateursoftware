@@ -146,6 +146,10 @@ export interface KalkSettings {
    *  (z. B. Elektriker): NICHTS wird ungefragt ergänzt.
    *  Quelle: company_settings.kalk_auto_nebenpositionen (Migr. 0153). */
   autoNebenpositionen?: boolean
+  /** Angebotsformat: 'inkl_montage' (Default) oder 'material_lohn_getrennt'
+   *  (Elektriker-Stil: Materialliste + separate Arbeitszeit-Position).
+   *  Quelle: company_settings.kalk_angebotsformat (Migr. 0157). */
+  angebotsformat?: 'inkl_montage' | 'material_lohn_getrennt'
 }
 
 export const DEFAULT_KALK_SETTINGS: KalkSettings = {
@@ -154,6 +158,7 @@ export const DEFAULT_KALK_SETTINGS: KalkSettings = {
   stundensatzDefault: 70,
   materialCapPercent: 30,
   autoNebenpositionen: true,
+  angebotsformat: 'inkl_montage',
 }
 
 /**

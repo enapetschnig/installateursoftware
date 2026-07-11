@@ -51,7 +51,7 @@ import {
 import { runCalcPipeline } from '../../lib/calc/pipeline'
 import { logVoiceTranscript } from '../../lib/voice/logVoiceTranscript'
 import type { BetriebsGewerk, Fachregel, Richtwert } from '../../lib/voice/loadStammdatenForVoice'
-import { searchCatalogForTranscript, buildWholesaleBlock, applyWholesalePricing, type CatalogHit } from '../../lib/wholesale'
+import { searchCatalogForTranscript, buildWholesaleBlock, applyWholesalePricing, splitMaterialArbeit, stuecklistenDeckungHints, detectMarken, detectUnknownMarken, type CatalogHit } from '../../lib/wholesale'
 import type {
   Catalog,
   Gewerk,
@@ -194,8 +194,39 @@ export interface RunVoiceAngebotResult {
  * in Neu-Kalkulationen. Erfindet KEINE Preise – sie meldet nur Prüf-Hinweise
  * (Mitdenken-Prinzip: aufzeigen statt raten).
  */
-export function plausibilityHints(gewerke: Gewerk[], richtwerte: Richtwert[] = []): string[] {
+export function plausibilityHints(gewerke: Gewerk[], richtwerte: Richtwert[] = [], transcript = ''): string[] {
   const hints: string[] = []
+
+  // ── Deterministische Wächter (LLM-Varianz-Netz) ──────────────────────────
+  // 1) MARKENTREUE: Diktiert der Kunde eine Marke, muss sie im Ergebnis
+  //    auftauchen (Positionsname/Beschreibung). Sonst wurde still getauscht.
+  if (transcript) {
+    const dump = JSON.stringify(gewerke).toLowerCase()
+    for (const marke of detectMarken(transcript)) {
+      if (!dump.includes(marke)) {
+        hints.push(`Prüfen: Marke „${marke.charAt(0).toUpperCase()}${marke.slice(1)}“ wurde diktiert, taucht aber in keiner Position auf – Artikelwahl prüfen.`)
+      }
+    }
+    // 2) AUFSCHLÜSSELUNG: Werden im Diktat mehr Komponenten-Klassen genannt,
+    //    als Positionen entstanden sind, wurde vermutlich geklumpt.
+    const KLASSEN: Array<[string, RegExp]> = [
+      ['Verteiler', /unterverteil|verteilerkasten|sicherungskasten|verteilung/i],
+      ['FI', /\bfi\b|fehlerstrom/i],
+      ['LS-Automaten', /leitungsschutz|\bls\b|automat/i],
+      ['Steckdosen', /steckdose/i],
+      ['Schalter', /(?<![a-zäöü-])schalter|taster|dimmer/i],
+      ['SAT/Antenne', /\bsat\b|antennen/i],
+      ['Leitung', /leitung(?!sschutz)|kabel|nym/i],
+    ]
+    const genannt = KLASSEN.filter(([, re]) => re.test(transcript)).map(([k]) => k)
+    const posCount = gewerke.reduce((n, g) => n + (g.positionen?.length ?? 0), 0)
+    if (genannt.length > posCount) {
+      hints.push(
+        `Prüfen: ${genannt.length} Komponenten-Gruppen diktiert (${genannt.join(', ')}), aber nur ` +
+        `${posCount} Position(en) erstellt – jede Komponente sollte eine eigene Position sein.`,
+      )
+    }
+  }
   const arbeit = /demontage|montage|einbau|ausbau|installation|austausch|tausch|entsorgung|verlegen|anschließen|abdichten|sanierung/i
   for (const g of gewerke) {
     for (const p of g.positionen ?? []) {
@@ -207,7 +238,7 @@ export function plausibilityHints(gewerke: Gewerk[], richtwerte: Richtwert[] = [
       // Neu-Kalkulationen außerhalb der handelsüblichen Spanne melden –
       // nur Hinweis, nie Preisänderung. Faktor 0,7/1,3 = Toleranz gegen
       // legitime Sonderfälle (Altbau, Anfahrt, Materialqualität).
-      if (!p.aus_preisliste && vk > 0) {
+      if (!p.aus_preisliste && vk > 0 && !p.ist_materialposition) {
         for (const r of richtwerte) {
           let re: RegExp
           try { re = new RegExp(r.stichwort, 'i') } catch { continue }
@@ -352,7 +383,7 @@ export async function runVoiceAngebot(
     aufschlagGesamtProzent: args.settings.aufschlagGesamt,
   })
 
-  const processed = deps.runCalcPipeline(gewerke, {
+  let processed = deps.runCalcPipeline(gewerke, {
     eingabeText: userMessage,
     catalog: args.catalog,
     stundensaetze: args.stundensaetze,
@@ -364,6 +395,35 @@ export async function runVoiceAngebot(
     enforceUserStunden: true,
   })
 
+  // Deckungs-/Pflicht-Guards laufen auf den KOMBINIERTEN Positionen (vor dem
+  // Angebotsformat-Split, solange die Stücklisten noch an den Positionen hängen).
+  const deckungHints = stuecklistenDeckungHints(processed as never, userMessage)
+  const pflichtHints: string[] = []
+  {
+    const dump = JSON.stringify(processed).toLowerCase()
+    for (const regel of args.fachregeln ?? []) {
+      if (!regel.pflicht_muster) continue
+      let wenn: RegExp, muss: RegExp
+      try { wenn = new RegExp(regel.stichwort, 'i'); muss = new RegExp(regel.pflicht_muster, 'i') } catch { continue }
+      if (!wenn.test(userMessage)) continue
+      if (muss.test(dump)) continue
+      pflichtHints.push(`Prüfen: Fachregel „${regel.stichwort.split('|')[0]}“ – im Angebot fehlt: ${regel.pflicht_muster.split('|').join('/')}.`)
+    }
+  }
+
+  // Angebotsformat "material_lohn_getrennt" (Elektriker-Stil, Migr. 0157):
+  // Materialliste + separate Arbeitszeit – rein deterministisch aus den
+  // aufgelösten Stücklisten geformt, NACH der Pipeline (kein LLM-Risiko).
+  if (args.settings.angebotsformat === 'material_lohn_getrennt') {
+    splitMaterialArbeit(processed as never, {
+      aufschlagMaterialProzent: args.settings.aufschlagMaterial,
+      aufschlagGesamtProzent: args.settings.aufschlagGesamt,
+      stundensatzDefault: args.settings.stundensatzDefault,
+      stundensaetze: args.stundensaetze,
+    })
+    processed = [...processed]
+  }
+
   // ── 6. Meta zusammensetzen ───────────────────────────────────────────────
   // Projektnummer + Adresse werden NICHT mehr aus der Sprache uebernommen:
   //   - Projektnummer: ueber Projekt-Dropdown im Editor (2026-06-24).
@@ -374,12 +434,20 @@ export async function runVoiceAngebot(
   const kiHinweise = (Array.isArray(parsed?.fehlt_moeglicherweise) ? parsed.fehlt_moeglicherweise : [])
     .filter((h): h is string => typeof h === 'string' && h.trim().length > 0)
     .map((h) => `Prüfen: ${h.trim()}`)
-    .concat(plausibilityHints(processed, args.richtwerte ?? []))
+    .concat(deckungHints, pflichtHints, plausibilityHints(processed, args.richtwerte ?? [], userMessage))
 
   const alleHinweise = [...hinweise, ...kiHinweise]
   const rueckfragen = (Array.isArray(parsed?.rueckfragen) ? parsed.rueckfragen : [])
     .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
     .slice(0, 3)
+  // Verhörte/unbekannte Marken ("Schierer" statt "Gira") NIE still bepreisen –
+  // immer nachfragen, bevor Fantasiepreise ins Angebot wandern.
+  for (const unbekannt of detectUnknownMarken(userMessage, wholesaleHits)) {
+    if (rueckfragen.length >= 4) break
+    rueckfragen.push(
+      `Die Marke „${unbekannt}“ ist im Großhandelskatalog nicht auffindbar – welche Marke ist gemeint (z. B. Gira, Berker, Jung, Hager)?`,
+    )
+  }
   const meta: VoiceAngebotDialogMeta = {
     betrifft:
       (parsed.betreff?.trim() || userFields.betrifft?.trim()) || undefined,

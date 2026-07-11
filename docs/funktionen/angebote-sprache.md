@@ -207,3 +207,37 @@ Schaltermaterial von Gira…") wurden in zwei Sammelpositionen geklumpt.
   Hager UND Gira im Ergebnis, ≥4 Positionen mit Katalog-Material. Ergebnis:
   Hager Kleinverteiler Volta + Hager FI CDA + 5× Hager LS + Gira Wippschalter/
   Abdeckrahmen 2f Standard55/SCHUKO + SAT-Dose – 1.785 € netto.
+
+## Angebotsformat, Eval-Kampagne und Zuverlässigkeits-Wächter (Stand 2026-07-11)
+
+**Angebotsformat „Material und Arbeitszeit getrennt"** (Migr. 0157, Recherche-validiert
+gegen echte AT-Angebote + WKO-Kalkulation): `splitMaterialArbeit()` (wholesale.ts) formt
+die kombinierten KI-Positionen deterministisch um – Materialliste (jede Komponente mit
+Hersteller + Katalog-Kurztext, Stk aufgerundet auf bestellbare Einheiten, VK =
+EK×(1+Material%)×(1+Gesamt%)), branchenübliche **Kleinmaterial-Pauschale** (4 % der
+Materialsumme) und **„Arbeitszeit Monteur"** in Viertelstunden zum Verkaufs-Stundensatz
+des Gewerks. Umschaltbar unter Einstellungen → Kalkulation (Elektriker-Default: getrennt).
+
+**Eval-Kampagne** (Workflow, 14 Praxisfälle, Meister-Judges; Basis-Note 2,39/5):
+`VOICE_LIVE=1 VOICE_TRANSCRIPT="…" npx vitest run …voiceBrain.live.test.ts` fährt
+beliebige Diktate durch das echte System (EVAL_JSON-Ausgabe). Die Muster führten zu
+**deterministischen Wächtern** (LLM-Varianz-Netz, alle hint-basiert – nie Preisänderung):
+- **Artikelklassen-Validator** (`artikelPasstZurPosition`): Koax ≠ Erdkabel, Steuerleitung
+  ≠ NYM, SCHUKO ≠ Schalter – klassenfremde Artikel fliegen aus der Stückliste.
+- **Deckungs-Guard** (`stuecklistenDeckungHints`): diktierte Kerngeräte (Wallbox, DLE,
+  Rauchwarnmelder, CAT, Leitung, WR) müssen in einer Stückliste stehen, sonst Prüf-Hinweis
+  („sonst Verlustpreis"); inkl. Querschnitts-Check (22 kW ≠ 5x2,5 mm²).
+- **Pflicht-Trigger als Daten** (Fachregel-Feld `pflicht_muster`): greift eine Fachregel
+  (z. B. Verteiler), MUSS das Muster (z. B. „messprotokoll|e-befund") im Angebot vorkommen,
+  sonst Hinweis. 8 Regeln gesetzt (FI/Bad/Außen, Netzbetreiber bei Wallbox/PV/DLE, E-Befund).
+- **Markentreue-/Aufschlüsselungs-Wächter** in `plausibilityHints` (diktierte Marke fehlt;
+  mehr Komponenten-Gruppen diktiert als Positionen erstellt).
+- **Unbekannte-Marken-Rückfrage** (`detectUnknownMarken`): „von Schierer" (STT-Verhörer
+  für Gira) → automatische Rückfrage statt Fantasiepreis.
+- **OpenAI-Retry** in api/ai/chat.js (1× bei 429/5xx, 1,5 s Backoff).
+Prompt: Sammelformulierungen („komplett", „mit allem") expandieren zu Einzelpositionen;
+Vollständigkeits-Check (Verlegeart, Beistellung, Grabarbeiten, Netzbetreiber, Bestand,
+Prüfung) vor der Ausgabe. Neue Richtwerte: Herdanschluss, Netzbetreiber-Meldung, ÜSS Typ 2.
+
+**Offen (OpenAI-Quota erschöpft):** Live-Validierung der letzten Fixes + Wiederholung der
+Eval-Kampagne nach Guthaben-Aufladung; Ziel-Note ≥ 4.

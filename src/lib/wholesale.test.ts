@@ -220,3 +220,73 @@ describe("catalogHitToDocPosition", () => {
     expect(normalizeCatalogUnit("XYZ")).toBe("XYZ");
   });
 });
+
+// ── Angebotsformat "material_lohn_getrennt" (Elektriker-Stil) ───────────────
+import { splitMaterialArbeit, detectUnknownMarken } from "./wholesale";
+
+describe("splitMaterialArbeit", () => {
+  it("formt kombinierte Positionen in Materialliste + separate Arbeitszeit um", () => {
+    const fi = mkHit({ artikelnummer: "FI1", bezeichnung: "FI-Schalter 4P 40A 30mA", ek_cent: 5000, hersteller: "HAGER", hersteller_artnr: "CDA440D", einheit: "PCE" });
+    const dose = mkHit({ artikelnummer: "D1", bezeichnung: "Gerätedose UP", ek_cent: 26, hersteller: "KAISER", einheit: "PCE" });
+    const gewerke = [{
+      name: "Elektriker", stundensatz: 85,
+      positionen: [
+        { leistungsname: "FI einbauen", menge: 1, einheit: "Stk", vk_netto_einheit: 100,
+          aus_preisliste: false, arbeitszeit_min_einheit: 30,
+          material_teile_aufgeloest: [{ hit: fi, menge: 1 }] },
+        { leistungsname: "Steckdosen setzen", menge: 4, einheit: "Stk", vk_netto_einheit: 80,
+          aus_preisliste: false, arbeitszeit_min_einheit: 20,
+          material_teile_aufgeloest: [{ hit: dose, menge: 2 }] },
+        // Preislisten-Position bleibt unangetastet:
+        { leistungsname: "Regiestunde", menge: 2, einheit: "Std", vk_netto_einheit: 85, aus_preisliste: true },
+      ],
+    }];
+    splitMaterialArbeit(gewerke, { aufschlagMaterialProzent: 30, aufschlagGesamtProzent: 20, stundensatzDefault: 70 });
+    const p = gewerke[0].positionen as unknown as Array<{
+      leistungsname?: string; beschreibung?: string; einheit?: string; menge?: number;
+      vk_netto_einheit?: number; aus_preisliste?: boolean; ist_materialposition?: boolean;
+    }>;
+    // 2 Materialzeilen + Kleinmaterial-Pauschale + 1 Preisliste + 1 Arbeitszeit
+    expect(p).toHaveLength(5);
+    const klein = p.find((x) => x.leistungsname?.includes("Klein- und Befestigungsmaterial"))!;
+    // 4 % der Materialsumme (78 + 8×0,41) – Pauschale, Menge 1
+    expect(klein.menge).toBe(1);
+    expect(klein.vk_netto_einheit).toBeGreaterThan(0);
+    const fiZeile = p.find((x) => x.leistungsname?.includes("FI-Schalter"))!;
+    expect(fiZeile.ist_materialposition).toBe(true);
+    expect(fiZeile.menge).toBe(1);
+    // 50 € × 1,3 × 1,2 = 78 €
+    expect(fiZeile.vk_netto_einheit).toBe(78);
+    expect(fiZeile.beschreibung).toContain("Hager CDA440D");
+    const doseZeile = p.find((x) => x.leistungsname?.includes("Gerätedose"))!;
+    expect(doseZeile.menge).toBe(8); // 2 je Einheit × 4 Stk
+    const arbeit = p.find((x) => x.einheit === "Std" && !x.aus_preisliste)!;
+    // 30 + 4×20 = 110 min → 2 Std (auf Viertelstunde aufgerundet)
+    expect(arbeit.menge).toBe(2);
+    expect(arbeit.vk_netto_einheit).toBe(85);
+    const regie = p.find((x) => x.aus_preisliste)!;
+    expect(regie.vk_netto_einheit).toBe(85);
+  });
+
+  it("lässt Gewerke ohne Katalog-Material komplett unverändert", () => {
+    const gewerke = [{ name: "Elektriker", positionen: [
+      { leistungsname: "Fehlersuche auf Regie", menge: 3, einheit: "Std", vk_netto_einheit: 85, aus_preisliste: true },
+    ] }];
+    splitMaterialArbeit(gewerke, { aufschlagMaterialProzent: 30, stundensatzDefault: 70 });
+    expect(gewerke[0].positionen).toHaveLength(1);
+    expect(gewerke[0].positionen[0].leistungsname).toBe("Fehlersuche auf Regie");
+  });
+});
+
+describe("detectUnknownMarken", () => {
+  const hits = [mkHit({ hersteller: "GIRA" }), mkHit({ artikelnummer: "2", hersteller: "HAGER" })];
+  it("meldet verhörte Marken (Schierer statt Gira)", () => {
+    expect(detectUnknownMarken("Schaltermaterial nehmen wir alles von Schierer, dazu FI von Hager", hits))
+      .toEqual(["Schierer"]);
+  });
+  it("ist still bei bekannten Marken und Nicht-Marken", () => {
+    expect(detectUnknownMarken("alles von Gira, der Rest von Hager, besprochen von Herrn Maier", hits))
+      .toEqual([]);
+  });
+});
+

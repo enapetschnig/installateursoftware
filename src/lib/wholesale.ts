@@ -340,6 +340,10 @@ interface VoicePositionLike {
   material_artikelnummer?: string | null;
   material_menge_pro_einheit?: number | null;
   arbeitszeit_min_einheit?: number | null;
+  /** Von applyWholesalePricing aufgelöste Stückliste (echte Katalog-Treffer). */
+  material_teile_aufgeloest?: Array<{ hit: CatalogHit; menge: number }> | null;
+  /** Reine Material-Position (Angebotsformat material_lohn_getrennt). */
+  ist_materialposition?: boolean | null;
 }
 interface VoiceGewerkLike { name?: string; stundensatz?: number; positionen?: VoicePositionLike[] }
 
@@ -372,11 +376,15 @@ export function applyWholesalePricing(
       // Stückliste zusammenstellen: bevorzugt material_stueckliste (mehrere
       // Bauteile), sonst die einzelne material_artikelnummer. Nur Artikel,
       // die wirklich im Katalog-Block standen (byArtnr) – keine erfundenen.
+      const posText = `${p.leistungsname ?? ""} ${p.beschreibung ?? ""}`;
       const teile: Array<{ hit: CatalogHit; menge: number }> = [];
       for (const t of p.material_stueckliste ?? []) {
         const nr = String(t?.artikelnummer ?? "").trim();
         const hit = nr ? byArtnr.get(nr) : undefined;
         if (!hit) continue;
+        // Klassen-Validator: falsche Produktklasse (Koax als Erdkabel,
+        // Steuerleitung als NYM) fliegt raus – Deckungs-Guard meldet Lücken.
+        if (!artikelPasstZurPosition(posText, hit)) continue;
         teile.push({ hit, menge: Math.max(0, Number(t?.menge_pro_einheit ?? 1) || 1) });
       }
       if (teile.length === 0) {
@@ -397,6 +405,7 @@ export function applyWholesalePricing(
       if (vk <= 0) continue;
       p.vk_netto_einheit = vk;
       p.preis_deterministisch = true; // Pipeline: nicht erneut ableiten/anheben
+      p.material_teile_aufgeloest = teile; // für splitMaterialArbeit (Angebotsformat)
       annotateStueckliste(p, teile);
       count++;
     }
@@ -418,6 +427,7 @@ export function applyWholesalePricing(
       if (vk <= 0) continue;
       p.vk_netto_einheit = vk;
       p.preis_deterministisch = true; // Pipeline: nicht erneut ableiten/anheben
+      p.material_teile_aufgeloest = [{ hit, menge: 1 }];
       annotate(p, hit, " (automatisch nachkalkuliert)");
       count++;
     }
@@ -525,6 +535,226 @@ export function catalogHitToDocPosition(hit: CatalogHit, opts: CatalogHitToPosit
     surcharge_baked: true,
     price_overridden: false,
   });
+}
+
+// ── Angebotsformat "material_lohn_getrennt" (Elektriker-Stil, Migr. 0157) ──
+// Elektriker schreiben Angebote als MATERIALLISTE (jede Komponente eine eigene
+// Position mit Katalog-Kurztext und Stückpreis) plus SEPARATE Arbeitszeit in
+// Stunden. Diese Funktion formt die kombinierten KI-Positionen (Stückliste +
+// Minuten) deterministisch um – kein LLM-Risiko im Format:
+//   * Alle aufgelösten Katalog-Teile → aggregierte Materialpositionen
+//     (Menge = Σ menge_pro_einheit × Positionsmenge; VK = EK×(1+Material%)×(1+Gesamt%))
+//   * Arbeitszeit = Σ Minuten × Menge → EINE Stunden-Position je Gewerk
+//     (VK = Verkaufs-Stundensatz; diktierte Stunden sind durch die Pipeline
+//     bereits in arbeitszeit_min_einheit eingeflossen)
+//   * Positionen ohne Katalog-Material (Preisliste, Regie, reine Arbeit)
+//     bleiben unverändert.
+export interface SplitFormatOpts {
+  aufschlagMaterialProzent: number;
+  aufschlagGesamtProzent?: number;
+  stundensatzDefault: number;
+  /** Map Gewerk-Name → Verkaufs-Stundensatz (aus hourly_rates). */
+  stundensaetze?: Record<string, number>;
+}
+
+export function splitMaterialArbeit(gewerke: VoiceGewerkLike[], opts: SplitFormatOpts): void {
+  for (const g of gewerke) {
+    const alte = g.positionen ?? [];
+    if (!alte.some((p) => (p.material_teile_aufgeloest?.length ?? 0) > 0)) continue;
+
+    const material = new Map<string, { hit: CatalogHit; menge: number }>();
+    let minuten = 0;
+    const behalten: VoicePositionLike[] = [];
+    const beschriebene: string[] = [];
+
+    for (const p of alte) {
+      const teile = p.material_teile_aufgeloest ?? [];
+      if (p.aus_preisliste || teile.length === 0) { behalten.push(p); continue; }
+      const posMenge = Math.max(0, Number(p.menge ?? 1) || 1);
+      for (const t of teile) {
+        const k = hitKey(t.hit);
+        const cur = material.get(k);
+        const zusatz = t.menge * posMenge;
+        if (cur) cur.menge += zusatz;
+        else material.set(k, { hit: t.hit, menge: zusatz });
+      }
+      minuten += Math.max(0, Number(p.arbeitszeit_min_einheit ?? 0) || 0) * posMenge;
+      if (p.leistungsname) beschriebene.push(`${posMenge % 1 === 0 ? posMenge : posMenge.toFixed(2)}× ${p.leistungsname}`);
+    }
+
+    const matFaktor = (1 + opts.aufschlagMaterialProzent / 100) * (1 + (opts.aufschlagGesamtProzent ?? 0) / 100);
+    const materialPositionen: VoicePositionLike[] = [...material.values()].map(({ hit, menge }) => {
+      const herst = formatHersteller(hit.hersteller);
+      // Stückzahl-Einheiten (Stk/Set/…) auf GANZE bestellbare Einheiten
+      // aufrunden – 1,5 Rahmen kann niemand kaufen. Metrische (m, m², kg)
+      // behalten Dezimalstellen.
+      const einheit = normalizeCatalogUnit(hit.einheit);
+      const metrisch = /^(m|m²|kg)$/.test(einheit);
+      const mengeFinal = metrisch ? Math.round(menge * 100) / 100 : Math.ceil(menge - 1e-9);
+      return {
+        leistungsnummer: null,
+        leistungsname: hit.bezeichnung.replace(/\s+/g, " ").trim(),
+        beschreibung:
+          `${herst ? `${herst}${hit.hersteller_artnr ? ` ${hit.hersteller_artnr}` : ""}, ` : ""}` +
+          `Art. ${hit.artikelnummer} lt. Großhandelskatalog` +
+          (hit.metall ? ", zzgl. tagesaktueller Metallzuschlag" : ""),
+        einheit,
+        menge: mengeFinal,
+        vk_netto_einheit: round2((hit.ek_cent / 100) * matFaktor),
+        aus_preisliste: false,
+        preis_deterministisch: true,
+        ist_materialposition: true,
+        arbeitszeit_min_einheit: 0,
+      };
+    });
+
+    // Branchenüblich (WKO/echte AT-Angebote): Kleinmaterial-Pauschale als
+    // letzte Materialzeile – Schrauben/Dübel/Klemmen werden nie einzeln
+    // gelistet, sondern pauschal (~4 % der Materialsumme).
+    const materialSumme = materialPositionen.reduce(
+      (sum, m) => sum + (Number(m.vk_netto_einheit) || 0) * (Number(m.menge) || 0), 0);
+    if (materialSumme > 0) {
+      materialPositionen.push({
+        leistungsnummer: null,
+        leistungsname: "Klein- und Befestigungsmaterial",
+        beschreibung: "Schrauben, Dübel, Klemmen, Isolier- und Befestigungsmaterial, pauschal",
+        einheit: "pauschal",
+        menge: 1,
+        vk_netto_einheit: round2(materialSumme * 0.04),
+        aus_preisliste: false,
+        preis_deterministisch: true,
+        ist_materialposition: true,
+        arbeitszeit_min_einheit: 0,
+      });
+    }
+
+    const arbeitsPositionen: VoicePositionLike[] = [];
+    if (minuten > 0) {
+      // Auf Viertelstunden aufrunden – so schreiben Betriebe ihre Stunden.
+      const stunden = Math.max(0.25, Math.ceil((minuten / 60) * 4) / 4);
+      const satz =
+        Number(g.stundensatz ?? opts.stundensaetze?.[g.name ?? ""] ?? opts.stundensatzDefault) ||
+        opts.stundensatzDefault;
+      arbeitsPositionen.push({
+        leistungsnummer: null,
+        leistungsname: "Arbeitszeit Monteur",
+        beschreibung: `Montage- und Installationsarbeiten: ${beschriebene.join(", ")}. Abrechnung je angefangener Viertelstunde.`,
+        einheit: "Std",
+        menge: stunden,
+        vk_netto_einheit: round2(satz),
+        aus_preisliste: false,
+        preis_deterministisch: true,
+        arbeitszeit_min_einheit: 60,
+        stundensatz: satz,
+      });
+    }
+
+    g.positionen = [...materialPositionen, ...behalten, ...arbeitsPositionen];
+  }
+}
+
+// Wortmuster "… von <Wort>": Kandidat für eine Markennennung.
+const MARKEN_NENNUNG = /(?:alles\s+von|nehmen\s+wir(?:\s+alles)?\s+von|\bvon)\s+([A-ZÄÖÜ][A-Za-zäöüß]{3,})/g;
+const KEINE_MARKE = new Set(["kunde", "kunden", "firma", "herr", "herrn", "frau", "baustelle", "anfang", "beginn", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "hager", "gira"]);
+
+/**
+ * Findet diktierte Markennennungen, die WEDER bekannte Elektro-Marken sind
+ * NOCH als Hersteller im Katalog-Retrieval auftauchen – fast immer ein
+ * STT-Verhörer ("Schierer" statt "Gira"). Ergebnis wird zur Rückfrage.
+ */
+export function detectUnknownMarken(transcript: string, hits: CatalogHit[]): string[] {
+  const bekannt = new Set(detectMarken(transcript));
+  const imKatalog = new Set(hits.map((h) => (h.hersteller ?? "").toLowerCase()).filter(Boolean));
+  const out: string[] = [];
+  for (const m of transcript.matchAll(MARKEN_NENNUNG)) {
+    const wort = m[1];
+    const lower = wort.toLowerCase();
+    if (bekannt.has(lower) || imKatalog.has(lower) || KEINE_MARKE.has(lower)) continue;
+    if (!out.includes(wort)) out.push(wort);
+  }
+  return out;
+}
+
+// ── Artikelklassen-Validator (Eval-Muster 1: Trigram ersetzt keine Produktklasse) ──
+// Nennt die Position eine Kernkomponente, dürfen nur klassenkompatible Artikel
+// in ihre Stückliste (Koaxkabel ist KEIN Erdkabel, Steuerleitung kein NYM,
+// SCHUKO-Einsatz kein Schalter). Unpassende Teile werden verworfen; fehlt
+// danach die Kernkomponente, meldet stuecklistenDeckungHints das sichtbar.
+const ARTIKELKLASSEN: Array<{ pos: RegExp; art: RegExp }> = [
+  { pos: /nym|mantelleitung|stromleitung|zuleitung/i, art: /nym|mantelleitung|e-yy|erdkabel|h07/i },
+  { pos: /erdkabel|e-yy/i, art: /e-yy|erdkabel/i },
+  { pos: /cat[- ]?\d|netzwerk|lan\b|datenleitung/i, art: /cat|rj45|netzwerk|daten|u\/?ftp|s\/?ftp/i },
+  { pos: /koax|sat[- ]?(kabel|leitung)/i, art: /koax|sat/i },
+  { pos: /wallbox|ladestation|ladesäule/i, art: /wallbox|ladestation|evlink|charge|wandladestation|ladeeinrichtung/i },
+  { pos: /rauch(warn)?melder/i, art: /rauchwarnmelder|rauchmelder|14604/i },
+  { pos: /fi[- ]?(schalter|schutz)|fehlerstrom/i, art: /fi-schalter|fehlerstrom|rccb|\brcd\b/i },
+  { pos: /leitungsschutz|ls-schalter|\bls\b|automat/i, art: /ls-schalter|leitungsschutz|sicherungsautomat|\bmcb\b/i },
+  { pos: /durchlauferhitzer/i, art: /durchlauferhitzer/i },
+  { pos: /wechselrichter/i, art: /wechselrichter|inverter/i },
+];
+
+/** true, wenn der Artikel zur in der Position genannten Produktklasse passt (oder keine Klasse betroffen ist). */
+function artikelPasstZurPosition(positionsText: string, hit: CatalogHit): boolean {
+  for (const k of ARTIKELKLASSEN) {
+    if (!k.pos.test(positionsText)) continue;
+    const artText = `${hit.bezeichnung} ${hit.hersteller_artnr ?? ""}`;
+    if (k.art.test(artText)) return true; // Klasse gefordert UND erfüllt
+    // Klasse gefordert, Artikel gehört zu einer ANDEREN geforderten Klasse? →
+    // Nur verwerfen, wenn der Artikel keiner der geforderten Klassen genügt.
+    // (Positionen wie "Wallbox inkl. Zuleitung" nennen zwei Klassen – ein
+    // NYM-Artikel ist dort richtig, obwohl er kein "wallbox"-Muster erfüllt.)
+    continue;
+  }
+  // Keine geforderte Klasse erfüllt → passt der Artikel zu IRGENDEINER der
+  // in der Position geforderten Klassen? Wenn die Position Klassen fordert
+  // und der Artikel keine davon erfüllt, ist er nur zulässig, wenn er
+  // KLEINMATERIAL ist (Dosen, Rahmen, Klemmen, Schellen, Rohr).
+  const geforderte = ARTIKELKLASSEN.filter((k) => k.pos.test(positionsText));
+  if (geforderte.length === 0) return true;
+  const artText = `${hit.bezeichnung} ${hit.hersteller_artnr ?? ""}`;
+  if (geforderte.some((k) => k.art.test(artText))) return true;
+  return /dose|rahmen|klemme|schelle|rohr|band|schraube|dübel|kanal|abdeckung|einsatz|wippe/i.test(artText);
+}
+
+// ── Eval-Muster 4: Deckungs-Guard – diktierte Kerngeräte müssen in der Stückliste stehen ──
+const KERNKOMPONENTEN: Array<{ name: string; wenn: RegExp; art: RegExp }> = [
+  { name: "Wallbox", wenn: /wallbox|ladestation|ladesäule/i, art: /wallbox|ladestation|evlink|charge|wandladestation|ladeeinrichtung/i },
+  { name: "Durchlauferhitzer", wenn: /durchlauferhitzer/i, art: /durchlauferhitzer/i },
+  { name: "Rauchwarnmelder", wenn: /rauch(warn)?melder/i, art: /rauchwarnmelder|rauchmelder|14604/i },
+  { name: "Netzwerk-/CAT-Komponenten", wenn: /cat[- ]?\d|netzwerkdose/i, art: /cat|rj45|netzwerk|daten/i },
+  { name: "Leitung (NYM/E-YY)", wenn: /\d+\s*(m|meter)\b.*(leitung|kabel|nym)|(leitung|kabel|nym).*\d+\s*(m|meter)\b/i, art: /nym|mantelleitung|e-yy|erdkabel|h07/i },
+  { name: "Wechselrichter", wenn: /wechselrichter/i, art: /wechselrichter|inverter/i },
+];
+
+/**
+ * Prüft NACH der Bepreisung, ob diktierte Kernkomponenten wirklich als
+ * Katalog-Artikel in irgendeiner Stückliste stehen. Fehlt eine → Prüf-Hinweis
+ * (nie stiller Verlustpreis: "Wallbox-Position ohne Wallbox").
+ */
+export function stuecklistenDeckungHints(gewerke: VoiceGewerkLike[], transcript: string): string[] {
+  const hints: string[] = [];
+  const alleTeile: string[] = [];
+  for (const g of gewerke) {
+    for (const p of g.positionen ?? []) {
+      for (const t of p.material_teile_aufgeloest ?? []) {
+        alleTeile.push(`${t.hit.bezeichnung} ${t.hit.hersteller_artnr ?? ""}`);
+      }
+    }
+  }
+  const teileDump = alleTeile.join(" | ").toLowerCase();
+  for (const k of KERNKOMPONENTEN) {
+    if (!k.wenn.test(transcript)) continue;
+    if (k.art.test(teileDump)) continue;
+    hints.push(
+      `Prüfen: „${k.name}“ wurde diktiert, steht aber in KEINER Material-Stückliste – ` +
+      `Gerät/Material beim Großhändler prüfen oder als „bauseits beigestellt“ klären (sonst Verlustpreis).`,
+    );
+  }
+  // Eval-Muster 7 (sicherheitsrelevant): 22-kW-Wallbox braucht i. d. R. 5x6 mm².
+  if (/22\s*kw/i.test(transcript) && /wallbox|ladestation/i.test(transcript) && /5x2,5/i.test(teileDump + " " + JSON.stringify(gewerke).toLowerCase())) {
+    hints.push("Prüfen: 22-kW-Wallbox mit 5x2,5 mm² kalkuliert – Querschnitt reicht i. d. R. NICHT (5x6 oder 5x10 mm² je nach Länge).");
+  }
+  return hints;
 }
 
 /** Bestes Katalog-Match über gemeinsame Fach-Tokens (mind. ein Ziffern-Token wie "3x1,5"). */

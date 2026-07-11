@@ -461,3 +461,52 @@ describe('VoiceAngebotDialog / runVoiceAngebot', () => {
     expect(result.meta.betrifft).toBe('Sanierung')
   })
 })
+
+// ── Deterministische Wächter: Markentreue + Aufschlüsselung ────────────────
+import { plausibilityHints as ph } from "./VoiceAngebotDialog";
+
+describe("plausibilityHints – Wächter", () => {
+  const pos = (name: string, over: Record<string, unknown> = {}) => ({
+    leistungsname: name, menge: 1, einheit: "Stk", vk_netto_einheit: 100,
+    aus_preisliste: false, beschreibung: "", ...over,
+  });
+
+  it("meldet still getauschte Marken (Hager diktiert, nirgends verwendet)", () => {
+    const hints = ph(
+      [{ name: "Elektriker", positionen: [pos("FI einbauen", { beschreibung: "Eaton FI" })] }] as never,
+      [],
+      "Neue Unterverteilung mit alles Hager Automaten",
+    );
+    expect(hints.some((h) => h.includes("Hager"))).toBe(true);
+  });
+
+  it("ist still, wenn die diktierte Marke verwendet wurde", () => {
+    const hints = ph(
+      [{ name: "Elektriker", positionen: [pos("FI Hager einbauen", { beschreibung: "Hager CDA440D" })] }] as never,
+      [],
+      "FI von Hager einbauen",
+    );
+    expect(hints.some((h) => h.includes("taucht aber in keiner Position"))).toBe(false);
+  });
+
+  it("meldet Verklumpung (5 Komponenten-Gruppen, 2 Positionen)", () => {
+    const hints = ph(
+      [{ name: "Elektriker", positionen: [pos("Unterverteilung mit Automaten"), pos("Schaltermaterial")] }] as never,
+      [],
+      "Unterverteilung mit FI und fünf LS Automaten, dazu Steckdosen, Schalter und eine SAT-Dose",
+    );
+    expect(hints.some((h) => h.includes("Komponenten-Gruppen"))).toBe(true);
+  });
+
+  it("ist still bei sauberer Aufschlüsselung", () => {
+    const hints = ph(
+      [{ name: "Elektriker", positionen: [
+        pos("Verteiler"), pos("FI"), pos("LS 5x"), pos("Steckdosen"), pos("Schalter"), pos("SAT-Dose"),
+      ] }] as never,
+      [],
+      "Unterverteilung mit FI und fünf LS, Steckdosen, Schalter und SAT-Dose",
+    );
+    expect(hints.some((h) => h.includes("Komponenten-Gruppen"))).toBe(false);
+  });
+});
+
