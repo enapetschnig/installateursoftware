@@ -336,11 +336,26 @@ export async function sendMail(payload: SendMailPayload): Promise<SendMailResult
     inReplyTo: payload.inReplyTo,
     documentContext: payload.documentContext,
   };
-  return await fetchJson<SendMailResult>(`/api/microsoft/mail-send`, {
+  const result = await fetchJson<SendMailResult>(`/api/microsoft/mail-send`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+  // CRM: ausgehende Mail im Kundenverlauf festhalten (best effort, nicht
+  // blockierend). Zentral hier, damit JEDER Versandweg protokolliert wird –
+  // Compose-Dialog, Angebots-/Rechnungsversand usw.
+  void import("../crm")
+    .then((crm) =>
+      crm.logOutgoingMail({
+        toEmails: payload.to.map((r) => r?.address).filter((e): e is string => !!e),
+        subject,
+        bodyText: html,
+      }),
+    )
+    .catch(() => {});
+
+  return result;
 }
 
 // ── Attachments ────────────────────────────────────────────────────────

@@ -36,6 +36,8 @@ import {
   Search,
   AlertTriangle,
   Mail,
+  List as ListIcon,
+  KanbanSquare,
 } from "lucide-react";
 import {
   Spinner,
@@ -57,6 +59,9 @@ import { useNewAnfragenSubscription } from "../hooks/useNewAnfragenSubscription"
 import { SortHeader } from "../components/SortHeader";
 import { useTableSort } from "../lib/useTableSort";
 import { useAuth } from "../lib/auth";
+import { useCan } from "../lib/permissions";
+import PipelineBoard from "../components/crm/PipelineBoard";
+import { loadStages, loadChancen, moveChance, type PipelineStage, type Chance } from "../lib/crm-pipeline";
 
 // ── Konstanten ────────────────────────────────────────────────────────────
 const PAGE_SIZE = 10;
@@ -494,8 +499,15 @@ function FilterBar({
 }
 
 // ── Hauptkomponente ───────────────────────────────────────────────────────
+/**
+ * Ansichtsmodus: klassische Liste oder Verkaufschancen-Board (CRM-Pipeline).
+ * Beides arbeitet auf denselben Anfragen – eine Chance IST eine Anfrage.
+ */
+type ViewMode = "liste" | "board";
+
 export default function Anfragen() {
   const nav = useNavigate();
+  const can = useCan();
   const [sp, setSp] = useSearchParams();
 
   // URL-synchronisierter State – damit Refresh + Back-Button funktionieren.
@@ -517,6 +529,26 @@ export default function Anfragen() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [polling, setPolling] = useState(false);
+
+  // ── Verkaufschancen-Board (CRM) ──
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    sp.get("ansicht") === "board" ? "board" : "liste");
+  const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [chancen, setChancen] = useState<Chance[]>([]);
+  const [boardLoading, setBoardLoading] = useState(false);
+  const canEditChancen = can("requests", "edit");
+
+  const ladeBoard = useCallback(async () => {
+    setBoardLoading(true);
+    const [st, ch] = await Promise.all([loadStages(), loadChancen()]);
+    setStages(st);
+    setChancen(ch);
+    setBoardLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === "board") void ladeBoard();
+  }, [viewMode, ladeBoard]);
 
   // Such-Eingabe debouncen, damit nicht jede Tastenbewegung ein Reload triggert.
   useEffect(() => {
@@ -693,6 +725,46 @@ export default function Anfragen() {
           </div>
         }
       />
+
+      {/* Ansicht: Liste (Postfach-Arbeit) oder Board (Vertriebssicht) */}
+      <div className="mb-3 flex w-fit gap-1 rounded-xl bg-[var(--hover)] p-1">
+        <button
+          className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${viewMode === "liste" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
+          onClick={() => { setViewMode("liste"); setSp((p) => { const n = new URLSearchParams(p); n.delete("ansicht"); return n; }, { replace: true }); }}
+        >
+          <ListIcon size={15} className="mr-1 inline" /> Liste
+        </button>
+        <button
+          className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${viewMode === "board" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
+          onClick={() => { setViewMode("board"); setSp((p) => { const n = new URLSearchParams(p); n.set("ansicht", "board"); return n; }, { replace: true }); }}
+        >
+          <KanbanSquare size={15} className="mr-1 inline" /> Verkaufschancen
+        </button>
+      </div>
+
+      {viewMode === "board" && (
+        <div className="glass p-4">
+          {boardLoading ? (
+            <div className="py-10 text-center text-sm text-slate-400">Board wird geladen …</div>
+          ) : (
+            <PipelineBoard
+              stages={stages}
+              chancen={chancen}
+              canEdit={canEditChancen}
+              onMove={async (id, stageId) => {
+                const ok = await moveChance(id, stageId, stages);
+                if (!ok) { toast("Die Chance konnte nicht verschoben werden."); await ladeBoard(); return; }
+                setChancen((prev) => prev.map((c) => (c.id === id
+                  ? { ...c, pipeline_stage_id: stageId,
+                      probability: stages.find((s) => s.id === stageId)?.default_probability ?? c.probability }
+                  : c)));
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {viewMode === "liste" && (<>
 
       <TabBar current={tab} counts={counts} onChange={setTab} />
 
@@ -876,6 +948,7 @@ export default function Anfragen() {
           </div>
         </>
       )}
+      </>)}
 
       <ManualModal
         open={modalOpen}

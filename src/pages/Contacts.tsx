@@ -33,6 +33,7 @@ import { dateAt } from "../lib/format";
 import { contactDisplayName, getSalutationOptions } from "../lib/contact-name";
 import { germanError } from "../lib/error-messages";
 import { normalizeUid, isValidUid, uidSuffix, applyUidInput } from "../lib/uid";
+import { useNavigate } from "react-router-dom";
 
 const TYPE_TONE: Record<string, any> = {
   kunde: "blue",
@@ -57,6 +58,8 @@ const personFullName = (p: { first_name: string | null; last_name: string | null
   [p.first_name, p.last_name].filter(Boolean).join(" ");
 
 export default function Contacts() {
+  // Zeilenklick führt in die Kundenakte; Bearbeiten läuft über das Stift-Icon.
+  const nav = useNavigate();
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
   const [list, setList] = useState<Contact[]>([]);
@@ -475,10 +478,8 @@ export default function Contacts() {
                         <tr
                           key={`c-${c.id}`}
                           className="cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5"
-                          onClick={() => {
-                            setOpenOnPersons(false);
-                            setEdit(c);
-                          }}
+                          title="Kundenakte öffnen"
+                          onClick={() => nav(`/kontakte/${c.id}`)}
                         >
                           <td className="px-4 py-3 font-mono text-xs text-slate-400">
                             {c.contact_number ?? "–"}
@@ -694,6 +695,12 @@ function ContactForm({
     in_payment_note: contact?.in_payment_note ?? "",
   });
   const [persons, setPersons] = useState<EditPerson[]>([]);
+  // IDs der WIRKLICH in der DB vorhandenen Ansprechpartner. Nur so lässt sich
+  // beim Speichern zwischen "bestehend → update" und "neu → insert" trennen.
+  // Früher wurden ALLE Personen gelöscht und neu eingefügt – dabei änderten
+  // sich ihre UUIDs und Verweise (invoices.person_id, orders.person_id,
+  // project_participants/-signatures) zeigten still ins Leere.
+  const dbPersonIdsRef = useRef<Set<string>>(new Set());
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -703,6 +710,7 @@ function ContactForm({
   useEffect(() => {
     if (!contact) {
       setPersons([]);
+      dbPersonIdsRef.current = new Set();
       return;
     }
     supabase
@@ -710,7 +718,8 @@ function ContactForm({
       .select("*")
       .eq("contact_id", contact.id)
       .order("sort_order")
-      .then(({ data }) =>
+      .then(({ data }) => {
+        dbPersonIdsRef.current = new Set(((data as ContactPerson[]) ?? []).map((p) => p.id));
         setPersons(
           ((data as ContactPerson[]) ?? []).map((p) => ({
             id: p.id,
@@ -727,8 +736,8 @@ function ContactForm({
             sort_order: p.sort_order,
             active: p.active ?? true,
           }))
-        )
-      );
+        );
+      });
   }, [contact]);
 
   // Konditions-Sichtbarkeit je Kontaktart: Kunde → Ausgang; Lieferant/Sub → Eingang;
@@ -1073,57 +1082,87 @@ function ContactForm({
       contactId = res.data.id;
     }
 
-    await supabase.from("contact_persons").delete().eq("contact_id", contactId!);
-    if (validPersons.length) {
-      // Ansprechpartner-Nummer beibehalten (Bestand aus dem Formularzustand) bzw. für NEUE
-      // Personen ohne Nummer aus dem Nummernkreis 'ansprechpartner' ziehen (AP-0001 …).
-      // Hinweis: Die Maske schreibt Personen bei jedem Speichern neu – die Nummer kommt daher
-      // aus p.contact_number (geladen), damit Bestandsnummern stabil bleiben.
-      const rows: Record<string, unknown>[] = [];
-      for (let i = 0; i < validPersons.length; i++) {
-        const p = validPersons[i];
-        let number = p.contact_number ?? null;
-        if (!number) {
-          const { data: apNum, error: apErr } = await supabase.rpc("next_document_number", {
-            p_doc_type: "ansprechpartner",
-          });
-          if (apErr || !apNum) {
-            if (apErr) console.error("next_document_number (Ansprechpartner):", apErr);
-            setBusy(false);
-            setErr(
-              apErr
-                ? germanError(apErr, "Die Ansprechpartner-Nummer konnte nicht vergeben werden.")
-                : "Kein aktiver Nummernkreis 'Ansprechpartner' gefunden - bitte in Einstellungen unter Nummernkreise anlegen."
-            );
-            setTab("personen");
-            return;
-          }
-          number = apNum as string;
-        }
-        rows.push({
-          contact_id: contactId,
-          contact_number: number,
-          salutation: p.salutation || null,
-          title: p.title || null,
-          first_name: p.first_name || null,
-          last_name: p.last_name || null,
-          function: p.function || null,
-          email: p.email || null,
-          phone: p.phone || null,
-          mobile: p.mobile || null,
-          note: p.note || null,
-          sort_order: i,
-          active: p.active ?? true,
-        });
+    // ── Ansprechpartner: gezieltes Update/Insert/Delete statt "alles neu" ──
+    // Bestehende Personen behalten ihre id (und damit alle Verweise aus
+    // Rechnungen, Aufträgen, Projektbeteiligten und der Kundenakte).
+    const bekannteIds = dbPersonIdsRef.current;
+    const felderVon = (p: EditPerson, i: number) => ({
+      salutation: p.salutation || null,
+      title: p.title || null,
+      first_name: p.first_name || null,
+      last_name: p.last_name || null,
+      function: p.function || null,
+      email: p.email || null,
+      phone: p.phone || null,
+      mobile: p.mobile || null,
+      note: p.note || null,
+      sort_order: i,
+      active: p.active ?? true,
+    });
+
+    // 1) Entfernte Personen löschen
+    const entfernt = [...bekannteIds].filter((id) => !validPersons.some((p) => p.id === id));
+    if (entfernt.length) {
+      const del = await supabase.from("contact_persons").delete().in("id", entfernt);
+      if (del.error) {
+        console.error("Ansprechpartner löschen:", del.error);
+        setBusy(false);
+        setErr(germanError(del.error, "Ansprechpartner konnten nicht gespeichert werden."));
+        return;
       }
-      const ins = await supabase.from("contact_persons").insert(rows);
-      if (ins.error) {
+    }
+
+    // 2) Bestehende aktualisieren, neue anlegen (Nummer nur für NEUE ziehen)
+    const neueIds = new Set<string>();
+    for (let i = 0; i < validPersons.length; i++) {
+      const p = validPersons[i];
+      if (bekannteIds.has(p.id)) {
+        const upd = await supabase
+          .from("contact_persons")
+          .update(felderVon(p, i))
+          .eq("id", p.id);
+        if (upd.error) {
+          console.error("Ansprechpartner aktualisieren:", upd.error);
+          setBusy(false);
+          setErr(germanError(upd.error, "Ansprechpartner konnten nicht gespeichert werden."));
+          return;
+        }
+        neueIds.add(p.id);
+        continue;
+      }
+      let number = p.contact_number ?? null;
+      if (!number) {
+        const { data: apNum, error: apErr } = await supabase.rpc("next_document_number", {
+          p_doc_type: "ansprechpartner",
+        });
+        if (apErr || !apNum) {
+          if (apErr) console.error("next_document_number (Ansprechpartner):", apErr);
+          setBusy(false);
+          setErr(
+            apErr
+              ? germanError(apErr, "Die Ansprechpartner-Nummer konnte nicht vergeben werden.")
+              : "Kein aktiver Nummernkreis 'Ansprechpartner' gefunden - bitte in Einstellungen unter Nummernkreise anlegen."
+          );
+          setTab("personen");
+          return;
+        }
+        number = apNum as string;
+      }
+      const ins = await supabase
+        .from("contact_persons")
+        .insert({ contact_id: contactId, contact_number: number, ...felderVon(p, i) })
+        .select("id")
+        .single();
+      if (ins.error || !ins.data) {
         console.error("Ansprechpartner speichern:", ins.error);
         setBusy(false);
         setErr(germanError(ins.error, "Ansprechpartner konnten nicht gespeichert werden."));
         return;
       }
+      neueIds.add(ins.data.id as string);
     }
+    dbPersonIdsRef.current = neueIds;
+
     setBusy(false);
     onSaved(f.type);
   }

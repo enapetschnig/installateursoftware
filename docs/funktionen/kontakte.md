@@ -47,6 +47,8 @@ Bereich „Kontakte" (`/kontakte`): Liste + Suche; Detail `/kontakte/:id` mit An
 - `address_form`: `du` | `sie` (steuert Anrede in Mails/Briefen)
 - Anreden: Herr/Frau/Divers · Titel-Vorschläge: Dr., DI, Dipl.-Ing., Mag., Ing., BSc, MSc, MBA
 
+> **Kundenakte (CRM):** Ein Klick auf eine Kontaktzeile öffnet die Akte mit Verlauf, Wiedervorlagen und Kennzahlen – siehe [crm.md](crm.md). Stammdaten werden weiterhin über das Stift-Icon bearbeitet.
+
 ## Technik
 
 **Routen & Komponenten**
