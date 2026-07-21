@@ -56,7 +56,7 @@ Das Aktualisieren dieser Dateien ist **Teil jeder Änderung** (Definition-of-Don
 | Mitarbeiter-App | [mitarbeiter-app.md](mitarbeiter-app.md) | Mobiler Bereich (/m): Fotos, Regieberichte, Stunden |
 | Automationen | [automationen.md](automationen.md) | Regeln (Trigger → Bedingung → Aktion), Protokoll |
 | Kontakte | [kontakte.md](kontakte.md) | Kunden/Firmen/Personen, Ansprechpartner |
-| CRM | [crm.md](crm.md) | Kundenakte mit Verlauf, Wiedervorlagen, Verkaufschancen-Board |
+| CRM | [crm.md](crm.md) | Kundenakte, Vorgangs-Board über alle Projektarten, Angebote nachfassen |
 | Mitarbeiter | [mitarbeiter.md](mitarbeiter.md) | Personalstammdaten, Anstellung, Lohngruppen |
 | Auswertungen | [auswertungen.md](auswertungen.md) | Dashboards, Statistiken, Soll/Ist |
 | Einstellungen | [einstellungen.md](einstellungen.md) | Firma, Dokumentarten, Texte, Rollen, Design |

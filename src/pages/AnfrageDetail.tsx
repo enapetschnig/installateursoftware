@@ -383,7 +383,7 @@ export default function AnfrageDetail() {
     }
     setDeleteOpen(false);
     toast("Anfrage gelöscht");
-    nav("/anfragen");
+    nav("/crm?ansicht=liste");
   }
 
   // "Als Kontakt anlegen" – oeffnet das Convert-Modal mit aus der Anfrage
@@ -471,7 +471,7 @@ export default function AnfrageDetail() {
   if (!anfrage) {
     return (
       <>
-        <button type="button" onClick={() => nav("/anfragen")} className="btn-ghost mb-4 px-2">
+        <button type="button" onClick={() => nav("/crm?ansicht=liste")} className="btn-ghost mb-4 px-2">
           <ArrowLeft size={18} /> Zurück zu Anfragen
         </button>
         <Empty
@@ -499,7 +499,7 @@ export default function AnfrageDetail() {
   return (
     <div className="anim-in space-y-4 pt-1">
       {/* ── Kopfzeile ── */}
-      <button type="button" onClick={() => nav("/anfragen")} className="btn-ghost px-2">
+      <button type="button" onClick={() => nav("/crm?ansicht=liste")} className="btn-ghost px-2">
         <ArrowLeft size={18} /> Zurück zu Anfragen
       </button>
 

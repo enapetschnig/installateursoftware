@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
   { to: "/", label: "Übersicht", icon: LayoutDashboard, end: true, module: "dashboard" },
 
   // Vertrieb & Kunden
-  { to: "/anfragen", label: "Anfragen", icon: Inbox, section: "Vertrieb & Kunden", module: "requests" },
+  { to: "/crm", label: "CRM", icon: Inbox, section: "Vertrieb & Kunden", module: "requests" },
   { to: "/kontakte", label: "Kontakte", icon: Users, section: "Vertrieb & Kunden", module: "contacts" },
   { to: "/kalkulation", label: "Kalkulation", icon: Calculator, section: "Vertrieb & Kunden", module: "kalkulation" },
   { to: "/projekte", label: "Projekte", icon: FolderKanban, section: "Vertrieb & Kunden", group: "projekte", module: "projects" },

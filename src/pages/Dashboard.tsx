@@ -304,7 +304,7 @@ export default function Dashboard() {
             <Summary icon={FolderKanban} label="laufende Projekte" value={data.projectsRunning} />
             <Summary icon={CalendarClock} label="Termine heute" value={data.appts.length} />
             {data.requestsNew > 0 && (
-              <Link to="/anfragen" className="inline-flex items-center gap-1.5 font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+              <Link to="/crm?ansicht=liste" className="inline-flex items-center gap-1.5 font-semibold hover:underline" style={{ color: "var(--accent)" }}>
                 <Inbox size={15} /> <span className="tabular-nums">{data.requestsNew}</span> neue Anfrage{data.requestsNew === 1 ? "" : "n"}
               </Link>
             )}
@@ -468,10 +468,10 @@ export default function Dashboard() {
                   </span>
                 )}
               </h2>
-              <Link to="/anfragen" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Alle anzeigen</Link>
+              <Link to="/crm?ansicht=liste" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Alle anzeigen</Link>
             </div>
             {data.newRequests.length === 0 ? (
-              <EmptyState icon={Inbox} text="Keine neuen Anfragen" actionTo="/anfragen" actionLabel="Posteingang öffnen" />
+              <EmptyState icon={Inbox} text="Keine neuen Anfragen" actionTo="/crm?ansicht=liste" actionLabel="Posteingang öffnen" />
             ) : (
               <ul className="space-y-2.5">
                 {data.newRequests.map((r) => {

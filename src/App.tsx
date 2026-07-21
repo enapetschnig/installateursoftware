@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from "react";
-import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { useAuth } from "./lib/auth";
 import { usePermissions } from "./lib/permissions";
@@ -150,6 +150,12 @@ function Einsatzplanung() {
   );
 }
 
+/** Alte Anfrage-Detaillinks (/anfragen/:id) auf die CRM-Route umleiten. */
+function AnfrageRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/crm/anfragen/${id}`} replace />;
+}
+
 export default function App() {
   const { session, loading } = useAuth();
   const location = useLocation();
@@ -198,8 +204,12 @@ export default function App() {
         <Route path="/mitarbeiter" element={<Guard module="employees"><Employees /></Guard>} />
         <Route path="/mitarbeiter/:id" element={<Guard module="employees"><EmployeeDetail /></Guard>} />
         <Route path="/email" element={<Guard module="email"><Email /></Guard>} />
-        <Route path="/anfragen" element={<Guard module="requests"><Anfragen /></Guard>} />
-        <Route path="/anfragen/:id" element={<Guard module="requests"><AnfrageDetail /></Guard>} />
+        {/* CRM (früher „Anfragen") – alte Links leiten weiter, damit Lesezeichen
+            und verlinkte Mails weiter funktionieren. */}
+        <Route path="/crm" element={<Guard module="requests"><Anfragen /></Guard>} />
+        <Route path="/crm/anfragen/:id" element={<Guard module="requests"><AnfrageDetail /></Guard>} />
+        <Route path="/anfragen" element={<Navigate to="/crm" replace />} />
+        <Route path="/anfragen/:id" element={<AnfrageRedirect />} />
         {/* Zeiterfassung: Eigensicht (jeder Mitarbeiter) + Auswertung (Modul time_tracking). */}
         <Route path="/zeiterfassung" element={<Navigate to="/meine-stunden" replace />} />
         <Route path="/meine-stunden" element={<MeineStunden />} />

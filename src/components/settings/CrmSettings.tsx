@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { Contact2, Plus, Save, Trash2, GitBranch } from "lucide-react";
+import { Contact2, Plus, Save, Trash2, GitBranch, BellRing } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { toast, toastError } from "../../lib/toast";
 
@@ -34,17 +34,24 @@ export default function CrmSettings({ canManage }: { canManage: boolean }) {
   const [stufen, setStufen] = useState<Stufe[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Nachfass-Automatik (Migr. 0164): Erinnerung X Tage nach Angebotsversand.
+  const [nachfassTage, setNachfassTage] = useState("5");
+  const [nachfassAktiv, setNachfassAktiv] = useState(true);
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [a, s] = await Promise.all([
+      const [a, s, cs] = await Promise.all([
         supabase.from("crm_activity_types").select("*").order("sort_order"),
         supabase.from("crm_pipeline_stages").select("*").order("sort_order"),
+        supabase.from("company_settings").select("crm_nachfass_tage, crm_nachfass_aktiv").limit(1).maybeSingle(),
       ]);
       if (!alive) return;
       setArten((a.data as Art[]) ?? []);
       setStufen((s.data as Stufe[]) ?? []);
+      const c = cs.data as { crm_nachfass_tage?: number; crm_nachfass_aktiv?: boolean } | null;
+      setNachfassTage(String(c?.crm_nachfass_tage ?? 5));
+      setNachfassAktiv(c?.crm_nachfass_aktiv !== false);
       setLoading(false);
     })();
     return () => { alive = false; };
@@ -105,10 +112,56 @@ export default function CrmSettings({ canManage }: { canManage: boolean }) {
     toast("Deaktiviert – bestehende Einträge bleiben erhalten.");
   }
 
+  async function speichereNachfass() {
+    const tage = Number(nachfassTage);
+    if (!Number.isFinite(tage) || tage < 1 || tage > 90) {
+      toastError("Bitte 1–90 Tage angeben.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("company_settings")
+      .update({ crm_nachfass_tage: tage, crm_nachfass_aktiv: nachfassAktiv })
+      .gte("id", 0);
+    setSaving(false);
+    if (error) { toastError(`Speichern fehlgeschlagen: ${error.message}`); return; }
+    toast("Nachfass-Einstellungen gespeichert.");
+  }
+
   if (loading) return <div className="card p-6 text-sm text-slate-400">CRM-Einstellungen werden geladen …</div>;
 
   return (
     <div className="space-y-4">
+      {/* Nachfass-Automatik */}
+      <div className="card p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <BellRing size={16} style={{ color: "var(--accent)" }} /> Angebote nachfassen
+        </div>
+        <p className="mt-1 text-xs text-slate-400">
+          Nach dem Versand eines Angebots erscheint im CRM eine Erinnerung mit fertigem
+          Mail-Entwurf. <b>Gesendet wird erst nach deiner Freigabe</b> – es geht nie
+          automatisch etwas an Kunden raus.
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="text-xs text-slate-500">
+            Erinnerung nach … Tagen
+            <input className="input mt-1 w-28 text-sm" type="number" min={1} max={90}
+                   value={nachfassTage} disabled={!canManage}
+                   onChange={(e) => setNachfassTage(e.target.value)} />
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-xs text-slate-500">
+            <input type="checkbox" className="h-4 w-4" checked={nachfassAktiv} disabled={!canManage}
+                   onChange={(e) => setNachfassAktiv(e.target.checked)} />
+            Nachfassen aktiv
+          </label>
+          {canManage && (
+            <button className="btn-primary px-3 py-2 text-sm" disabled={saving} onClick={() => void speichereNachfass()}>
+              <Save size={14} /> Speichern
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Aktivitätsarten */}
       <div className="card p-4">
         <div className="flex items-center gap-2 text-sm font-semibold">

@@ -60,8 +60,12 @@ import { SortHeader } from "../components/SortHeader";
 import { useTableSort } from "../lib/useTableSort";
 import { useAuth } from "../lib/auth";
 import { useCan } from "../lib/permissions";
-import PipelineBoard from "../components/crm/PipelineBoard";
-import { loadStages, loadChancen, moveChance, type PipelineStage, type Chance } from "../lib/crm-pipeline";
+import VorgangsBoard from "../components/crm/VorgangsBoard";
+import NachfassLeiste from "../components/crm/NachfassLeiste";
+import {
+  loadVorgaenge, loadProjektarten, moveVorgang, loadNachfass,
+  type Vorgang, type Projektart, type Nachfass,
+} from "../lib/crm-board";
 
 // ── Konstanten ────────────────────────────────────────────────────────────
 const PAGE_SIZE = 10;
@@ -530,19 +534,23 @@ export default function Anfragen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [polling, setPolling] = useState(false);
 
-  // ── Verkaufschancen-Board (CRM) ──
+  // ── CRM-Board: alle offenen Vorgänge (Anfragen + Projekte + Angebote) ──
+  // Default ist das Board – die Liste bleibt für die Postfach-Arbeit.
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    sp.get("ansicht") === "board" ? "board" : "liste");
-  const [stages, setStages] = useState<PipelineStage[]>([]);
-  const [chancen, setChancen] = useState<Chance[]>([]);
+    sp.get("ansicht") === "liste" ? "liste" : "board");
+  const [vorgaenge, setVorgaenge] = useState<Vorgang[]>([]);
+  const [projektarten, setProjektarten] = useState<Projektart[]>([]);
+  const [artFilter, setArtFilter] = useState(sp.get("art") ?? "");
+  const [nachfass, setNachfass] = useState<Nachfass[]>([]);
   const [boardLoading, setBoardLoading] = useState(false);
   const canEditChancen = can("requests", "edit");
 
   const ladeBoard = useCallback(async () => {
     setBoardLoading(true);
-    const [st, ch] = await Promise.all([loadStages(), loadChancen()]);
-    setStages(st);
-    setChancen(ch);
+    const [vg, pa, nf] = await Promise.all([loadVorgaenge(), loadProjektarten(), loadNachfass()]);
+    setVorgaenge(vg);
+    setProjektarten(pa);
+    setNachfass(nf);
     setBoardLoading(false);
   }, []);
 
@@ -706,8 +714,8 @@ export default function Anfragen() {
   return (
     <>
       <PageHeader
-        title={<span className="inline-flex items-center gap-2"><Inbox size={22} style={{ color: "var(--accent)" }} /> Anfragen</span>}
-        subtitle="Smartes KI-Postfach: E-Mails, KI-Telefonagent (Fonio) und manuell erfasste Anliegen"
+        title={<span className="inline-flex items-center gap-2"><Inbox size={22} style={{ color: "var(--accent)" }} /> CRM</span>}
+        subtitle="Alle offenen Vorgänge: neue Anfragen, Projekte in ihren Stufen und offene Angebote"
         action={
           <div className="flex items-center gap-2">
             <button
@@ -730,38 +738,51 @@ export default function Anfragen() {
       <div className="mb-3 flex w-fit gap-1 rounded-xl bg-[var(--hover)] p-1">
         <button
           className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${viewMode === "liste" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
-          onClick={() => { setViewMode("liste"); setSp((p) => { const n = new URLSearchParams(p); n.delete("ansicht"); return n; }, { replace: true }); }}
+          onClick={() => { setViewMode("liste"); setSp((p) => { const n = new URLSearchParams(p); n.set("ansicht", "liste"); return n; }, { replace: true }); }}
         >
-          <ListIcon size={15} className="mr-1 inline" /> Liste
+          <ListIcon size={15} className="mr-1 inline" /> Anfragen-Liste
         </button>
         <button
           className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${viewMode === "board" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
-          onClick={() => { setViewMode("board"); setSp((p) => { const n = new URLSearchParams(p); n.set("ansicht", "board"); return n; }, { replace: true }); }}
+          onClick={() => { setViewMode("board"); setSp((p) => { const n = new URLSearchParams(p); n.delete("ansicht"); return n; }, { replace: true }); }}
         >
-          <KanbanSquare size={15} className="mr-1 inline" /> Verkaufschancen
+          <KanbanSquare size={15} className="mr-1 inline" /> Board
         </button>
       </div>
 
       {viewMode === "board" && (
-        <div className="glass p-4">
-          {boardLoading ? (
-            <div className="py-10 text-center text-sm text-slate-400">Board wird geladen …</div>
-          ) : (
-            <PipelineBoard
-              stages={stages}
-              chancen={chancen}
-              canEdit={canEditChancen}
-              onMove={async (id, stageId) => {
-                const ok = await moveChance(id, stageId, stages);
-                if (!ok) { toast("Die Chance konnte nicht verschoben werden."); await ladeBoard(); return; }
-                setChancen((prev) => prev.map((c) => (c.id === id
-                  ? { ...c, pipeline_stage_id: stageId,
-                      probability: stages.find((s) => s.id === stageId)?.default_probability ?? c.probability }
-                  : c)));
-              }}
-            />
+        <>
+          {nachfass.length > 0 && (
+            <NachfassLeiste eintraege={nachfass} onChange={() => void ladeBoard()} />
           )}
-        </div>
+          <div className="glass p-4">
+            {boardLoading ? (
+              <div className="py-10 text-center text-sm text-slate-400">Vorgänge werden geladen …</div>
+            ) : (
+              <VorgangsBoard
+                vorgaenge={vorgaenge}
+                projektarten={projektarten}
+                artFilter={artFilter}
+                canEdit={canEditChancen}
+                onArtFilter={(label) => {
+                  setArtFilter(label);
+                  setSp((p) => {
+                    const n = new URLSearchParams(p);
+                    if (label) n.set("art", label); else n.delete("art");
+                    return n;
+                  }, { replace: true });
+                }}
+                onMove={async (v, ziel) => {
+                  const res = await moveVorgang(v, ziel);
+                  if (!res.ok) { toast(res.grund ?? "Verschieben nicht möglich."); await ladeBoard(); return; }
+                  setVorgaenge((prev) => prev.map((x) =>
+                    x.quelle === v.quelle && x.vorgang_id === v.vorgang_id
+                      ? { ...x, phase: ziel.phase, stufe: ziel.stufe ?? x.stufe } : x));
+                }}
+              />
+            )}
+          </div>
+        </>
       )}
 
       {viewMode === "liste" && (<>
