@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, LayoutGrid, List as ListIcon, Pencil } from "lucide-react";
+import { Plus, LayoutGrid, List as ListIcon, ListTree, Pencil } from "lucide-react";
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   useDraggable, useDroppable, type DragStartEvent, type DragEndEvent,
@@ -8,6 +8,8 @@ import {
 import { supabase } from "../lib/supabase";
 import { Project, Contact, stageTone } from "../lib/types";
 import { useProjectConfig, useEmployees } from "../lib/project-config";
+import { buildStruktur } from "../lib/projekt-struktur";
+import ProjektStrukturListe from "../components/project/ProjektStrukturListe";
 import { projectRoute } from "../lib/documents-overview";
 import { PageHeader, Spinner, Empty, Badge, TableCell } from "../components/ui";
 import { SearchInput } from "../components/calc-ui";
@@ -41,7 +43,20 @@ export default function Projects() {
   const [contacts, setContacts] = useState<Record<string, Contact>>({});
   const [orderVol, setOrderVol] = useState<Record<string, number>>({}); // project_id -> Auftragsvolumen netto
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"list" | "board">("list");
+  // Ansicht: Struktur (Art → Stufen, Default) | Liste | Board.
+  // Die Wahl wird gemerkt – wer bewusst umschaltet, landet dort wieder.
+  const [view, setView] = useState<"struktur" | "list" | "board">(() => {
+    const ausUrl = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("ansicht");
+    if (ausUrl === "liste") return "list";
+    if (ausUrl === "board") return "board";
+    if (ausUrl === "struktur") return "struktur";
+    const gemerkt = localStorage.getItem("b4y-projekte-ansicht");
+    return gemerkt === "list" || gemerkt === "board" ? gemerkt : "struktur";
+  });
+  const setViewGemerkt = (v: "struktur" | "list" | "board") => {
+    setView(v);
+    localStorage.setItem("b4y-projekte-ansicht", v);
+  };
   const [edit, setEdit] = useState<Project | "new" | null>(null);
   const [params] = useSearchParams();
   const nav = useNavigate();
@@ -49,6 +64,9 @@ export default function Projects() {
   const { names: employeeNames } = useEmployees();
   // Projekttyp aus URL (?typ=…, z.B. Sidebar-Unterkategorie).
   const typParam = params.get("typ");
+  // Direkteinstieg aus dem Dashboard: ?art=Badsanierung&status=Angebot%20gesendet
+  const artParam = params.get("art");
+  const statusParam = params.get("status");
 
   const [q, setQ] = useState("");
   const [fType, setFType] = useState("");          // gewählter Projekttyp (= projects.category); "" = alle
@@ -65,6 +83,12 @@ export default function Projects() {
     const t = cfg.types.find((x) => x.slug === typParam);
     if (t) setFType(t.category);
   }, [typParam, cfg.types]);
+
+  // Aus der Dashboard-Kachel kommend: Projektart + Stufe direkt vorbelegen.
+  useEffect(() => {
+    if (artParam) setFType(artParam);
+    if (statusParam) setFStatus(statusParam);
+  }, [artParam, statusParam]);
 
   // Aktuell gewählter Typ als Objekt (für Titel + passende Statusliste).
   const selType = cfg.types.find((t) => t.category === fType) ?? null;
@@ -213,6 +237,18 @@ export default function Projects() {
   );
   const shownSorted = useMemo(() => projSort.sortRows(shown), [projSort, shown]);
 
+  // Struktur "Projektart → Stufe" aus den bereits geladenen Projekten: keine
+  // zusätzliche Abfrage, und die Zähler stimmen exakt mit der Liste darunter
+  // überein (folgen also den aktiven Filtern).
+  const struktur = useMemo(
+    () => buildStruktur(shown, {
+      artReihenfolge: cfg.types.map((t) => t.category),
+      stufenFuerArt: (art) => cfg.statusLabelsFor(art),
+      farben: stageColors,
+    }),
+    [shown, cfg, stageColors],
+  );
+
   return (
     <>
       <PageHeader title={selType ? `Projekte – ${selType.label}` : "Projekte"}
@@ -220,8 +256,9 @@ export default function Projects() {
         action={
           <div className="flex gap-2">
             <div className="flex rounded-xl border border-slate-200 p-1 dark:border-white/10">
-              <button onClick={() => setView("list")} className={`rounded-lg p-2 ${view === "list" ? "bg-brand-600 text-white" : "text-slate-500"}`}><ListIcon size={16} /></button>
-              <button onClick={() => setView("board")} className={`rounded-lg p-2 ${view === "board" ? "bg-brand-600 text-white" : "text-slate-500"}`}><LayoutGrid size={16} /></button>
+              <button title="Struktur: Projektart → Stufen" onClick={() => setViewGemerkt("struktur")} className={`rounded-lg p-2 ${view === "struktur" ? "bg-brand-600 text-white" : "text-slate-500"}`}><ListTree size={16} /></button>
+              <button title="Liste" onClick={() => setViewGemerkt("list")} className={`rounded-lg p-2 ${view === "list" ? "bg-brand-600 text-white" : "text-slate-500"}`}><ListIcon size={16} /></button>
+              <button title="Board" onClick={() => setViewGemerkt("board")} className={`rounded-lg p-2 ${view === "board" ? "bg-brand-600 text-white" : "text-slate-500"}`}><LayoutGrid size={16} /></button>
             </div>
             <button className="btn-primary" data-tour-id="project-create-button" onClick={() => setEdit("new")}><Plus size={18} /> Neues Projekt</button>
           </div>
@@ -255,6 +292,19 @@ export default function Projects() {
 
       {loading ? <Spinner /> : shown.length === 0 ? (
         <Empty title="Keine Projekte" hint="Lege ein Projekt an oder passe Suche/Filter an." />
+      ) : view === "struktur" ? (
+        <div className="glass p-3 sm:p-4">
+          <p className="mb-3 text-xs text-slate-400">
+            Projektart anklicken, um die Stufen zu sehen. Klick auf eine Stufe zeigt die Projekte.
+            Die Zähler folgen den aktiven Filtern.
+          </p>
+          <ProjektStrukturListe
+            struktur={struktur}
+            offenInitial={fType || undefined}
+            onStufe={(art, stufe) => { setFType(art); setFStatus(stufe); setViewGemerkt("list"); }}
+            onArt={(art) => { setFType(art); setFStatus(""); setViewGemerkt("list"); }}
+          />
+        </div>
       ) : view === "board" ? (
         <Board list={shown} contacts={contacts} columns={boardColumns} stageColors={stageColors}
           mayEdit={mayEditStage} onMove={moveProjectToStage} onOpen={(p) => nav(projectRoute(p))} />

@@ -38,7 +38,7 @@ export default function MitarbeiterLayout({ children }: { children: ReactNode })
     "Mitarbeiter";
 
   return (
-    <div className="flex min-h-screen flex-col" style={{ background: "var(--bg)", color: "var(--text)" }}>
+    <div className="flex h-dvh flex-col overflow-hidden" style={{ background: "var(--bg)", color: "var(--text)" }}>
       {/* Kopfzeile: Firmenlogo · Name · Abmelden */}
       <header
         className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-2.5 backdrop-blur"
@@ -59,7 +59,9 @@ export default function MitarbeiterLayout({ children }: { children: ReactNode })
       </header>
 
       {/* Scrollbarer Inhaltsbereich (Platz unten für die fixe Tab-Bar). */}
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-4">{children}</main>
+      <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-4 lg:max-w-5xl">
+        {children}
+      </main>
 
       {/* Fixe Tab-Bar (mobil-first, große Touch-Ziele, Safe-Area). */}
       <nav

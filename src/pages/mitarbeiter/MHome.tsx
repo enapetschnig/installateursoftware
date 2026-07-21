@@ -10,58 +10,25 @@
 // ============================================================
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FolderOpen, ClipboardList, Clock, Mic, CalendarDays, CheckCircle2 } from "lucide-react";
+import { FolderOpen, ClipboardList, Clock, Mic, CalendarDays, CheckCircle2, Camera } from "lucide-react";
 import { Empty, Spinner } from "../../components/ui";
 import { useMyEmployee } from "../../lib/my-employee";
-import {
-  loadTimeEntries, summarize, loadEmployeeSollContext, loadCompanyHolidays, fmtHours, fmtSaldo,
-} from "../../lib/time-entries";
 import { loadEvents, addDays, fmtDate, fmtTime, type EventWithLinks } from "../../lib/planning";
 import { loadProjectOptions } from "../../lib/documents-overview";
-
-// Montag der aktuellen Woche (lokale Zeit).
-function startOfWeek(d: Date): Date {
-  const x = new Date(d);
-  const dow = (x.getDay() + 6) % 7; // Mo=0 … So=6
-  x.setDate(x.getDate() - dow);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-const isoDate = (d: Date): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-type WeekStats = { ist: number; soll: number; saldo: number };
+import { supabase } from "../../lib/supabase";
+import QuickPhotoButton from "../../components/media/QuickPhotoButton";
 
 export default function MHome() {
   const { employee, loading } = useMyEmployee();
-  const [stats, setStats] = useState<WeekStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
   const [assignments, setAssignments] = useState<EventWithLinks[]>([]);
   const [projLabels, setProjLabels] = useState<Map<string, string>>(new Map());
+  const [ladeFehler, setLadeFehler] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
+  // Eigene User-ID für den Foto-Upload (uploaded_by).
   useEffect(() => {
-    if (!employee) return;
-    let cancelled = false;
-    setStatsLoading(true);
-    const today = new Date();
-    const from = isoDate(startOfWeek(today));
-    const to = isoDate(today);
-    const year = today.getFullYear();
-    Promise.all([
-      loadTimeEntries({ employeeId: employee.id, from, to }),
-      loadEmployeeSollContext(year, employee.id),
-      loadCompanyHolidays(year, year),
-    ])
-      .then(([entries, ctx, holidays]) => {
-        if (cancelled) return;
-        const holiSet = new Set(holidays.map((h) => h.datum));
-        const s = summarize(entries, from, to, ctx, holiSet);
-        setStats({ ist: s.istTotal, soll: s.sollTotal, saldo: s.autoSaldo });
-      })
-      .catch(() => { if (!cancelled) setStats(null); })
-      .finally(() => { if (!cancelled) setStatsLoading(false); });
-    return () => { cancelled = true; };
-  }, [employee]);
+    void supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
+  }, []);
 
   // Meine Einteilung: eigene Plantafel-Einsätze der nächsten ~3 Wochen.
   useEffect(() => {
@@ -78,9 +45,16 @@ export default function MHome() {
         setAssignments(evs.slice(0, 8));
         setProjLabels(new Map(projs.map((p) => [p.id, p.label])));
       })
-      .catch(() => { if (!cancelled) setAssignments([]); });
+      .catch(() => { if (!cancelled) { setAssignments([]); setLadeFehler(true); } });
     return () => { cancelled = true; };
   }, [employee]);
+
+  // Projekte der heutigen Einsätze – Vorauswahl beim Foto-Upload.
+  const heuteIso = new Date().toDateString();
+  const heutigeProjekte = assignments
+    .filter((ev) => new Date(ev.start_at).toDateString() === heuteIso && ev.project_id)
+    .map((ev) => ({ id: ev.project_id as string, label: projLabels.get(ev.project_id as string) ?? "Projekt" }))
+    .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i);
 
   if (loading) return <Spinner />;
 
@@ -100,35 +74,18 @@ export default function MHome() {
         />
       ) : (
         <>
-          {/* Wochen-Kennzahlen */}
+          {/* Foto-Schnellaufnahme – ganz oben, weil es die häufigste
+              Handlung auf der Baustelle ist. Kamera ODER Galerie; die
+              Projektzuordnung kommt NACH der Aufnahme. */}
           <div className="glass p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Diese Woche</h2>
-              <Link to="/m/zeit" className="text-xs font-semibold text-[var(--accent)]">Zur Zeiterfassung</Link>
+            <div className="mb-3 flex items-center gap-2">
+              <Camera size={16} className="text-[var(--accent)]" />
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Foto hinzufügen</h2>
             </div>
-            {statsLoading ? (
-              <div className="py-4"><Spinner /></div>
-            ) : (
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl p-3 text-center" style={{ background: "var(--hover)" }}>
-                  <div className="text-2xl font-extrabold tabular-nums">{fmtHours(stats?.ist ?? 0)}</div>
-                  <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Ist-Std.</div>
-                </div>
-                <div className="rounded-xl p-3 text-center" style={{ background: "var(--hover)" }}>
-                  <div className="text-2xl font-extrabold tabular-nums">{fmtHours(stats?.soll ?? 0)}</div>
-                  <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Soll-Std.</div>
-                </div>
-                <div className="rounded-xl p-3 text-center" style={{ background: "var(--hover)" }}>
-                  <div
-                    className="text-2xl font-extrabold tabular-nums"
-                    style={{ color: (stats?.saldo ?? 0) < 0 ? "var(--c-red)" : "var(--c-green)" }}
-                  >
-                    {fmtSaldo(stats?.saldo ?? 0)}
-                  </div>
-                  <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Saldo</div>
-                </div>
-              </div>
-            )}
+            <QuickPhotoButton
+              projektVorschlaege={heutigeProjekte}
+              uploadedBy={userId}
+            />
           </div>
 
           {/* Meine Einteilung (Plantafel-Einsätze des Monteurs) */}
@@ -137,7 +94,11 @@ export default function MHome() {
               <CalendarDays size={16} className="text-[var(--accent)]" />
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Meine Einteilung</h2>
             </div>
-            {assignments.length === 0 ? (
+            {ladeFehler ? (
+              <p className="text-sm" style={{ color: "var(--c-amber)" }}>
+                Die Einteilung konnte nicht geladen werden. Bitte später erneut versuchen.
+              </p>
+            ) : assignments.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">Aktuell sind keine Einsätze für dich geplant.</p>
             ) : (
               <div className="space-y-2">
@@ -169,7 +130,7 @@ export default function MHome() {
           </div>
 
           {/* Aktions-Karten (Fasching-Stil): Icon-Kachel + Titel + Beschreibung + Button */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             <ActionCard
               to="/m/zeit"
               icon={Clock}

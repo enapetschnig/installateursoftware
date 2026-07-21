@@ -20,6 +20,29 @@ Status-Farbe schlüsselwortbasiert via `stageTone()` (grün = abgeschlossen/fert
 
 **Prioritäten** (`projects.priority`): Niedrig, Normal, Hoch, Dringend.
 
+### Struktur-Ansicht: Projektart → Stufen (Stand 2026-07-21)
+
+Die Projekte-Seite startet in der Ansicht **Struktur**: jede Projektart ist eine aufklappbare
+Zeile („Badsanierung · 3 Projekte"), darunter die Stufen dieser Art mit Anzahl und Volumen
+(„Besichtigung 1 · Angebot gesendet 2 · Warte auf Angebotsbestätigung 1"). Klick auf eine Stufe
+springt in die gefilterte Liste, Klick auf „Alle …-Projekte" filtert nur nach der Art.
+Über den Umschalter oben rechts bleiben **Liste** und **Board** unverändert erreichbar; die
+zuletzt gewählte Ansicht wird pro Benutzer gemerkt (`localStorage: b4y-projekte-ansicht`) und
+kann per URL überschrieben werden (`?ansicht=struktur|liste|board`).
+
+Dieselbe Struktur steht als Kachel im **Dashboard** („Projekte nach Art & Stufe") – ein Klick
+führt in die gefilterte Projektliste (`/projekte?art=…&status=…&ansicht=liste`).
+
+**Technik:** View `projekt_verteilung` (Migration 0167) aggregiert Anzahl und Volumen je
+`(art, stufe)` in EINEM Request (PostgREST kann kein GROUP BY über `.select()`; ohne View wären
+es 6 Arten × 17 Stufen Zähl-Requests). `security_invoker = true` → RLS der Quelltabellen greift.
+Gemeinsame Bausteine: `src/lib/projekt-struktur.ts` (`buildStruktur` aus geladenen Projekten für
+die Projekte-Seite, `loadStrukturAggregat` für das Dashboard) und der Renderer
+`src/components/project/ProjektStrukturListe.tsx` (`mode="voll" | "kompakt"`, Export
+`ProjektStrukturKachel`). Stufen erscheinen in der ECHTEN Reihenfolge der Projektart
+(`cfg.statusLabelsFor`), real vorkommende aber nicht konfigurierte Stufen hängen hinten an –
+nichts wird verschluckt.
+
 ## Technik
 
 **Routen & Komponenten**

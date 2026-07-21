@@ -35,3 +35,35 @@
 - Zugriff je Rolle über `role_permissions` (Modul `mitarbeiter_app`) steuern.
 
 Querbezüge: [[zeiterfassung]], [[regieberichte]], [[projekte]], [[rechte-rollen]] (`mitarbeiter_app`), [[mitarbeiter]].
+
+
+## Startseite-Umbau (Stand 2026-07-21)
+
+Auf Anwenderwunsch neu aufgebaut – die häufigste Handlung auf der Baustelle steht jetzt ganz oben:
+
+1. **Begrüßung**
+2. **Foto hinzufügen** (neu, ganz oben): zwei große Knöpfe.
+   - „Foto aufnehmen" → `<input type="file" accept="image/*" capture="environment">` öffnet am
+     Handy direkt die Rückkamera. Am Desktop ignoriert der Browser `capture` und zeigt den
+     Dateidialog – dort funktioniert derselbe Knopf also als normaler Upload.
+   - „Aus Galerie" → Mehrfachauswahl aus Fotos/Videos.
+   - **Projektzuordnung erfolgt NACH der Aufnahme** (erst auslösen, dann zuordnen): fixes Projekt →
+     sonst Projekt des heutigen Einsatzes vorausgewählt → sonst Projektsuche.
+   - Bilder über 1,2 MB werden vor dem Upload auf max. 2560 px verkleinert (ein iPhone-Foto hat
+     sonst 8–12 MB über Mobilfunk). Komponente: `src/components/media/QuickPhotoButton.tsx`,
+     nutzt `uploadProjectMedia()` – kein zweiter Upload-Pfad, Fotos erscheinen sofort in der
+     Projekt-Galerie.
+3. **Meine Einteilung** – echte Plantafel-Einsätze des angemeldeten Mitarbeiters
+   (`planning_events` + `planning_event_employees` über `loadEvents({ employeeId })`), also
+   dieselbe Quelle, in die die Plantafel schreibt. Schlägt das Laden fehl, erscheint jetzt ein
+   Hinweis statt einer leeren Liste (früher nicht unterscheidbar von „nichts geplant").
+4. **Aktions-Karten** (Zeit, Regie, Projekte) – am Desktop dreispaltig.
+
+**Entfernt:** der Block „Diese Woche" mit Ist-/Soll-Stunden und Saldo (Minusstunden). Die
+Zeiterfassung selbst bleibt unter `/m/zeit` vollständig erhalten; die Startseite spart dadurch
+drei Abfragen beim Öffnen.
+
+**Desktop-Scrollen:** `MitarbeiterLayout` nutzt jetzt `h-dvh` + `overflow-hidden` mit einem
+echten Scroll-Container im `<main>` (`overflow-y-auto overscroll-contain`) und am Desktop mehr
+Breite (`lg:max-w-5xl`). Vorher verhinderte `min-h-screen` in Kombination mit `#root{height:100%}`
+zuverlässiges Scrollen am Desktop.

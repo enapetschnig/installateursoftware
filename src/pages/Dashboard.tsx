@@ -7,6 +7,8 @@ import {
   Sparkles, Mic, type LucideIcon,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { loadStrukturAggregat, type StrukturArt } from "../lib/projekt-struktur";
+import { ProjektStrukturKachel } from "../components/project/ProjektStrukturListe";
 import { useAuth } from "../lib/auth";
 import { usePermissions } from "../lib/permissions";
 import Leitstand from "../components/dashboard/Leitstand";
@@ -53,6 +55,7 @@ type DashData = {
   reminders: Reminder[]; appts: Appointment[]; revenue: number[];
   newRequests: NewRequest[]; requestsNew: number;
   eingangOffen: number; eingangFaellig: number;
+  struktur: StrukturArt[];
 };
 
 const EMPTY: DashData = {
@@ -60,7 +63,7 @@ const EMPTY: DashData = {
   offersTotal: 0, offersThisWeek: 0, invoicesOpen: 0, invoicesOverdue: 0,
   tasksOpen: 0, tasksOverdue: 0, topProjects: [], taskList: [], projTitle: {},
   reminders: [], appts: [], revenue: [], newRequests: [], requestsNew: 0,
-  eingangOffen: 0, eingangFaellig: 0,
+  eingangOffen: 0, eingangFaellig: 0, struktur: [],
 };
 
 const REQ_SOURCE_ICON: Record<string, LucideIcon> = {
@@ -175,6 +178,13 @@ export default function Dashboard() {
           appts = materializeOccurrences(rows, todayStart, todayEnd);
         } catch { /* Termine optional – leerer Block bei Fehler */ }
 
+        // Projekt-Struktur (Art → Stufe) – EIN Aggregat-Request auf die View
+        // projekt_verteilung; die Projekte selbst werden nicht erneut geladen.
+        let struktur: StrukturArt[] = [];
+        try {
+          struktur = await loadStrukturAggregat();
+        } catch { /* Struktur optional */ }
+
         // Neue Anfragen (smartes KI-Postfach) – optional, bricht das Dashboard
         // bei Fehler/RLS nicht ab.
         let newRequests: NewRequest[] = [];
@@ -225,6 +235,7 @@ export default function Dashboard() {
           revenue: buildRevenue(inv.map((i) => ({ net: i.net, invoice_date: i.invoice_date }))),
           newRequests,
           requestsNew,
+          struktur,
           eingangOffen,
           eingangFaellig,
         });
@@ -425,6 +436,9 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+
+          {/* Projekte nach Art & Stufe – aufklappbar, Klick führt in die gefilterte Liste */}
+          <ProjektStrukturKachel struktur={data.struktur} />
 
           {/* Umsatz */}
           <div className="glass p-4">
