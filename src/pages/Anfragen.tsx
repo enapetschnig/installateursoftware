@@ -36,8 +36,6 @@ import {
   Search,
   AlertTriangle,
   Mail,
-  List as ListIcon,
-  KanbanSquare,
 } from "lucide-react";
 import {
   Spinner,
@@ -62,6 +60,7 @@ import { useAuth } from "../lib/auth";
 import { useCan } from "../lib/permissions";
 import VorgangsBoard from "../components/crm/VorgangsBoard";
 import NachfassLeiste from "../components/crm/NachfassLeiste";
+import AufgabeDialog from "../components/crm/AufgabeDialog";
 import {
   loadVorgaenge, loadProjektarten, moveVorgang, loadNachfass,
   type Vorgang, type Projektart, type Nachfass,
@@ -536,12 +535,16 @@ export default function Anfragen() {
 
   // ── CRM-Board: alle offenen Vorgänge (Anfragen + Projekte + Angebote) ──
   // Default ist das Board – die Liste bleibt für die Postfach-Arbeit.
-  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+  // Board ist DIE CRM-Ansicht. Die alte Anfragen-Liste bleibt als Notausgang
+  // über ?ansicht=liste erreichbar (Filter/Suche/Massenbearbeitung), taucht
+  // aber bewusst nicht mehr in der Oberfläche auf.
+  const [viewMode] = useState<ViewMode>(() =>
     sp.get("ansicht") === "liste" ? "liste" : "board");
   const [vorgaenge, setVorgaenge] = useState<Vorgang[]>([]);
   const [projektarten, setProjektarten] = useState<Projektart[]>([]);
   const [artFilter, setArtFilter] = useState(sp.get("art") ?? "");
   const [nachfass, setNachfass] = useState<Nachfass[]>([]);
+  const [aufgabeFuer, setAufgabeFuer] = useState<Vorgang | null>(null);
   const [boardLoading, setBoardLoading] = useState(false);
   const canEditChancen = can("requests", "edit");
 
@@ -734,22 +737,6 @@ export default function Anfragen() {
         }
       />
 
-      {/* Ansicht: Liste (Postfach-Arbeit) oder Board (Vertriebssicht) */}
-      <div className="mb-3 flex w-fit gap-1 rounded-xl bg-[var(--hover)] p-1">
-        <button
-          className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${viewMode === "liste" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
-          onClick={() => { setViewMode("liste"); setSp((p) => { const n = new URLSearchParams(p); n.set("ansicht", "liste"); return n; }, { replace: true }); }}
-        >
-          <ListIcon size={15} className="mr-1 inline" /> Anfragen-Liste
-        </button>
-        <button
-          className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${viewMode === "board" ? "bg-[var(--card)] shadow-sm" : "text-slate-400"}`}
-          onClick={() => { setViewMode("board"); setSp((p) => { const n = new URLSearchParams(p); n.delete("ansicht"); return n; }, { replace: true }); }}
-        >
-          <KanbanSquare size={15} className="mr-1 inline" /> Board
-        </button>
-      </div>
-
       {viewMode === "board" && (
         <>
           {nachfass.length > 0 && (
@@ -772,6 +759,7 @@ export default function Anfragen() {
                     return n;
                   }, { replace: true });
                 }}
+                onAufgabe={(v) => setAufgabeFuer(v)}
                 onMove={async (v, ziel) => {
                   const res = await moveVorgang(v, ziel);
                   if (!res.ok) { toast(res.grund ?? "Verschieben nicht möglich."); await ladeBoard(); return; }
@@ -970,6 +958,12 @@ export default function Anfragen() {
         </>
       )}
       </>)}
+
+      <AufgabeDialog
+        vorgang={aufgabeFuer}
+        onClose={() => setAufgabeFuer(null)}
+        onSaved={() => void ladeBoard()}
+      />
 
       <ManualModal
         open={modalOpen}

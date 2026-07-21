@@ -235,3 +235,54 @@ export async function markiereNachfassGesendet(id: string): Promise<boolean> {
   }
   return true;
 }
+
+// ── Aufgaben direkt aus dem Board verteilen ──────────────────────────────
+
+export interface Mitarbeiter { id: string; name: string; auth_user_id: string | null }
+
+/** Aktive Mitarbeiter für die Zuweisung (Name aufbereitet). */
+export async function loadMitarbeiter(): Promise<Mitarbeiter[]> {
+  const { data, error } = await supabase
+    .from("employees")
+    .select("id,first_name,last_name,auth_user_id,active")
+    .eq("active", true)
+    .order("last_name");
+  if (error) {
+    console.error("CRM: Mitarbeiter konnten nicht geladen werden:", error);
+    return [];
+  }
+  return ((data as Record<string, unknown>[]) ?? []).map((e) => ({
+    id: e.id as string,
+    name: [e.first_name, e.last_name].filter(Boolean).join(" ") || "Mitarbeiter",
+    auth_user_id: (e.auth_user_id as string) ?? null,
+  }));
+}
+
+/**
+ * Aufgabe aus einem Vorgang heraus anlegen. Landet im normalen Aufgaben-Board
+ * (board="crm") und – bei Kundenbezug – zusätzlich im Kundenverlauf.
+ */
+export async function aufgabeAusVorgang(input: {
+  vorgang: Vorgang;
+  titel: string;
+  faellig: string | null;
+  assigneeAuthId: string | null;
+  beschreibung?: string | null;
+}): Promise<boolean> {
+  const { error } = await supabase.from("tasks").insert({
+    title: input.titel,
+    description: input.beschreibung ?? null,
+    due_date: input.faellig,
+    assignee_id: input.assigneeAuthId,
+    project_id: input.vorgang.project_id,
+    contact_id: input.vorgang.contact_id,
+    done: false,
+    board: "crm",
+    bucket: "vorgang",
+  });
+  if (error) {
+    console.error("CRM: Aufgabe konnte nicht angelegt werden:", error);
+    return false;
+  }
+  return true;
+}

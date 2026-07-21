@@ -16,7 +16,7 @@ import {
   DndContext, PointerSensor, useSensor, useSensors, useDraggable, useDroppable,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { GripVertical, Inbox, FolderKanban, FileText, User, CalendarDays, AlertCircle } from "lucide-react";
+import { GripVertical, Inbox, FolderKanban, FileText, User, CalendarDays, AlertCircle, ListPlus } from "lucide-react";
 import { eur } from "../../lib/format";
 import { Badge } from "../ui";
 import { PHASEN, type Vorgang, type Projektart } from "../../lib/crm-board";
@@ -29,7 +29,7 @@ const TONE: Record<string, "slate" | "blue" | "green" | "amber" | "red"> = {
 
 interface Spalte { key: string; label: string; color: string; phase: string; stufe?: string }
 
-function Karte({ v, ziehbar }: { v: Vorgang; ziehbar: boolean }) {
+function Karte({ v, ziehbar, onAufgabe }: { v: Vorgang; ziehbar: boolean; onAufgabe?: (v: Vorgang) => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${v.quelle}:${v.vorgang_id}`,
     disabled: !ziehbar,
@@ -73,12 +73,22 @@ function Karte({ v, ziehbar }: { v: Vorgang; ziehbar: boolean }) {
             )}
           </div>
         </div>
+        {onAufgabe && (
+          <button
+            className="shrink-0 rounded p-1 text-slate-300 transition hover:text-[var(--accent)]"
+            title="Aufgabe zuweisen"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAufgabe(v); }}
+          >
+            <ListPlus size={14} />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function SpalteView({ spalte, vorgaenge, ziehbar }: { spalte: Spalte; vorgaenge: Vorgang[]; ziehbar: boolean }) {
+function SpalteView({ spalte, vorgaenge, ziehbar, onAufgabe }: { spalte: Spalte; vorgaenge: Vorgang[]; ziehbar: boolean; onAufgabe?: (v: Vorgang) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: spalte.key });
   const summe = vorgaenge.reduce((s, v) => s + (v.wert_netto ?? 0), 0);
   return (
@@ -97,7 +107,7 @@ function SpalteView({ spalte, vorgaenge, ziehbar }: { spalte: Spalte; vorgaenge:
           <div className="px-1 py-6 text-center text-xs text-slate-300">leer</div>
         ) : (
           vorgaenge.map((v) => (
-            <Karte key={`${v.quelle}-${v.vorgang_id}`} v={v} ziehbar={ziehbar && v.quelle !== "angebot"} />
+            <Karte key={`${v.quelle}-${v.vorgang_id}`} v={v} ziehbar={ziehbar && v.quelle !== "angebot"} onAufgabe={onAufgabe} />
           ))
         )}
       </div>
@@ -106,7 +116,7 @@ function SpalteView({ spalte, vorgaenge, ziehbar }: { spalte: Spalte; vorgaenge:
 }
 
 export default function VorgangsBoard({
-  vorgaenge, projektarten, artFilter, canEdit, onArtFilter, onMove,
+  vorgaenge, projektarten, artFilter, canEdit, onArtFilter, onMove, onAufgabe,
 }: {
   vorgaenge: Vorgang[];
   projektarten: Projektart[];
@@ -114,6 +124,7 @@ export default function VorgangsBoard({
   canEdit: boolean;
   onArtFilter: (label: string) => void;
   onMove: (v: Vorgang, ziel: { stufe?: string; phase: string }) => Promise<void>;
+  onAufgabe?: (v: Vorgang) => void;
 }) {
   const [lokal, setLokal] = useState<Vorgang[] | null>(null);
   const liste = lokal ?? vorgaenge;
@@ -188,7 +199,7 @@ export default function VorgangsBoard({
       <DndContext sensors={sensors} onDragEnd={(e) => void onDragEnd(e)}>
         <div className="flex gap-3 overflow-x-auto pb-2">
           {spalten.map((s) => (
-            <SpalteView key={s.key} spalte={s} vorgaenge={jeSpalte.get(s.key) ?? []} ziehbar={canEdit} />
+            <SpalteView key={s.key} spalte={s} vorgaenge={jeSpalte.get(s.key) ?? []} ziehbar={canEdit} onAufgabe={onAufgabe} />
           ))}
         </div>
       </DndContext>
